@@ -190,7 +190,7 @@ export const config = {
     // Value passed as --print-timeout=<value> (agy expects e.g. `600s`).
     printTimeout: getEnvVar("AGY_PRINT_TIMEOUT", false) || "600s",
     // Default model id when no model is selected via the /model menu.
-    defaultModel: getEnvVar("AGY_DEFAULT_MODEL", false) || "gemini-3.8-flash-high",
+    defaultModel: getEnvVar("AGY_DEFAULT_MODEL", false) || "gemini-3.8-flash-medium",
   },
   server: {
     logLevel: getEnvVar("LOG_LEVEL", false) || "info",

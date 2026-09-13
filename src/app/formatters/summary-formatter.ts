@@ -69,6 +69,57 @@ function getToolDetails(tool: string, input?: { [key: string]: unknown }): strin
     case "glob":
       if (typeof input.pattern === "string") return input.pattern;
       break;
+    // Antigravity CLI tool names and their parameter keys:
+    case "view_file":
+      if (typeof input.TargetFile === "string") return normalizePathForDisplay(input.TargetFile);
+      break;
+    case "write_to_file":
+      if (typeof input.TargetFile === "string") {
+        const lines = typeof input.Content === "string" ? ` (+${countLines(input.Content)})` : "";
+        return `${normalizePathForDisplay(input.TargetFile)}${lines}`;
+      }
+      break;
+    case "replace_file_content":
+      if (typeof input.TargetFile === "string") return normalizePathForDisplay(input.TargetFile);
+      break;
+    case "multi_replace_file_content":
+      if (typeof input.TargetFile === "string") return normalizePathForDisplay(input.TargetFile);
+      break;
+    case "run_command":
+      if (typeof input.CommandLine === "string") return input.CommandLine;
+      break;
+    case "command_status":
+      if (typeof input.CommandId === "string") return input.CommandId;
+      break;
+    case "send_command_input":
+      if (typeof input.stdin === "string") return input.stdin;
+      break;
+    case "list_dir":
+      if (typeof input.Path === "string" || typeof input.target_directory === "string") {
+        const dir = (input.Path ?? input.target_directory) as string;
+        return normalizePathForDisplay(dir);
+      }
+      break;
+    case "find_by_name":
+    case "sed_file":
+      if (typeof input.Path === "string") return normalizePathForDisplay(input.Path);
+      break;
+    case "search_web":
+      if (typeof input.Query === "string") return input.Query;
+      if (typeof input.query === "string") return input.query;
+      break;
+    case "read_url_content":
+    case "open_browser_url":
+      if (typeof input.Url === "string") return input.Url;
+      if (typeof input.url === "string") return input.url;
+      break;
+    case "generate_image":
+      if (typeof input.Prompt === "string") return input.Prompt;
+      if (typeof input.prompt === "string") return input.prompt;
+      break;
+    case "ask_question":
+      if (typeof input.question === "string") return input.question;
+      break;
   }
 
   // Generic search for MCP and other tools
@@ -239,7 +290,8 @@ export function formatToolInfo(toolInfo: ToolInfo): string | null {
     }
   }
 
-  const detailsStr = details ? ` ${details}` : "";
+  const normalizedDetails = details === tool ? "" : details;
+  const detailsStr = normalizedDetails ? ` ${normalizedDetails}` : "";
   let lineInfo = "";
 
   if (tool === "write" && input && "content" in input && typeof input.content === "string") {

@@ -1,4 +1,5 @@
 export const en = {
+  "cmd.description.usage": "Show remaining Google account quota (costs nothing).",
   "cmd.description.status": "Server and session status",
   "cmd.description.new": "Create a new session",
   "cmd.description.stop": "Stop current action",
@@ -139,6 +140,7 @@ export const en = {
   "status.session_not_selected": "Current session: not selected",
   "status.session_hint": "Use /sessions to select one or /new to create one",
   "status.header_unavailable": "🔴 Antigravity Server is unavailable",
+  "usage.error": "⚠️ Could not read the Antigravity quota (CLI failed).",
   "status.unavailable_hint": "Check that the Antigravity CLI (agy) is installed and authenticated.",
 
   "tts.off": "🔇 Audio replies disabled.",

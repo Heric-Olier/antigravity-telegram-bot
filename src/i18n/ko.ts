@@ -8,6 +8,7 @@ import type { I18nDictionary } from "./en.js";
  * Keep this dictionary complete to avoid falling back to another locale.
  */
 export const ko: I18nDictionary = {
+  "cmd.description.usage": "Show remaining Google account quota (no cost).",
   "cmd.description.status": "서버 및 세션 상태",
   "cmd.description.new": "새 세션 만들기",
   "cmd.description.stop": "현재 작업 중지",
@@ -148,6 +149,7 @@ export const ko: I18nDictionary = {
   "status.session_not_selected": "현재 세션: 선택 안 됨",
   "status.session_hint": "/sessions에서 선택하거나 /new로 새로 만들어 주세요",
   "status.header_unavailable": "🔴 Antigravity 서버에 연결할 수 없습니다",
+  "usage.error": "⚠️ Could not read the Antigravity quota (CLI failed).",
   "status.unavailable_hint": "/opencode_start로 서버를 시작해 주세요.",
 
   "tts.off": "🔇 음성 답변이 비활성화되었습니다.",

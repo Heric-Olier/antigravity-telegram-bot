@@ -1,6 +1,7 @@
 import type { I18nDictionary } from "./en.js";
 
 export const zh: I18nDictionary = {
+  "cmd.description.usage": "Show remaining Google account quota (no cost).",
   "cmd.description.status": "服务器和会话状态",
   "cmd.description.new": "创建新会话",
   "cmd.description.stop": "停止当前操作",
@@ -129,6 +130,7 @@ export const zh: I18nDictionary = {
   "status.session_not_selected": "当前会话：未选择",
   "status.session_hint": "使用 /sessions 选择一个会话，或 /new 创建",
   "status.header_unavailable": "🔴 Antigravity 服务器不可用",
+  "usage.error": "⚠️ Could not read the Antigravity quota (CLI failed).",
   "status.unavailable_hint": "使用 /opencode_start 启动服务器。",
 
   "tts.off": "🔇 语音回复已关闭。",

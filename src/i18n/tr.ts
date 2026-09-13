@@ -1,6 +1,7 @@
 import type { I18nDictionary } from "./en.js";
 
 export const tr: I18nDictionary = {
+  "cmd.description.usage": "Show remaining Google account quota (no cost).",
   "cmd.description.status": "Sunucu ve oturum durumu",
   "cmd.description.new": "Yeni oturum oluştur",
   "cmd.description.stop": "Geçerli işlemi durdur",
@@ -142,6 +143,7 @@ export const tr: I18nDictionary = {
   "status.session_not_selected": "Geçerli oturum: seçilmedi",
   "status.session_hint": "Seçmek için /sessions veya oluşturmak için /new kullanın",
   "status.header_unavailable": "🔴 Antigravity Sunucusu kullanılamıyor",
+  "usage.error": "⚠️ Could not read the Antigravity quota (CLI failed).",
   "status.unavailable_hint": "Sunucuyu başlatmak için /opencode_start kullanın.",
 
   "tts.off": "🔇 Sesli yanıtlar kapatıldı.",

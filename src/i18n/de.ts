@@ -1,6 +1,7 @@
 import type { I18nDictionary } from "./en.js";
 
 export const de: I18nDictionary = {
+  "cmd.description.usage": "Show remaining Google account quota (no cost).",
   "cmd.description.status": "Server- und Sitzungsstatus",
   "cmd.description.new": "Neue Sitzung erstellen",
   "cmd.description.stop": "Aktuelle Aktion stoppen",
@@ -147,6 +148,7 @@ export const de: I18nDictionary = {
   "status.session_not_selected": "Aktuelle Sitzung: nicht ausgewählt",
   "status.session_hint": "Nutze /sessions zur Auswahl oder /new zum Erstellen",
   "status.header_unavailable": "🔴 Antigravity-Server ist nicht verfügbar",
+  "usage.error": "⚠️ Could not read the Antigravity quota (CLI failed).",
   "status.unavailable_hint": "Nutze /opencode_start, um den Server zu starten.",
 
   "tts.off": "🔇 Audioantworten deaktiviert.",

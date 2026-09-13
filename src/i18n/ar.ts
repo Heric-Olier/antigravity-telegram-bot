@@ -8,6 +8,7 @@ import type { I18nDictionary } from "./en.js";
  * Keep this dictionary complete to avoid falling back to another locale.
  */
 export const ar: I18nDictionary = {
+  "cmd.description.usage": "Show remaining Google account quota (no cost).",
   "cmd.description.status": "عرض حالة الخادم والجلسة",
   "cmd.description.new": "بدء جلسة جديدة",
   "cmd.description.stop": "إيقاف المهمة الحالية",
@@ -141,6 +142,7 @@ export const ar: I18nDictionary = {
   "status.session_not_selected": "الجلسة الحالية: غير محددة",
   "status.session_hint": "استخدم /sessions لاختيار جلسة أو /new لبدء جلسة جديدة",
   "status.header_unavailable": "🔴 خادم Antigravity غير متاح",
+  "usage.error": "⚠️ Could not read the Antigravity quota (CLI failed).",
   "status.unavailable_hint": "استخدم /opencode_start لتشغيل الخادم.",
 
   "tts.off": "🔇 تم تعطيل الردود الصوتية.",

@@ -168,6 +168,9 @@ function handleStep(event: AgyStepEvent): void {
 }
 
 function handleResult(event: AgyResultEvent): void {
+  logger.info(
+    `[AgyEvents] result: status=${event.status} turns=${event.numTurns ?? "?"} respLen=${(event.response ?? "").length}`,
+  );
   const finalText = typeof event.response === "string" ? event.response : "";
   const messageId = shortId("msg", 0);
   const now = Date.now();

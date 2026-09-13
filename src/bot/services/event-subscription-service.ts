@@ -250,7 +250,9 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         }
 
         try {
-          await this.botInstance.api.editMessageText(this.chatIdInstance, messageId, text);
+          await this.botInstance.api.editMessageText(this.chatIdInstance, messageId, text, {
+            parse_mode: "HTML",
+          });
         } catch (error) {
           const errorMessage =
             error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();

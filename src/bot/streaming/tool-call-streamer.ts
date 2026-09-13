@@ -101,16 +101,34 @@ function splitLongText(text: string, limit: number): string[] {
   return chunks;
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+/**
+ * Tool activity renders as an HTML expandable blockquote ("💭 Pensando..."
+ * style in Telegram): collapsed by default, one line summary on top, tap to
+ * expand the individual tool lines. Plaintext fallback clients just see the
+ * summary + list.
+ */
 function buildParts(entries: StreamEntry[]): string[] {
-  const text = entries
+  const lines = entries
     .map((entry) => entry.text.trim())
-    .filter(Boolean)
-    .join("\n\n");
-  if (!text) {
+    .filter(Boolean);
+
+  if (lines.length === 0) {
     return [];
   }
 
-  return splitLongText(text, TELEGRAM_MESSAGE_SAFE_LENGTH).filter(Boolean);
+  const escaped = escapeHtml(lines.join("\n"));
+  const body = `<blockquote expandable>${escaped}</blockquote>`;
+  const header = `🛠️ ${lines.length} llamada${lines.length === 1 ? "" : "s"} a herramientas`;
+  const full = `${header}\n${body}`;
+
+  return splitLongText(full, TELEGRAM_MESSAGE_SAFE_LENGTH).filter(Boolean);
 }
 
 export class ToolCallStreamer {

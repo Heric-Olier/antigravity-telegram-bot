@@ -31,6 +31,7 @@ describe("bot/routers/command-router", () => {
       "start",
       "help",
       "status",
+      "usage",
       "settings",
       "projects",
       "worktree",

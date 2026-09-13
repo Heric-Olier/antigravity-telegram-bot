@@ -2,6 +2,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ToolCallStreamer } from "../../../src/bot/streaming/tool-call-streamer.js";
 import { defined } from "../../helpers/defined.js";
 
+
+function wrapped(text: string, count = 1): string {
+  const esc = (s: string) =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return `🛠️ ${count} llamada${count === 1 ? "" : "s"} a herramientas\n<blockquote expandable>${esc(text)}</blockquote>`;
+}
+
 describe("bot/streaming/tool-call-streamer", () => {
   afterEach(() => {
     vi.useRealTimers();
@@ -27,7 +34,7 @@ describe("bot/streaming/tool-call-streamer", () => {
     await vi.advanceTimersByTimeAsync(200);
 
     expect(sendText).toHaveBeenCalledTimes(1);
-    expect(sendText).toHaveBeenCalledWith("s1", "first\n\nsecond");
+    expect(sendText).toHaveBeenCalledWith("s1", wrapped(["first", "second"].join("\n"), 2));
     expect(editText).not.toHaveBeenCalled();
     expect(deleteText).not.toHaveBeenCalled();
   });
@@ -55,7 +62,7 @@ describe("bot/streaming/tool-call-streamer", () => {
       expect(editText).toHaveBeenCalledTimes(1);
     });
 
-    expect(editText).toHaveBeenCalledWith("s1", 10, "first\n\nsecond");
+    expect(editText).toHaveBeenCalledWith("s1", 10, wrapped(["first", "second"].join("\n"), 2));
   });
 
   it("keeps todo updates in a separate message stream", async () => {
@@ -86,9 +93,9 @@ describe("bot/streaming/tool-call-streamer", () => {
       expect(editText).toHaveBeenCalledTimes(1);
     });
 
-    expect(sendText).toHaveBeenNthCalledWith(1, "s1", "regular tool");
-    expect(sendText).toHaveBeenNthCalledWith(2, "s1", "todo tool");
-    expect(editText).toHaveBeenCalledWith("s1", 10, "regular tool\n\nregular tool update");
+    expect(sendText).toHaveBeenNthCalledWith(1, "s1", wrapped("regular tool"));
+    expect(sendText).toHaveBeenNthCalledWith(2, "s1", wrapped("todo tool"));
+    expect(editText).toHaveBeenCalledWith("s1", 10, "🛠️ 2 llamadas a herramientas\n<blockquote expandable>regular tool\nregular tool update</blockquote>");
   });
 
   it("keeps each subagent in an independently editable stream", async () => {
@@ -133,10 +140,10 @@ describe("bot/streaming/tool-call-streamer", () => {
       expect(editText).toHaveBeenCalledTimes(1);
     });
 
-    expect(sendText).toHaveBeenNthCalledWith(1, "s1", "regular tool");
-    expect(sendText).toHaveBeenNthCalledWith(2, "s1", "first subagent card");
-    expect(sendText).toHaveBeenNthCalledWith(3, "s1", "second subagent card");
-    expect(editText).toHaveBeenCalledWith("s1", 21, "first subagent card updated");
+    expect(sendText).toHaveBeenNthCalledWith(1, "s1", wrapped("regular tool"));
+    expect(sendText).toHaveBeenNthCalledWith(2, "s1", wrapped("first subagent card"));
+    expect(sendText).toHaveBeenNthCalledWith(3, "s1", wrapped("second subagent card"));
+    expect(editText).toHaveBeenCalledWith("s1", 21, wrapped("first subagent card updated"));
   });
 
   it("paces Telegram operations from independently ready subagent streams", async () => {
@@ -194,7 +201,7 @@ describe("bot/streaming/tool-call-streamer", () => {
     streamer.replaceByPrefix("s1", "subagent", "new card", "subagent:card-3");
     await vi.advanceTimersByTimeAsync(200);
     expect(sendText).toHaveBeenCalledTimes(2);
-    expect(sendText).toHaveBeenLastCalledWith("s1", "new card");
+    expect(sendText).toHaveBeenLastCalledWith("s1", wrapped("new card"));
   });
 
   it("creates continuation messages when the stream exceeds Telegram limits", async () => {
@@ -256,7 +263,7 @@ describe("bot/streaming/tool-call-streamer", () => {
       expect(editText).toHaveBeenCalledTimes(2);
     });
 
-    expect(editText).toHaveBeenLastCalledWith("s1", 1, "tool one\n\n🔁 Retry attempt 2");
+    expect(editText).toHaveBeenLastCalledWith("s1", 1, wrapped(["tool one", "🔁 Retry attempt 2"].join("\n"), 2));
   });
 
   it("removes an entry by prefix and keeps the remaining ones", async () => {
@@ -287,7 +294,7 @@ describe("bot/streaming/tool-call-streamer", () => {
       expect(editText).toHaveBeenCalledTimes(2);
     });
 
-    expect(editText).toHaveBeenLastCalledWith("s1", 1, "tool one");
+    expect(editText).toHaveBeenLastCalledWith("s1", 1, wrapped("tool one"));
     expect(deleteText).not.toHaveBeenCalled();
   });
 
@@ -345,7 +352,7 @@ describe("bot/streaming/tool-call-streamer", () => {
 
     expect(editText).not.toHaveBeenCalled();
     expect(deleteText).not.toHaveBeenCalled();
-    expect(sendText).toHaveBeenNthCalledWith(2, "s1", "after file");
+    expect(sendText).toHaveBeenNthCalledWith(2, "s1", wrapped("after file"));
   });
 
   it("starts a new tool stream after an assistant reply boundary break", async () => {
@@ -376,7 +383,7 @@ describe("bot/streaming/tool-call-streamer", () => {
 
     expect(editText).not.toHaveBeenCalled();
     expect(deleteText).not.toHaveBeenCalled();
-    expect(sendText).toHaveBeenNthCalledWith(2, "s1", "after reply");
+    expect(sendText).toHaveBeenNthCalledWith(2, "s1", wrapped("after reply"));
   });
 
   it("flushes all stream keys for the same session", async () => {
@@ -400,8 +407,8 @@ describe("bot/streaming/tool-call-streamer", () => {
     await flushPromise;
 
     expect(sendText).toHaveBeenCalledTimes(2);
-    expect(sendText).toHaveBeenNthCalledWith(1, "s1", "regular tool");
-    expect(sendText).toHaveBeenNthCalledWith(2, "s1", "todo tool");
+    expect(sendText).toHaveBeenNthCalledWith(1, "s1", wrapped("regular tool"));
+    expect(sendText).toHaveBeenNthCalledWith(2, "s1", wrapped("todo tool"));
   });
 
   it("cancels throttled tool sends when clearing all streams", async () => {
@@ -498,7 +505,7 @@ describe("bot/streaming/tool-call-streamer", () => {
       expect(sendText).toHaveBeenCalledTimes(2);
     });
 
-    expect(sendText).toHaveBeenNthCalledWith(2, "s1", "after break");
+    expect(sendText).toHaveBeenNthCalledWith(2, "s1", wrapped("after break"));
   });
 
   it("reads throttleMs again for the next flush cycle", async () => {
@@ -527,6 +534,6 @@ describe("bot/streaming/tool-call-streamer", () => {
 
     await vi.advanceTimersByTimeAsync(1);
     expect(editText).toHaveBeenCalledTimes(1);
-    expect(editText).toHaveBeenCalledWith("s1", 1, "first\n\nsecond");
+    expect(editText).toHaveBeenCalledWith("s1", 1, wrapped(["first", "second"].join("\n"), 2));
   });
 });
