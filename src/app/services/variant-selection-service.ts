@@ -1,74 +1,27 @@
 /**
- * Variant Manager - manages model variants (reasoning modes)
+ * Variant Manager - manages model variants (reasoning modes).
+ *
+ * In agy there is no variant layer on top of a model id: e.g. "high"/"medium"/
+ * "low" are part of the model id itself (gemini-3.8-flash-high, etc.). Keep the
+ * "default" placeholder so the button/rendering call sites continue to work.
  */
-import { opencodeClient } from "../../opencode/client.js";
 import { getCurrentModel, setCurrentModel } from "../stores/settings-store.js";
 import { getStoredModel } from "./model-selection-service.js";
 import { logger } from "../../utils/logger.js";
 import type { VariantInfo } from "../types/variant.js";
 
 /**
- * Get available variants for a model from OpenCode API
- * @param providerID Provider ID
- * @param modelID Model ID
- * @returns Array of available variants
+ * agy models carry their reasoning level in the id; only "default" exists.
  */
 export async function getAvailableVariants(
-  providerID: string,
-  modelID: string,
+  _providerID: string,
+  _modelID: string,
 ): Promise<VariantInfo[]> {
-  try {
-    const { data, error } = await opencodeClient.config.providers();
-
-    if (error || !data) {
-      logger.warn("[VariantManager] Failed to fetch providers:", error);
-      return [{ id: "default" }];
-    }
-
-    const provider = data.providers.find((p) => p.id === providerID);
-    if (!provider) {
-      logger.warn(`[VariantManager] Provider ${providerID} not found`);
-      return [{ id: "default" }];
-    }
-
-    const model = provider.models[modelID];
-    if (!model) {
-      logger.warn(`[VariantManager] Model ${modelID} not found in provider ${providerID}`);
-      return [{ id: "default" }];
-    }
-
-    // Start with default variant (always present)
-    const variants: VariantInfo[] = [{ id: "default" }];
-
-    if (model.variants) {
-      // Add other variants from API (excluding default if it's already there)
-      const apiVariants = Object.entries(model.variants)
-        .filter(([id]) => id !== "default")
-        .map(([id, info]) => ({
-          id,
-          disabled: (info as { disabled?: boolean }).disabled,
-        }));
-
-      variants.push(...apiVariants);
-      logger.debug(
-        `[VariantManager] Found ${variants.length} variants for ${providerID}/${modelID} (including default)`,
-      );
-    } else {
-      logger.debug(
-        `[VariantManager] No variants found for ${providerID}/${modelID}, using default only`,
-      );
-    }
-
-    return variants;
-  } catch (err) {
-    logger.error("[VariantManager] Error fetching variants:", err);
-    return [{ id: "default" }];
-  }
+  return [{ id: "default" }];
 }
 
 /**
- * Get current variant from settings
- * @returns Current variant ID (defaults to "default")
+ * Get current variant from settings.
  */
 export function getCurrentVariant(): string {
   const currentModel = getCurrentModel();
@@ -76,8 +29,7 @@ export function getCurrentVariant(): string {
 }
 
 /**
- * Set current variant in settings
- * @param variantId Variant ID to set
+ * Set current variant in settings.
  */
 export function setCurrentVariant(variantId: string): void {
   const currentModel = getStoredModel();
@@ -95,9 +47,7 @@ export function setCurrentVariant(variantId: string): void {
 }
 
 /**
- * Format variant for button display
- * @param variantId Variant ID (e.g., "default", "low", "high")
- * @returns Formatted string "💭 Default", "💭 Low", etc.
+ * Format variant for button display.
  */
 export function formatVariantForButton(variantId: string): string {
   const capitalized = variantId.charAt(0).toUpperCase() + variantId.slice(1);
@@ -105,20 +55,14 @@ export function formatVariantForButton(variantId: string): string {
 }
 
 /**
- * Format variant for display in messages
- * @param variantId Variant ID
- * @returns Formatted string with capitalized first letter
+ * Format variant for display in messages.
  */
 export function formatVariantForDisplay(variantId: string): string {
   return variantId.charAt(0).toUpperCase() + variantId.slice(1);
 }
 
 /**
- * Validate if a model supports a specific variant
- * @param providerID Provider ID
- * @param modelID Model ID
- * @param variantId Variant ID to validate
- * @returns true if variant is supported, false otherwise
+ *Validate if a model supports a specific variant.
  */
 export async function validateVariantForModel(
   providerID: string,

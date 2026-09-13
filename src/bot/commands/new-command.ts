@@ -1,9 +1,7 @@
 import type { Bot } from "grammy";
 import { CommandContext, Context } from "grammy";
-import { opencodeClient } from "../../opencode/client.js";
-import { setCurrentSession } from "../../app/services/session-service.js";
+import { setCurrentSession, clearSession } from "../../app/services/session-service.js";
 import type { SessionInfo } from "../../app/types/session.js";
-import { ingestSessionInfoForCache } from "../../app/services/session-cache-service.js";
 import { getCurrentProject } from "../../app/stores/settings-store.js";
 import { clearAllInteractionState } from "../../app/managers/interaction-manager.js";
 import { keyboardManager } from "../keyboards/keyboard-manager.js";
@@ -16,12 +14,18 @@ import { replyBusyBlocked } from "../messages/busy-blocked-renderer.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
 import { attachToSession } from "../../app/services/attach-service.js";
+import { stopEventListening } from "../../antigravity/events.js";
 
 export interface NewCommandDeps {
   bot: Bot<Context>;
   ensureEventSubscription: (directory: string) => Promise<void>;
 }
 
+/**
+ * /new — start a fresh agy conversation.
+ * The conversation id is cleared so the next prompt spawns agy without
+ * `--conversation`, and agy creates a brand-new conversation .db.
+ */
 export async function newCommand(ctx: CommandContext<Context>, deps: NewCommandDeps) {
   try {
     if (isForegroundBusy()) {
@@ -36,28 +40,19 @@ export async function newCommand(ctx: CommandContext<Context>, deps: NewCommandD
       return;
     }
 
-    logger.debug("[Bot] Creating new session for directory:", currentProject.worktree);
+    logger.debug("[Bot] Clearing active conversation for /new:", currentProject.worktree);
 
-    const { data: session, error } = await opencodeClient.session.create({
-      directory: currentProject.worktree,
-    });
-
-    if (error || !session) {
-      throw error || new Error("No data received from server");
-    }
-
-    logger.info(
-      `[Bot] Created new session via /new command: id=${session.id}, title="${session.title}", project=${currentProject.worktree}`,
-    );
+    // Drop the running agy process and forget the active conversation id.
+    stopEventListening();
+    clearSession();
 
     const sessionInfo: SessionInfo = {
-      id: session.id,
-      title: session.title,
+      id: `new-${Date.now()}`,
+      title: "New conversation",
       directory: currentProject.worktree,
     };
     setCurrentSession(sessionInfo);
     clearAllInteractionState("session_created");
-    await ingestSessionInfoForCache(session);
 
     await attachToSession({
       bot: deps.bot,
@@ -79,7 +74,7 @@ export async function newCommand(ctx: CommandContext<Context>, deps: NewCommandD
       variantName,
     );
 
-    await ctx.reply(t("new.created", { title: session.title }), {
+    await ctx.reply(t("new.created", { title: sessionInfo.title }), {
       reply_markup: keyboard,
     });
   } catch (error) {

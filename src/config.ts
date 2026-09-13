@@ -1,9 +1,8 @@
-import dotenv from "dotenv";
-import { getRuntimePaths } from "./runtime/paths.js";
-import { normalizeLocale, type Locale } from "./i18n/index.js";
+/**
+ * Runtime configuration for the Antigravity CLI bot.
+ */
 
-const runtimePaths = getRuntimePaths();
-dotenv.config({ path: runtimePaths.envFilePath, quiet: true });
+import { normalizeLocale, type Locale } from "./i18n/index.js";
 
 export type MessageFormatMode = "raw" | "markdown";
 export type TtsProvider = "openai" | "google" | "elevenlabs" | "edge";
@@ -12,9 +11,7 @@ export type SttRequestFormat = "multipart" | "json";
 function getEnvVar(key: string, required: boolean = true): string {
   const value = process.env[key];
   if (required && !value) {
-    throw new Error(
-      `Missing required environment variable: ${key} (expected in ${runtimePaths.envFilePath})`,
-    );
+    throw new Error(`Missing required environment variable: ${key}`);
   }
   return value || "";
 }
@@ -32,32 +29,25 @@ function getOptionalPathListEnvVar(key: string, delimiter: string = ","): string
 
 function getOptionalPositiveIntEnvVar(key: string, defaultValue: number): number {
   const value = getEnvVar(key, false);
-
   if (!value) {
     return defaultValue;
   }
-
   const parsedValue = Number.parseInt(value, 10);
   if (Number.isNaN(parsedValue) || parsedValue <= 0) {
     return defaultValue;
   }
-
   return parsedValue;
 }
 
-// Like getOptionalPositiveIntEnvVar, but also accepts 0 (used to disable a feature).
 function getOptionalNonNegativeIntEnvVar(key: string, defaultValue: number): number {
   const value = getEnvVar(key, false);
-
   if (!value) {
     return defaultValue;
   }
-
   const parsedValue = Number.parseInt(value, 10);
   if (Number.isNaN(parsedValue) || parsedValue < 0) {
     return defaultValue;
   }
-
   return parsedValue;
 }
 
@@ -68,21 +58,16 @@ function getOptionalLocaleEnvVar(key: string, defaultValue: Locale): Locale {
 
 function getOptionalBooleanEnvVar(key: string, defaultValue: boolean): boolean {
   const value = getEnvVar(key, false);
-
   if (!value) {
     return defaultValue;
   }
-
   const normalized = value.trim().toLowerCase();
-
   if (["1", "true", "yes", "on"].includes(normalized)) {
     return true;
   }
-
   if (["0", "false", "no", "off"].includes(normalized)) {
     return false;
   }
-
   return defaultValue;
 }
 
@@ -91,16 +76,13 @@ function getOptionalMessageFormatModeEnvVar(
   defaultValue: MessageFormatMode,
 ): MessageFormatMode {
   const value = getEnvVar(key, false);
-
   if (!value) {
     return defaultValue;
   }
-
   const normalized = value.trim().toLowerCase();
   if (normalized === "raw" || normalized === "markdown") {
     return normalized;
   }
-
   return defaultValue;
 }
 
@@ -129,16 +111,13 @@ const VALID_TTS_PROVIDERS: TtsProvider[] = ["openai", "google", "elevenlabs", "e
 
 function getOptionalTtsProviderEnvVar(key: string, defaultValue: TtsProvider): TtsProvider {
   const value = getEnvVar(key, false);
-
   if (!value) {
     return defaultValue;
   }
-
   const normalized = value.trim().toLowerCase();
   if (VALID_TTS_PROVIDERS.includes(normalized as TtsProvider)) {
     return normalized as TtsProvider;
   }
-
   return defaultValue;
 }
 
@@ -149,16 +128,13 @@ function getOptionalSttRequestFormatEnvVar(
   defaultValue: SttRequestFormat,
 ): SttRequestFormat {
   const value = getEnvVar(key, false);
-
   if (!value) {
     return defaultValue;
   }
-
   const normalized = value.trim().toLowerCase();
   if (VALID_STT_REQUEST_FORMATS.includes(normalized as SttRequestFormat)) {
     return normalized as SttRequestFormat;
   }
-
   return defaultValue;
 }
 
@@ -171,23 +147,19 @@ export function buildTelegramConfig(): {
   forceIpv4: boolean;
 } {
   const proxyUrl = getEnvVar("TELEGRAM_PROXY_URL", false);
-  // grammY rejects an apiRoot ending with `/`, so normalize once at config
-  // load instead of leaking the concern into every consumer.
+  // grammY rejects an apiRoot ending with `/`, so normalize once at config load.
   const apiRoot = getEnvVar("TELEGRAM_API_ROOT", false).replace(/\/+$/, "");
   const proxySecret = getEnvVar("TELEGRAM_PROXY_SECRET", false);
   const forceIpv4 = getOptionalBooleanEnvVar("TELEGRAM_FORCE_IPV4", false);
 
   if (proxyUrl && apiRoot) {
     throw new Error(
-      "TELEGRAM_PROXY_URL and TELEGRAM_API_ROOT are alternative connectivity modes and cannot be used together. " +
-        "TELEGRAM_PROXY_URL tunnels TCP through a SOCKS/HTTP forward proxy; " +
-        "TELEGRAM_API_ROOT routes API calls through an HTTPS reverse proxy. Pick one.",
+      "TELEGRAM_PROXY_URL and TELEGRAM_API_ROOT are alternative connectivity modes and cannot be used together.",
     );
   }
   if (proxySecret && !apiRoot) {
     throw new Error(
-      "TELEGRAM_PROXY_SECRET requires TELEGRAM_API_ROOT to be set. " +
-        "Without a custom API root, the secret header would be sent to api.telegram.org.",
+      "TELEGRAM_PROXY_SECRET requires TELEGRAM_API_ROOT to be set.",
     );
   }
 
@@ -203,27 +175,17 @@ export function buildTelegramConfig(): {
 
 export const config = {
   telegram: buildTelegramConfig(),
-  opencode: {
-    apiUrl: getEnvVar("OPENCODE_API_URL", false) || "http://localhost:4096",
-    username: getEnvVar("OPENCODE_SERVER_USERNAME", false) || "opencode",
-    password: getEnvVar("OPENCODE_SERVER_PASSWORD", false),
-    autoRestartEnabled: getOptionalBooleanEnvVar("OPENCODE_AUTO_RESTART_ENABLED", false),
-    monitorIntervalSec: getOptionalPositiveIntEnvVar("OPENCODE_MONITOR_INTERVAL_SEC", 300),
-    model: {
-      provider: getEnvVar("OPENCODE_MODEL_PROVIDER", true), // Required
-      modelId: getEnvVar("OPENCODE_MODEL_ID", true), // Required
-    },
-  },
   antigravity: {
     // Binary path for the Antigravity CLI (agy). Supports `~` expansion.
     bin: getEnvVar("AGY_BIN", false) || "~/.local/bin/agy",
-    // Base workspace directory: each agy subprocess runs with cwd inside it
-    // (the active project directory). Supports `~` expansion.
+    // Base workspace directory: each agy subprocess runs with cwd inside it.
     workspaceDir: getEnvVar("AGY_WORKSPACE_DIR", false) || "~/Documentos/PROYECTOS",
     // YOLO mode: run agy with --dangerously-skip-permissions.
     yolo: getOptionalBooleanEnvVar("AGY_YOLO", true),
     // Value passed as --print-timeout=<value> (agy expects e.g. `600s`).
     printTimeout: getEnvVar("AGY_PRINT_TIMEOUT", false) || "600s",
+    // Default model id when no model is selected via the /model menu.
+    defaultModel: getEnvVar("AGY_DEFAULT_MODEL", false) || "gemini-3.8-flash-high",
   },
   server: {
     logLevel: getEnvVar("LOG_LEVEL", false) || "info",
@@ -244,11 +206,9 @@ export const config = {
       false,
     ),
     bashToolDisplayMaxLength: getOptionalPositiveIntEnvVar("BASH_TOOL_DISPLAY_MAX_LENGTH", 128),
-    locale: getOptionalLocaleEnvVar("BOT_LOCALE", "en"),
+    locale: getOptionalLocaleEnvVar("BOT_LOCALE", "es"),
     trackBackgroundSessions: getOptionalBooleanEnvVar("TRACK_BACKGROUND_SESSIONS", true),
     messageFormatMode: getOptionalMessageFormatModeEnvVar("MESSAGE_FORMAT_MODE", "markdown"),
-    // Buffer near-limit text for this window so Telegram-split chunks can be merged.
-    // Short messages are processed immediately; 0 disables merging entirely.
     messageMergeWindowMs: getOptionalNonNegativeIntEnvVar("MESSAGE_MERGE_WINDOW_MS", 1500),
     initialSettingsPreset: parseInitialSettingsPreset(),
     excludedProjectPaths: getOptionalPathListEnvVar("PROJECTS_EXCLUDED_PATHS"),
@@ -265,8 +225,6 @@ export const config = {
     model: getEnvVar("STT_MODEL", false) || "whisper-large-v3-turbo",
     language: getEnvVar("STT_LANGUAGE", false),
     notePrompt: getEnvVar("STT_NOTE_PROMPT", false),
-    // "multipart" (default) = standard OpenAI/Groq Whisper form-data upload.
-    // "json" = base64 audio in an `input_audio` JSON body (e.g. OpenRouter).
     requestFormat: getOptionalSttRequestFormatEnvVar("STT_REQUEST_FORMAT", "multipart"),
   },
   docExtractor: {

@@ -1,4 +1,3 @@
-import type { McpStatus } from "@opencode-ai/sdk/v2";
 import { InlineKeyboard } from "grammy";
 import type { McpCatalogServerItem } from "../../app/services/mcp-catalog-service.js";
 import { t } from "../../i18n/index.js";
@@ -11,7 +10,7 @@ export const MCPS_CALLBACK_CANCEL = `${MCPS_CALLBACK_PREFIX}cancel`;
 
 const MAX_INLINE_BUTTON_LABEL_LENGTH = 64;
 
-function getStatusLabel(status: McpStatus): string {
+function getStatusLabel(status: McpCatalogServerItem["status"]): string {
   switch (status.status) {
     case "connected":
       return t("mcps.status.connected");
@@ -28,7 +27,7 @@ function getStatusLabel(status: McpStatus): string {
   }
 }
 
-function getStatusEmoji(status: McpStatus): string {
+function getStatusEmoji(status: McpCatalogServerItem["status"]): string {
   switch (status.status) {
     case "connected":
       return "🟢";

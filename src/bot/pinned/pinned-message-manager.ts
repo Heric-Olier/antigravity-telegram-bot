@@ -1,6 +1,5 @@
 import type { Api } from "grammy";
 import { logger } from "../../utils/logger.js";
-import { opencodeClient } from "../../opencode/client.js";
 import { getGitWorktreeContext } from "../../app/services/worktree-service.js";
 import { getCurrentSession } from "../../app/services/session-service.js";
 import {
@@ -176,84 +175,12 @@ class PinnedMessageManager {
    * Load context token usage from session history
    */
   async loadContextFromHistory(sessionId: string, directory: string): Promise<void> {
-    try {
-      logger.debug(`[PinnedManager] Loading context from history for session: ${sessionId}`);
-
-      const { data: messagesData, error } = await opencodeClient.session.messages({
-        sessionID: sessionId,
-        directory,
-      });
-
-      if (error || !messagesData) {
-        if (isExpectedOpencodeUnavailableError(error)) {
-          logger.warn("[PinnedManager] OpenCode server unavailable; skipping session history load");
-        } else {
-          logger.warn("[PinnedManager] Failed to load session history:", error);
-        }
-        return;
-      }
-
-      // Get the latest measured context size and total cost from session history
-      // Context = input + cache.read (cache.read contains previously cached context)
-      let latestContextSize = 0;
-      let latestContextCreated = Number.NEGATIVE_INFINITY;
-      let totalCost = 0;
-      logger.debug(`[PinnedManager] Processing ${messagesData.length} messages from history`);
-
-      messagesData.forEach(({ info }) => {
-        if (info.role === "assistant") {
-          const assistantInfo = info as {
-            summary?: boolean;
-            tokens?: {
-              input: number;
-              cache?: { read: number };
-            };
-            time?: { created?: number };
-            cost?: number;
-          };
-
-          // Skip summary messages (technical, not real agent responses)
-          if (assistantInfo.summary) {
-            logger.debug(`[PinnedManager] Skipping summary message`);
-            return;
-          }
-
-          const input = assistantInfo.tokens?.input || 0;
-          const cacheRead = assistantInfo.tokens?.cache?.read || 0;
-          const contextSize = input + cacheRead;
-          const cost = assistantInfo.cost || 0;
-
-          logger.debug(
-            `[PinnedManager] Assistant message: input=${input}, cache.read=${cacheRead}, total=${contextSize}, cost=$${cost.toFixed(2)}`,
-          );
-
-          const created = assistantInfo.time?.created ?? 0;
-          if (contextSize > 0 && created >= latestContextCreated) {
-            latestContextSize = contextSize;
-            latestContextCreated = created;
-          }
-
-          // Accumulate total session cost
-          totalCost += cost;
-        }
-      });
-
-      this.state.tokensUsed = latestContextSize;
-      this.state.cost = totalCost;
-      this.state.sessionId = sessionId;
-
-      logger.info(
-        `[PinnedManager] Loaded context from history: ${this.state.tokensUsed} tokens, cost: $${this.state.cost.toFixed(2)}`,
-      );
-
-      await this.updatePinnedMessage();
-    } catch (err) {
-      if (isExpectedOpencodeUnavailableError(err)) {
-        logger.warn("[PinnedManager] OpenCode server unavailable; skipping session history load");
-      } else {
-        logger.error("[PinnedManager] Error loading context from history:", err);
-      }
-    }
+    // agy usage accounting lives in the per-turn result payload handled by the
+    // summary aggregator; the pinned message keeps zero-initialized context
+    // until the first turn completes.
+    void sessionId;
+    void directory;
+    logger.debug("[PinnedManager] agy: no session history API; context stays at 0 until first turn");
   }
 
   /**
@@ -429,200 +356,21 @@ class PinnedMessageManager {
    * Tries session.diff() first, falls back to parsing session.messages() tool parts.
    */
   private async loadDiffsFromApi(sessionId: string): Promise<void> {
-    try {
-      const project = getCurrentProject();
-      if (!project) {
-        logger.debug("[PinnedManager] loadDiffsFromApi: no project");
-        return;
-      }
-
-      logger.debug(`[PinnedManager] loadDiffsFromApi: trying session.diff() for ${sessionId}`);
-
-      // Try session.diff() API first
-      const { data, error } = await opencodeClient.session.diff({
-        sessionID: sessionId,
-        directory: project.worktree,
-      });
-
-      logger.debug(
-        `[PinnedManager] session.diff() result: error=${!!error}, data.length=${data?.length ?? 0}`,
-      );
-
-      if (!error && data && data.length > 0) {
-        this.state.changedFiles = data
-          .filter((d): d is typeof d & { file: string } => !!d.file)
-          .map((d) => ({
-            file: d.file,
-            additions: d.additions,
-            deletions: d.deletions,
-          }));
-        logger.info(
-          `[PinnedManager] Loaded ${this.state.changedFiles.length} file diffs from session.diff()`,
-        );
-        await this.updatePinnedMessage();
-        return;
-      }
-
-      // Fallback: parse tool parts from session messages
-      logger.debug("[PinnedManager] session.diff() empty, trying loadDiffsFromMessages()");
-      await this.loadDiffsFromMessages(sessionId, project.worktree);
-    } catch (err) {
-      if (isExpectedOpencodeUnavailableError(err)) {
-        logger.debug("[PinnedManager] OpenCode server unavailable; skipping diff restore");
-      } else {
-        logger.debug("[PinnedManager] Could not load diffs from API:", err);
-      }
-    }
+    // agy has no session.diff API; file changes come from tool events only.
+    void sessionId;
+    logger.debug("[PinnedManager] agy: no diff API; diffs come from tool events");
   }
 
   /**
    * Fallback: extract file changes from session message tool parts
    */
-  private async loadDiffsFromMessages(sessionId: string, directory: string): Promise<void> {
-    try {
-      logger.debug(`[PinnedManager] loadDiffsFromMessages: fetching messages for ${sessionId}`);
-
-      const { data: messagesData, error } = await opencodeClient.session.messages({
-        sessionID: sessionId,
-        directory,
-      });
-
-      if (error || !messagesData) {
-        if (isExpectedOpencodeUnavailableError(error)) {
-          logger.debug("[PinnedManager] OpenCode server unavailable; skipping diff message restore");
-        } else {
-          logger.debug(`[PinnedManager] loadDiffsFromMessages: error or no data`);
-        }
-        return;
-      }
-
-      logger.debug(`[PinnedManager] loadDiffsFromMessages: ${messagesData.length} messages`);
-
-      const filesMap = new Map<string, FileChange>();
-
-      let toolCount = 0;
-      let fileToolCount = 0;
-
-      for (const { parts } of messagesData) {
-        for (const part of parts) {
-          if (part.type !== "tool") continue;
-          toolCount++;
-
-          const toolPart = part as {
-            tool: string;
-            state: {
-              status: string;
-              input?: { [key: string]: unknown };
-              metadata?: { [key: string]: unknown };
-            };
-          };
-
-          if (toolPart.state.status !== "completed") continue;
-
-          if (
-            toolPart.tool === "edit" ||
-            toolPart.tool === "write" ||
-            toolPart.tool === "apply_patch"
-          ) {
-            fileToolCount++;
-          }
-
-          if (
-            (toolPart.tool === "edit" || toolPart.tool === "apply_patch") &&
-            toolPart.state.metadata &&
-            "filediff" in toolPart.state.metadata
-          ) {
-            const filediff = toolPart.state.metadata.filediff as {
-              file?: string;
-              additions?: number;
-              deletions?: number;
-            };
-            if (filediff.file) {
-              const existing = filesMap.get(filediff.file);
-              if (existing) {
-                existing.additions += filediff.additions || 0;
-                existing.deletions += filediff.deletions || 0;
-              } else {
-                filesMap.set(filediff.file, {
-                  file: filediff.file,
-                  additions: filediff.additions || 0,
-                  deletions: filediff.deletions || 0,
-                });
-              }
-            }
-          } else if (
-            toolPart.tool === "write" &&
-            toolPart.state.input &&
-            "filePath" in toolPart.state.input &&
-            "content" in toolPart.state.input
-          ) {
-            const filePath = toolPart.state.input.filePath as string;
-            const content = toolPart.state.input.content as string;
-            const lines = content.split("\n").length;
-            const existing = filesMap.get(filePath);
-            if (existing) {
-              existing.additions += lines;
-            } else {
-              filesMap.set(filePath, {
-                file: filePath,
-                additions: lines,
-                deletions: 0,
-              });
-            }
-          }
-        }
-      }
-
-      logger.debug(
-        `[PinnedManager] loadDiffsFromMessages: found ${toolCount} tool parts, ${fileToolCount} file tools`,
-      );
-
-      if (filesMap.size > 0) {
-        this.state.changedFiles = Array.from(filesMap.values());
-        logger.info(
-          `[PinnedManager] Loaded ${this.state.changedFiles.length} file diffs from messages`,
-        );
-        await this.updatePinnedMessage();
-      } else {
-        logger.debug("[PinnedManager] loadDiffsFromMessages: no file changes found");
-      }
-    } catch (err) {
-      if (isExpectedOpencodeUnavailableError(err)) {
-        logger.debug("[PinnedManager] OpenCode server unavailable; skipping diff message restore");
-      } else {
-        logger.debug("[PinnedManager] Could not load diffs from messages:", err);
-      }
-    }
-  }
 
   /**
    * Refresh session title from API
    */
   private async refreshSessionTitle(): Promise<void> {
-    const session = getCurrentSession();
-    const project = getCurrentProject();
-
-    if (!session || !project) {
-      return;
-    }
-
-    try {
-      const { data: sessionData } = await opencodeClient.session.get({
-        sessionID: session.id,
-        directory: project.worktree,
-      });
-
-      if (sessionData && sessionData.title !== this.state.sessionTitle) {
-        this.state.sessionTitle = sessionData.title;
-        logger.debug(`[PinnedManager] Session title refreshed: ${sessionData.title}`);
-      }
-    } catch (err) {
-      if (isExpectedOpencodeUnavailableError(err)) {
-        logger.debug("[PinnedManager] OpenCode server unavailable; skipping session title refresh");
-      } else {
-        logger.debug("[PinnedManager] Could not refresh session title:", err);
-      }
-    }
+    // agy titles come from the CLI summary DB; the bot-owned title is honored first.
+    logger.debug("[PinnedManager] agy: session title kept locally");
   }
 
   /**

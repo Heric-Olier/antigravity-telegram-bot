@@ -45,17 +45,19 @@ const mocked = vi.hoisted(() => ({
   ensureEventSubscriptionMock: vi.fn(),
 }));
 
-vi.mock("../../../src/opencode/client.js", () => ({
-  opencodeClient: {
-    session: {
-      list: mocked.sessionListMock,
-      get: mocked.sessionGetMock,
-      messages: mocked.sessionMessagesMock,
-    },
-  },
+vi.mock("../../../src/antigravity/session-store.js", () => ({
+  listConversations: mocked.sessionListMock,
+  getConversation: mocked.sessionGetMock,
+  formatConversationPreview: vi.fn(
+    (conversation: { title: string; preview: string; lastModified: Date }) =>
+      `📂 ${conversation.title}\n🕒 ${new Date(conversation.lastModified).toLocaleString()}`,
+  ),
+  conversationExists: vi.fn(() => false),
+  listConversationFiles: vi.fn(() => []),
 }));
 
 vi.mock("../../../src/app/stores/settings-store.js", () => ({
+  __resetSettingsForTests: vi.fn(),
   getCurrentProject: vi.fn(() => mocked.currentProject),
 }));
 
@@ -272,16 +274,19 @@ describe("bot/commands/sessions", () => {
 
   it("shows next-page button when sessions exceed page size", async () => {
     const sessions = Array.from({ length: 11 }, (_, index) => createSession(index));
-    mocked.sessionListMock.mockResolvedValueOnce({ data: sessions, error: null });
+    mocked.sessionListMock.mockResolvedValueOnce(
+      sessions.map(({ id, title, time }) => ({
+        id,
+        title,
+        preview: "",
+        lastModified: new Date(time.created),
+      })),
+    );
 
     const ctx = createCommandContext();
     await sessionsCommand(ctx as never);
 
-    expect(mocked.sessionListMock).toHaveBeenCalledWith({
-      directory: "/repo",
-      limit: 11,
-      roots: true,
-    });
+    expect(mocked.sessionListMock).toHaveBeenCalledTimes(1);
 
     const keyboardRows = getKeyboardButtons(ctx);
     expect(keyboardRows[0]?.[0]?.callback_data).toBe("session:session-1");
@@ -302,7 +307,14 @@ describe("bot/commands/sessions", () => {
 
   it("handles next-page callback and renders second page with prev button", async () => {
     const pageTwoData = Array.from({ length: 12 }, (_, index) => createSession(index));
-    mocked.sessionListMock.mockResolvedValueOnce({ data: pageTwoData, error: null });
+    mocked.sessionListMock.mockResolvedValueOnce(
+      pageTwoData.map(({ id, title, time }) => ({
+        id,
+        title,
+        preview: "",
+        lastModified: new Date(time.created),
+      })),
+    );
 
     interactionManager.start({
       kind: "inline",
@@ -317,11 +329,7 @@ describe("bot/commands/sessions", () => {
     const handled = await handleSessionSelect(ctx, createDeps());
 
     expect(handled).toBe(true);
-    expect(mocked.sessionListMock).toHaveBeenCalledWith({
-      directory: "/repo",
-      limit: 21,
-      roots: true,
-    });
+    expect(mocked.sessionListMock).toHaveBeenCalledTimes(1);
     expect(ctx.editMessageText).toHaveBeenCalledTimes(1);
 
     const [text, options] = defined((ctx.editMessageText as ReturnType<typeof vi.fn>).mock.calls[0]) as [
@@ -338,7 +346,7 @@ describe("bot/commands/sessions", () => {
   });
 
   it("returns page-empty callback message when requested page has no sessions", async () => {
-    mocked.sessionListMock.mockResolvedValueOnce({ data: [], error: null });
+    mocked.sessionListMock.mockResolvedValueOnce([]);
 
     interactionManager.start({
       kind: "inline",
@@ -360,10 +368,7 @@ describe("bot/commands/sessions", () => {
   });
 
   it("keeps active menu and interaction state when page load fails", async () => {
-    mocked.sessionListMock.mockResolvedValueOnce({
-      data: null,
-      error: new Error("session list failed"),
-    });
+    mocked.sessionListMock.mockRejectedValueOnce(new Error("session list failed"));
 
     interactionManager.start({
       kind: "inline",
@@ -386,10 +391,12 @@ describe("bot/commands/sessions", () => {
     expect(mocked.clearInteractionMock).not.toHaveBeenCalled();
   });
 
-  it("keeps generic selection error flow when session details fetch fails", async () => {
-    mocked.sessionGetMock.mockResolvedValueOnce({
-      data: null,
-      error: new Error("session get failed"),
+  it("sends the selection keyboard after following an existing session", async () => {
+    mocked.sessionGetMock.mockReturnValueOnce({
+      id: "session-1",
+      title: "Session 1",
+      preview: "",
+      lastModified: new Date(1700000000000),
     });
 
     interactionManager.start({
@@ -405,33 +412,6 @@ describe("bot/commands/sessions", () => {
     const handled = await handleSessionSelect(ctx, createDeps());
 
     expect(handled).toBe(true);
-    expect(mocked.clearInteractionMock).toHaveBeenCalledWith("session_select_error");
-    expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({ text: t("sessions.select_error") });
-    expect(ctx.reply).not.toHaveBeenCalled();
-  });
-
-  it("resolves the project agent before sending the keyboard for an existing session", async () => {
-    mocked.sessionGetMock.mockResolvedValueOnce({
-      data: createSession(0),
-      error: null,
-    });
-    mocked.resolveProjectAgentMock.mockResolvedValueOnce("plan");
-
-    interactionManager.start({
-      kind: "inline",
-      expectedInput: "callback",
-      metadata: {
-        menuKind: "session",
-        messageId: 456,
-      },
-    });
-
-    const ctx = createCallbackContext("session:session-1", 456);
-    const handled = await handleSessionSelect(ctx, createDeps());
-
-    expect(handled).toBe(true);
-    expect(mocked.resolveProjectAgentMock).toHaveBeenCalledOnce();
-    expect(mocked.keyboardUpdateAgentMock).toHaveBeenCalledWith("plan");
     expect(mocked.attachToSessionMock).toHaveBeenCalledWith({
       bot: expect.any(Object),
       chatId: 111,
@@ -456,29 +436,13 @@ describe("bot/commands/sessions", () => {
     );
   });
 
-  it("pulls the settings of the selected session before attaching to it", async () => {
-    const session = createSession(0);
-    mocked.sessionGetMock.mockResolvedValueOnce({ data: session, error: null });
-
-    interactionManager.start({
-      kind: "inline",
-      expectedInput: "callback",
-      metadata: {
-        menuKind: "session",
-        messageId: 456,
-      },
+  it("puts the stored model on the keyboard sent with the selection message", async () => {
+    mocked.sessionGetMock.mockReturnValueOnce({
+      id: "session-1",
+      title: "Session 1",
+      preview: "",
+      lastModified: new Date(1700000000000),
     });
-
-    await handleSessionSelect(createCallbackContext("session:session-1", 456), createDeps());
-
-    expect(mocked.applySessionSettingsMock).toHaveBeenCalledWith(session);
-    expect(defined(mocked.applySessionSettingsMock.mock.invocationCallOrder[0])).toBeLessThan(
-      defined(mocked.attachToSessionMock.mock.invocationCallOrder[0]),
-    );
-  });
-
-  it("puts the pulled model on the keyboard sent with the selection message", async () => {
-    mocked.sessionGetMock.mockResolvedValueOnce({ data: createSession(0), error: null });
 
     interactionManager.start({
       kind: "inline",
@@ -501,17 +465,25 @@ describe("bot/commands/sessions", () => {
     );
   });
 
-  it("pulls the settings when a background session notification is opened", async () => {
-    const session = createSession(0);
-    mocked.sessionGetMock.mockResolvedValueOnce({ data: session, error: null });
+  it("opens a background session notification for question payloads without preview task", async () => {
+    mocked.sessionGetMock.mockReturnValueOnce({
+      id: "session-1",
+      title: "Session 1",
+      preview: "",
+      lastModified: new Date(1700000000000),
+    });
 
     const handled = await handleBackgroundSessionOpen(
-      createCallbackContext("background-session:session-1", 456),
+      createCallbackContext("background-session:q:session-1", 456),
       createDeps(),
     );
 
     expect(handled).toBe(true);
-    expect(mocked.applySessionSettingsMock).toHaveBeenCalledWith(session);
+    expect(mocked.setCurrentSessionMock).toHaveBeenCalledWith({
+      id: "session-1",
+      title: "Session 1",
+      directory: "/repo",
+    });
   });
 
   it("blocks session selection callback while foreground session is busy", async () => {
@@ -547,19 +519,18 @@ describe("bot/commands/sessions", () => {
   });
 
   it("selects a background session without an active sessions menu", async () => {
-    mocked.sessionGetMock.mockResolvedValueOnce({
-      data: createSession(0),
-      error: null,
+    mocked.sessionGetMock.mockReturnValueOnce({
+      id: "session-1",
+      title: "Session 1",
+      preview: "",
+      lastModified: new Date(1700000000000),
     });
 
     const ctx = createCallbackContext("background-session:session-1", 456);
     const handled = await handleBackgroundSessionOpen(ctx, createDeps());
 
     expect(handled).toBe(true);
-    expect(mocked.sessionGetMock).toHaveBeenCalledWith({
-      sessionID: "session-1",
-      directory: "/repo",
-    });
+    expect(mocked.sessionGetMock).toHaveBeenCalledWith("session-1");
     expect(mocked.setCurrentSessionMock).toHaveBeenCalledWith({
       id: "session-1",
       title: "Session 1",
@@ -587,73 +558,31 @@ describe("bot/commands/sessions", () => {
     expect(safeBackgroundTaskMock).not.toHaveBeenCalled();
   });
 
-  it("sends the full latest assistant response after opening an assistant background notification", async () => {
-    mocked.sessionGetMock.mockResolvedValueOnce({
-      data: createSession(0),
-      error: null,
-    });
-    const latestResponse = `Final assistant response. ${"More details. ".repeat(380)}`.trimEnd();
-    mocked.sessionMessagesMock.mockResolvedValueOnce({
-      data: [
-        createSessionMessage("assistant", "Old assistant response", 100),
-        createSessionMessage("user", "User prompt should not be forwarded", 200),
-        createSessionMessage("assistant", "Summary should be ignored", 300, true),
-        createSessionMessage("assistant", latestResponse, 400),
-      ],
-      error: null,
+  it("marks the assistant-response background notification as handled", async () => {
+    mocked.sessionGetMock.mockReturnValueOnce({
+      id: "session-1",
+      title: "Session 1",
+      preview: "",
+      lastModified: new Date(1700000000000),
     });
 
     const ctx = createCallbackContext("background-session:a:session-1", 456);
     const handled = await handleBackgroundSessionOpen(ctx, createDeps());
 
     expect(handled).toBe(true);
-    expect(safeBackgroundTaskMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        taskName: "sessions.sendLatestAssistantResponse",
-      }),
-    );
-
-    const taskOptions = safeBackgroundTaskMock.mock.calls[0]?.[0];
-    if (!taskOptions) {
-      throw new Error("Expected latest assistant response background task");
-    }
-
-    const sendMessageMock = ctx.api.sendMessage as ReturnType<typeof vi.fn>;
-    const previousSendCount = sendMessageMock.mock.calls.length;
-    await taskOptions.task();
-
-    expect(mocked.sessionMessagesMock).toHaveBeenCalledWith({
-      sessionID: "session-1",
+    expect(mocked.setCurrentSessionMock).toHaveBeenCalledWith({
+      id: "session-1",
+      title: "Session 1",
       directory: "/repo",
-      limit: 20,
     });
-
-    const assistantResponseCalls = sendMessageMock.mock.calls.slice(previousSendCount);
-    expect(assistantResponseCalls.length).toBeGreaterThan(1);
-    expect(assistantResponseCalls.map((call) => call[1]).join("")).toBe(latestResponse);
-    expect(assistantResponseCalls.map((call) => call[1]).join("")).not.toContain(
-      "User prompt should not be forwarded",
-    );
-  });
-
-  it("does not send preview or latest assistant response for background question notifications", async () => {
-    mocked.sessionGetMock.mockResolvedValueOnce({
-      data: createSession(0),
-      error: null,
-    });
-
-    const ctx = createCallbackContext("background-session:q:session-1", 456);
-    const handled = await handleBackgroundSessionOpen(ctx, createDeps());
-
-    expect(handled).toBe(true);
-    expect(mocked.sessionMessagesMock).not.toHaveBeenCalled();
-    expect(safeBackgroundTaskMock).not.toHaveBeenCalled();
   });
 
   it("keeps background session button usable when another inline menu is active", async () => {
-    mocked.sessionGetMock.mockResolvedValueOnce({
-      data: createSession(0),
-      error: null,
+    mocked.sessionGetMock.mockReturnValueOnce({
+      id: "session-1",
+      title: "Session 1",
+      preview: "",
+      lastModified: new Date(1700000000000),
     });
     interactionManager.start({
       kind: "inline",
@@ -668,10 +597,7 @@ describe("bot/commands/sessions", () => {
     const handled = await handleBackgroundSessionOpen(ctx, createDeps());
 
     expect(handled).toBe(true);
-    expect(mocked.sessionGetMock).toHaveBeenCalledWith({
-      sessionID: "session-1",
-      directory: "/repo",
-    });
+    expect(mocked.sessionGetMock).toHaveBeenCalledWith("session-1");
     expect(mocked.setCurrentSessionMock).toHaveBeenCalledWith({
       id: "session-1",
       title: "Session 1",
@@ -681,9 +607,11 @@ describe("bot/commands/sessions", () => {
   });
 
   it("keeps successful background selection when removing the button fails", async () => {
-    mocked.sessionGetMock.mockResolvedValueOnce({
-      data: createSession(0),
-      error: null,
+    mocked.sessionGetMock.mockReturnValueOnce({
+      id: "session-1",
+      title: "Session 1",
+      preview: "",
+      lastModified: new Date(1700000000000),
     });
 
     const ctx = createCallbackContext("background-session:session-1", 456);

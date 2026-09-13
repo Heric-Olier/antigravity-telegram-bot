@@ -14,6 +14,7 @@ vi.mock("../../../src/bot/handlers/prompt.js", () => ({
 }));
 
 vi.mock("../../../src/app/stores/settings-store.js", () => ({
+  __resetSettingsForTests: vi.fn(),
   getPromptQueueEnabled: getPromptQueueEnabledMock,
 }));
 

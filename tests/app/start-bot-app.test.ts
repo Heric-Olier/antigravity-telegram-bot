@@ -59,6 +59,7 @@ vi.mock("../../src/opencode/ready-refresh.js", () => ({
 }));
 
 vi.mock("../../src/app/stores/settings-store.js", () => ({
+  __resetSettingsForTests: vi.fn(),
   flushSettings: mocked.flushSettingsMock,
   loadSettings: mocked.loadSettingsMock,
 }));
@@ -225,41 +226,12 @@ describe("app/start-bot-app", () => {
       .mockImplementation((() => undefined) as unknown as typeof process.exit);
   });
 
-  it("registers ready refresh and performs startup health notification", async () => {
+  it("starts Telegram polling in agy mode without opencode health plumbing", async () => {
     await startBotApp();
     await flushBackgroundTasks();
 
-    expect(mocked.registerOpenCodeReadyRefreshHandlerMock).toHaveBeenCalledTimes(1);
-    expect(mocked.notifyOpencodeReadyIfHealthyMock).toHaveBeenCalledWith("startup");
-  });
-
-  it("runs startup health notification even when auto-restart handled startup", async () => {
-    mocked.autoRestartStartMock.mockResolvedValue(true);
-
-    await startBotApp();
-    await flushBackgroundTasks();
-
-    expect(mocked.notifyOpencodeReadyIfHealthyMock).toHaveBeenCalledWith("startup");
-  });
-
-  it("starts Telegram polling without waiting for OpenCode startup checks", async () => {
-    let resolveAutoRestart: (value: boolean) => void = () => undefined;
-    mocked.autoRestartStartMock.mockReturnValue(
-      new Promise<boolean>((resolve) => {
-        resolveAutoRestart = resolve;
-      }),
-    );
-    const bot = createBot();
-    mocked.createBotMock.mockReturnValue(bot);
-
-    await startBotApp();
-
-    expect(bot.start).toHaveBeenCalledTimes(1);
+    expect(mocked.registerOpenCodeReadyRefreshHandlerMock).not.toHaveBeenCalled();
     expect(mocked.notifyOpencodeReadyIfHealthyMock).not.toHaveBeenCalled();
-
-    resolveAutoRestart(false);
-    await flushBackgroundTasks();
-    expect(mocked.notifyOpencodeReadyIfHealthyMock).toHaveBeenCalledWith("startup");
   });
 
   it("logs an unhandled rejection and keeps the process alive", async () => {

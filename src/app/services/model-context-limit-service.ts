@@ -1,69 +1,15 @@
-import { opencodeClient } from "../../opencode/client.js";
 import { logger } from "../../utils/logger.js";
-import { isExpectedOpencodeUnavailableError } from "../../utils/opencode-error.js";
 
-export const DEFAULT_CONTEXT_LIMIT = 200000;
+/**
+ * Context limits for agy models.
+ *
+ * agy exposes no context-window metadata via the CLI, so a single constant is
+ * used. The 1M value matches the Gemini 3.x family the CLI exposes by default.
+ */
 
-const PROVIDER_CACHE_TTL_MS = 10 * 60 * 1000;
+export const DEFAULT_CONTEXT_LIMIT = 1_000_000;
 
 const contextLimitCache = new Map<string, number>();
-
-let providersCacheExpiresAt = 0;
-let providersFetchInFlight: Promise<void> | null = null;
-
-function getModelKey(providerID: string, modelID: string): string {
-  return `${providerID}/${modelID}`;
-}
-
-async function refreshContextLimitCache(): Promise<void> {
-  if (Date.now() < providersCacheExpiresAt) {
-    return;
-  }
-
-  if (providersFetchInFlight) {
-    await providersFetchInFlight;
-    return;
-  }
-
-  providersFetchInFlight = (async () => {
-    try {
-      const { data, error } = await opencodeClient.config.providers();
-
-      if (error || !data) {
-        if (isExpectedOpencodeUnavailableError(error)) {
-          logger.warn("[ModelContextLimit] OpenCode server unavailable; using default context limit");
-        } else {
-          logger.warn("[ModelContextLimit] Failed to fetch providers:", error);
-        }
-        return;
-      }
-
-      contextLimitCache.clear();
-      for (const provider of data.providers) {
-        for (const [modelID, model] of Object.entries(provider.models)) {
-          if (model?.limit?.context) {
-            contextLimitCache.set(getModelKey(provider.id, modelID), model.limit.context);
-          }
-        }
-      }
-
-      providersCacheExpiresAt = Date.now() + PROVIDER_CACHE_TTL_MS;
-      logger.debug(
-        `[ModelContextLimit] Cached limits for ${contextLimitCache.size} provider/model pairs`,
-      );
-    } catch (error) {
-      if (isExpectedOpencodeUnavailableError(error)) {
-        logger.warn("[ModelContextLimit] OpenCode server unavailable; using default context limit");
-      } else {
-        logger.warn("[ModelContextLimit] Error refreshing providers cache:", error);
-      }
-    } finally {
-      providersFetchInFlight = null;
-    }
-  })();
-
-  await providersFetchInFlight;
-}
 
 export async function getModelContextLimit(
   providerID?: string | null,
@@ -73,12 +19,13 @@ export async function getModelContextLimit(
     return DEFAULT_CONTEXT_LIMIT;
   }
 
-  const cacheKey = getModelKey(providerID, modelID);
+  const cacheKey = `${providerID}/${modelID}`;
   const cachedLimit = contextLimitCache.get(cacheKey);
   if (cachedLimit) {
     return cachedLimit;
   }
 
-  await refreshContextLimitCache();
-  return contextLimitCache.get(cacheKey) ?? DEFAULT_CONTEXT_LIMIT;
+  logger.debug(`[ModelContextLimit] Using default context limit for ${cacheKey}`);
+  contextLimitCache.set(cacheKey, DEFAULT_CONTEXT_LIMIT);
+  return DEFAULT_CONTEXT_LIMIT;
 }

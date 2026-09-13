@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -18,29 +18,24 @@ describe("runtime/bootstrap", () => {
     const result = validateRuntimeEnvValues({
       TELEGRAM_BOT_TOKEN: "123456:abcdef",
       TELEGRAM_ALLOWED_USER_ID: "123456789",
-      OPENCODE_MODEL_PROVIDER: "opencode",
-      OPENCODE_MODEL_ID: "big-pickle",
     });
 
     expect(result).toEqual({ isValid: true });
   });
 
-  it("fails validation when required model values are missing", () => {
+  it("fails validation when the token is missing", () => {
     const result = validateRuntimeEnvValues({
-      TELEGRAM_BOT_TOKEN: "123456:abcdef",
       TELEGRAM_ALLOWED_USER_ID: "123456789",
     });
 
     expect(result.isValid).toBe(false);
-    expect(result.reason).toContain("OPENCODE_MODEL_PROVIDER");
+    expect(result.reason).toContain("TELEGRAM_BOT_TOKEN");
   });
 
   it("fails validation for invalid user id", () => {
     const result = validateRuntimeEnvValues({
       TELEGRAM_BOT_TOKEN: "123456:abcdef",
       TELEGRAM_ALLOWED_USER_ID: "0",
-      OPENCODE_MODEL_PROVIDER: "opencode",
-      OPENCODE_MODEL_ID: "big-pickle",
     });
 
     expect(result.isValid).toBe(false);
@@ -51,13 +46,8 @@ describe("runtime/bootstrap", () => {
     const existingContent = [
       "CUSTOM_FLAG=enabled",
       "BOT_LOCALE=en",
-      "OPENCODE_SERVER_USERNAME=old-user",
-      "OPENCODE_SERVER_PASSWORD=old-password",
       "TELEGRAM_BOT_TOKEN=old",
       "TELEGRAM_ALLOWED_USER_ID=1",
-      "OPENCODE_API_URL=http://localhost:4096",
-      "OPENCODE_MODEL_PROVIDER=old-provider",
-      "OPENCODE_MODEL_ID=old-model",
       "",
     ].join("\n");
 
@@ -65,20 +55,12 @@ describe("runtime/bootstrap", () => {
       BOT_LOCALE: "ru",
       TELEGRAM_BOT_TOKEN: "new-token:value",
       TELEGRAM_ALLOWED_USER_ID: "777",
-      OPENCODE_SERVER_USERNAME: "new-user",
-      OPENCODE_MODEL_PROVIDER: "old-provider",
-      OPENCODE_MODEL_ID: "old-model",
     });
 
     expect(updated).toContain("CUSTOM_FLAG=enabled");
-    expect(updated).toContain("OPENCODE_SERVER_USERNAME=new-user");
-    expect(updated).not.toContain("OPENCODE_SERVER_PASSWORD=");
     expect(updated).toContain("BOT_LOCALE=ru");
     expect(updated).toContain("TELEGRAM_BOT_TOKEN=new-token:value");
     expect(updated).toContain("TELEGRAM_ALLOWED_USER_ID=777");
-    expect(updated).not.toContain("OPENCODE_API_URL=");
-    expect(updated).toContain("OPENCODE_MODEL_PROVIDER=old-provider");
-    expect(updated).toContain("OPENCODE_MODEL_ID=old-model");
   });
 
   it("builds env from template and keeps comments and section order", () => {
@@ -88,20 +70,12 @@ describe("runtime/bootstrap", () => {
         BOT_LOCALE: "ru",
         TELEGRAM_BOT_TOKEN: "token:value",
         TELEGRAM_ALLOWED_USER_ID: "42",
-        OPENCODE_SERVER_USERNAME: "opencode",
-        OPENCODE_MODEL_PROVIDER: "opencode",
-        OPENCODE_MODEL_ID: "big-pickle",
       },
       ENV_EXAMPLE_CONTENT,
     );
 
-    expect(updated).toContain("# Telegram Bot Token (from @BotFather)");
     expect(updated).toContain("TELEGRAM_BOT_TOKEN=token:value");
     expect(updated).toContain("TELEGRAM_ALLOWED_USER_ID=42");
-    expect(updated).toContain("# Telegram Proxy URL (optional)");
-    expect(updated).toContain("# OPENCODE_API_URL=http://localhost:4096");
-    expect(updated).toContain("OPENCODE_SERVER_USERNAME=opencode");
-    expect(updated).toContain("# OPENCODE_SERVER_PASSWORD=");
     expect(updated).toContain("BOT_LOCALE=ru");
 
     expect(updated.indexOf("# Telegram Bot Token (from @BotFather)")).toBeLessThan(
@@ -126,9 +100,6 @@ describe("runtime/bootstrap", () => {
         BOT_LOCALE: "en",
         TELEGRAM_BOT_TOKEN: "token:value",
         TELEGRAM_ALLOWED_USER_ID: "42",
-        OPENCODE_SERVER_USERNAME: "opencode",
-        OPENCODE_MODEL_PROVIDER: "opencode",
-        OPENCODE_MODEL_ID: "big-pickle",
       },
       ENV_EXAMPLE_CONTENT,
     );
@@ -138,32 +109,6 @@ describe("runtime/bootstrap", () => {
     expect(updated).toContain("OPEN_BROWSER_ROOTS=C:/Repos, D:/Work");
     expect(updated).not.toContain("# LOG_LEVEL=info");
     expect(updated).not.toContain("# OPEN_BROWSER_ROOTS=");
-  });
-
-  it("keeps optional template placeholders when wizard clears previous optional values", () => {
-    const existingContent = [
-      "OPENCODE_API_URL=https://example.com",
-      "OPENCODE_SERVER_PASSWORD=old-password",
-      "",
-    ].join("\n");
-
-    const updated = buildEnvFileContent(
-      existingContent,
-      {
-        BOT_LOCALE: "en",
-        TELEGRAM_BOT_TOKEN: "token:value",
-        TELEGRAM_ALLOWED_USER_ID: "42",
-        OPENCODE_SERVER_USERNAME: "opencode",
-        OPENCODE_MODEL_PROVIDER: "opencode",
-        OPENCODE_MODEL_ID: "big-pickle",
-      },
-      ENV_EXAMPLE_CONTENT,
-    );
-
-    expect(updated).toContain("# OPENCODE_API_URL=http://localhost:4096");
-    expect(updated).toContain("# OPENCODE_SERVER_PASSWORD=");
-    expect(updated).not.toContain("OPENCODE_API_URL=https://example.com");
-    expect(updated).not.toContain("OPENCODE_SERVER_PASSWORD=old-password");
   });
 
   it("appends custom existing keys after the template", () => {
@@ -177,9 +122,6 @@ describe("runtime/bootstrap", () => {
         BOT_LOCALE: "en",
         TELEGRAM_BOT_TOKEN: "token:value",
         TELEGRAM_ALLOWED_USER_ID: "42",
-        OPENCODE_SERVER_USERNAME: "opencode",
-        OPENCODE_MODEL_PROVIDER: "opencode",
-        OPENCODE_MODEL_ID: "big-pickle",
       },
       ENV_EXAMPLE_CONTENT,
     );
@@ -200,7 +142,7 @@ describe("runtime/bootstrap installed configuration", () => {
   let stdoutTtyDescriptor: PropertyDescriptor | undefined;
 
   beforeEach(async () => {
-    tempHome = await mkdtemp(path.join(os.tmpdir(), "opencode-telegram-bootstrap-"));
+    tempHome = await mkdtemp(path.join(os.tmpdir(), "antigravity-tg-bootstrap-"));
     stdinTtyDescriptor = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
     stdoutTtyDescriptor = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");
     Object.defineProperty(process.stdin, "isTTY", { configurable: true, value: false });
@@ -208,9 +150,10 @@ describe("runtime/bootstrap installed configuration", () => {
     vi.stubEnv("OPENCODE_TELEGRAM_HOME", tempHome);
     vi.stubEnv("TELEGRAM_BOT_TOKEN", "123456:process-token");
     vi.stubEnv("TELEGRAM_ALLOWED_USER_ID", "123456789");
-    vi.stubEnv("OPENCODE_MODEL_PROVIDER", "process-provider");
-    vi.stubEnv("OPENCODE_MODEL_ID", "process-model");
-    vi.stubEnv("OPENCODE_API_URL", "");
+    vi.stubEnv("AGY_BIN", "");
+    vi.stubEnv("AGY_WORKSPACE_DIR", "");
+    vi.stubEnv("AGY_YOLO", "");
+    vi.stubEnv("AGY_PRINT_TIMEOUT", "");
     vi.stubEnv("BOT_LOCALE", "en");
     setRuntimeMode("installed");
   });
@@ -239,15 +182,11 @@ describe("runtime/bootstrap installed configuration", () => {
   });
 
   it("merges .env values with process.env taking precedence", async () => {
-    delete process.env.OPENCODE_MODEL_PROVIDER;
-    delete process.env.OPENCODE_MODEL_ID;
     await writeFile(
       path.join(tempHome, ".env"),
       [
         "TELEGRAM_BOT_TOKEN=",
         "TELEGRAM_ALLOWED_USER_ID=invalid",
-        "OPENCODE_MODEL_PROVIDER=file-provider",
-        "OPENCODE_MODEL_ID=file-model",
         "",
       ].join("\n"),
       "utf-8",
@@ -265,8 +204,6 @@ describe("runtime/bootstrap installed configuration", () => {
       [
         "TELEGRAM_BOT_TOKEN=123456:file-token",
         "TELEGRAM_ALLOWED_USER_ID=42",
-        "OPENCODE_MODEL_PROVIDER=file-provider",
-        "OPENCODE_MODEL_ID=file-model",
         "",
       ].join("\n"),
       "utf-8",
@@ -276,28 +213,6 @@ describe("runtime/bootstrap installed configuration", () => {
       "Interactive wizard requires a TTY terminal",
     );
     expect(fs.existsSync(path.join(tempHome, "settings.json"))).toBe(false);
-  });
-
-  it("does not create settings.json when a readable backup exists", async () => {
-    const backupPath = path.join(tempHome, "settings.json.bak");
-    const backupContent = JSON.stringify({ currentProject: "proj-1" });
-    await writeFile(backupPath, backupContent, "utf-8");
-
-    await ensureRuntimeConfigForStart();
-
-    expect(fs.existsSync(path.join(tempHome, "settings.json"))).toBe(false);
-    await expect(readFile(backupPath, "utf-8")).resolves.toBe(backupContent);
-  });
-
-  it("does not create settings.json when the backup is unreadable", async () => {
-    const backupPath = path.join(tempHome, "settings.json.bak");
-    const backupContent = '{"currentProject":';
-    await writeFile(backupPath, backupContent, "utf-8");
-
-    await ensureRuntimeConfigForStart();
-
-    expect(fs.existsSync(path.join(tempHome, "settings.json"))).toBe(false);
-    await expect(readFile(backupPath, "utf-8")).resolves.toBe(backupContent);
   });
 
   it("wizard saved copy names the env file and not settings.json", () => {

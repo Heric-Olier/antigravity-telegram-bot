@@ -293,5 +293,25 @@ export function __resetAgyEventsForTests(): void {
   stopEventListening();
 }
 
+/**
+ * Send a prompt to the currently-running agy process.
+ * Falls back to starting a fresh process (with the active conversation/model)
+ * when no process is alive yet, which is the normal "first prompt after
+ * /new or app start" path.
+ */
+export async function sendPromptToActiveProcess(text: string, directory: string): Promise<void> {
+  if (activeProcess && activeProcess.isRunning()) {
+    await activeProcess.sendPrompt(text);
+    return;
+  }
+
+  if (!eventCallback) {
+    throw new Error("Cannot send a prompt without an active event subscription");
+  }
+
+  const proc = spawnProcessForDirectory(directory);
+  await proc.sendPrompt(text);
+}
+
 export { isRecord };
 export type { AgyInitEvent, AgyStepEvent, AgyResultEvent };

@@ -19,6 +19,7 @@ vi.mock("../../../src/app/services/model-selection-service.js", () => ({
 }));
 
 vi.mock("../../../src/app/stores/settings-store.js", () => ({
+  __resetSettingsForTests: vi.fn(),
   getCurrentModel: mocked.getCurrentModelMock,
   setCurrentModel: mocked.setCurrentModelMock,
 }));

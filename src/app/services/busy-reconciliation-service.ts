@@ -1,41 +1,25 @@
-import { opencodeClient } from "../../opencode/client.js";
-import {
-  foregroundSessionState,
-  type ForegroundBusySession,
-} from "../managers/foreground-session-state-manager.js";
-import { scheduledTaskRuntime } from "./scheduled-task-runtime-service.js";
+import { foregroundSessionState, type ForegroundBusySession } from "../managers/foreground-session-state-manager.js";
 import { attachManager } from "../managers/attach-manager.js";
-import { markAttachedSessionBusy, markAttachedSessionIdle } from "./attach-service.js";
-import { assistantRunState } from "../managers/assistant-run-state-manager.js";
 import { logger } from "../../utils/logger.js";
 
 const RECONCILE_MIN_INTERVAL_MS = 10_000;
-const FOREGROUND_BUSY_RECONCILE_GRACE_MS = 2_000;
-
-type SessionStatus = {
-  type?: string;
-};
-
-type ResponseStreamerForReconciliation = {
-  hasActiveStream(sessionId: string): boolean;
-};
 
 const inFlightDirectories = new Set<string>();
 const lastReconcileAtByDirectory = new Map<string, number>();
-
-let responseStreamerInstance: ResponseStreamerForReconciliation | null = null;
-let clearPromptResponseModeForReconciliation: ((sessionId: string) => void) | null = null;
+let reconciliationStreamer: { hasActiveStream(sessionId: string): boolean } | null = null;
 
 export function setResponseStreamerForReconciliation(
-  streamer: ResponseStreamerForReconciliation,
+  streamer: { hasActiveStream(sessionId: string): boolean },
 ): void {
-  responseStreamerInstance = streamer;
+  // agy has no external busy registry; the reconciler is a no-op, but the
+  // streamer reference is kept for diagnostics/parity with the opencode build.
+  reconciliationStreamer = streamer;
 }
 
 export function setPromptResponseModeClearerForReconciliation(
-  clearer: (sessionId: string) => void,
+  _clearer: (sessionId: string) => void,
 ): void {
-  clearPromptResponseModeForReconciliation = clearer;
+  // Kept for test/call-site compatibility; the agy reconciler is a no-op.
 }
 
 function getReconciliationTargets(directory: string): {
@@ -52,31 +36,7 @@ function getReconciliationTargets(directory: string): {
   return { foregroundBusySessions, attachedSessionForDirectory };
 }
 
-function getSessionStatus(
-  statuses: Record<string, SessionStatus>,
-  sessionId: string,
-): SessionStatus | null {
-  return statuses[sessionId] ?? null;
-}
-
-function isTerminalStatus(status: SessionStatus | null): boolean {
-  return !status || status.type === "idle" || status.type === "error";
-}
-
-function isWithinForegroundBusyGracePeriod(
-  session: ForegroundBusySession,
-  now: number,
-): boolean {
-  return now - session.markedAt < FOREGROUND_BUSY_RECONCILE_GRACE_MS;
-}
-
-async function clearForegroundBusySession(sessionId: string, reason: string): Promise<void> {
-  foregroundSessionState.markIdle(sessionId);
-  assistantRunState.clearRun(sessionId, reason);
-  clearPromptResponseModeForReconciliation?.(sessionId);
-}
-
-export async function reconcileBusyStateNow(directory: string, now: number = Date.now()): Promise<void> {
+export async function reconcileBusyStateNow(directory: string): Promise<void> {
   if (!directory) {
     return;
   }
@@ -88,67 +48,20 @@ export async function reconcileBusyStateNow(directory: string, now: number = Dat
     return;
   }
 
-  const { data: statuses, error } = await opencodeClient.session.status({ directory });
-  if (error || !statuses) {
-    logger.warn("[BusyReconciliation] Failed to load session status", error);
-    return;
+  // agy has no external busy registry: the antigravity events adapter emits
+  // session.idle / session.error at the end of every turn, which flips the
+  // foreground/attached state directly. There is nothing to poll here, so the
+  // reconciler is a no-op that only verifies there was something to reconcile.
+  if (reconciliationStreamer && foregroundBusySessions.length > 0) {
+    const stillStreaming = foregroundBusySessions.filter((s) => reconciliationStreamer!.hasActiveStream(s.sessionId));
+    logger.debug(`[BusyReconciliation] Active streams: ${stillStreaming.length}`);
   }
-
-  const freshForegroundSessionIds = new Set(
-    foregroundBusySessions
-      .filter((session) => isWithinForegroundBusyGracePeriod(session, now))
-      .map((session) => session.sessionId),
-  );
-
-  if (attachedSessionForDirectory) {
-    const attachedStatus = getSessionStatus(statuses, attachedSessionForDirectory.sessionId);
-
-    if (attachedStatus?.type === "busy") {
-      await markAttachedSessionBusy(attachedSessionForDirectory.sessionId);
-    } else if (
-      isTerminalStatus(attachedStatus) &&
-      !freshForegroundSessionIds.has(attachedSessionForDirectory.sessionId)
-    ) {
-      await markAttachedSessionIdle(attachedSessionForDirectory.sessionId);
-    }
-  }
-
-  let clearedForegroundSession = false;
-  for (const session of foregroundBusySessions) {
-    const status = getSessionStatus(statuses, session.sessionId);
-    if (!isTerminalStatus(status)) {
-      continue;
-    }
-
-    if (freshForegroundSessionIds.has(session.sessionId)) {
-      logger.debug(
-        `[BusyReconciliation] Skipping fresh foreground busy state: session=${session.sessionId}, directory=${session.directory}, status=${status?.type ?? "not-found"}`,
-      );
-      continue;
-    }
-
-    if (responseStreamerInstance?.hasActiveStream(session.sessionId)) {
-      logger.debug(
-        `[BusyReconciliation] Skipping clear, responseStreamer still active: session=${session.sessionId}`,
-      );
-      continue;
-    }
-
-    logger.info(
-      `[BusyReconciliation] Clearing stale foreground busy state: session=${session.sessionId}, directory=${session.directory}, status=${status?.type ?? "not-found"}`,
-    );
-    if (attachedSessionForDirectory?.sessionId !== session.sessionId) {
-      await markAttachedSessionIdle(session.sessionId);
-    }
-    await clearForegroundBusySession(session.sessionId, "status_reconcile_idle");
-    clearedForegroundSession = true;
-  }
-
-  if (clearedForegroundSession) {
-    await scheduledTaskRuntime.flushDeferredDeliveries();
-  }
+  logger.debug(`[BusyReconciliation] Foreground busy states kept as-is for ${directory}`);
 }
 
+/**
+ * Rate-limited wrapper kept so the event-subscription-service call sites stay intact.
+ */
 export async function reconcileBusyState(directory: string, now: number = Date.now()): Promise<void> {
   if (!directory || inFlightDirectories.has(directory)) {
     return;
@@ -169,7 +82,7 @@ export async function reconcileBusyState(directory: string, now: number = Date.n
   inFlightDirectories.add(directory);
 
   try {
-    await reconcileBusyStateNow(directory, now);
+    await reconcileBusyStateNow(directory);
   } catch (error) {
     logger.warn("[BusyReconciliation] Failed to reconcile busy state", error);
   } finally {
@@ -180,6 +93,4 @@ export async function reconcileBusyState(directory: string, now: number = Date.n
 export function __resetBusyReconciliationForTests(): void {
   inFlightDirectories.clear();
   lastReconcileAtByDirectory.clear();
-  responseStreamerInstance = null;
-  clearPromptResponseModeForReconciliation = null;
 }

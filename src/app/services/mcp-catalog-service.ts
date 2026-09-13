@@ -1,15 +1,16 @@
-import type { McpStatus } from "@opencode-ai/sdk/v2";
-import { opencodeClient } from "../../opencode/client.js";
 import { logger } from "../../utils/logger.js";
 import { isRecord } from "../../utils/type-guards.js";
 
+/**
+ * MCP catalog for agy.
+ *
+ * agy has no MCP status API in v1; the catalog is always empty. Parsing helpers
+ * are kept because the catalog callback handler unit-tests them.
+ */
+
 export interface McpCatalogServerItem {
   name: string;
-  status: McpStatus;
-}
-
-function normalizeDirectoryForMcpApi(directory: string): string {
-  return directory.replace(/\\/g, "/");
+  status: { status: string; error?: string | undefined };
 }
 
 const MCP_STATUS_NAMES = [
@@ -24,10 +25,8 @@ function isMcpStatusName(value: unknown): value is (typeof MCP_STATUS_NAMES)[num
   return typeof value === "string" && MCP_STATUS_NAMES.some((name) => name === value);
 }
 
-function buildMcpStatus(statusValue: (typeof MCP_STATUS_NAMES)[number], errorValue: unknown): McpStatus {
+function buildMcpStatus(statusValue: (typeof MCP_STATUS_NAMES)[number], errorValue: unknown): McpCatalogServerItem["status"] {
   if (statusValue === "failed" || statusValue === "needs_client_registration") {
-    // The SDK type requires an error string on these states; a missing one is
-    // normalized to an empty string (falsy for display purposes).
     return { status: statusValue, error: typeof errorValue === "string" ? errorValue : "" };
   }
 
@@ -35,7 +34,7 @@ function buildMcpStatus(statusValue: (typeof MCP_STATUS_NAMES)[number], errorVal
 }
 
 type ParsedMcpServerStatus =
-  | { kind: "ok"; status: McpStatus }
+  | { kind: "ok"; status: McpCatalogServerItem["status"] }
   | { kind: "skip" }
   | { kind: "invalid" };
 
@@ -46,8 +45,6 @@ function parseMcpServerStatus(status: unknown): ParsedMcpServerStatus {
 
   if (!isMcpStatusName(status.status)) {
     if (typeof status.status === "string") {
-      // Unknown status value: the SDK union is stale (server drifted). Skip the
-      // server instead of failing the whole catalog.
       logger.debug(`[McpCatalog] Unknown MCP status "${status.status}", skipping server`);
       return { kind: "skip" };
     }
@@ -106,43 +103,14 @@ export function parseMcpCatalogServers(value: unknown): McpCatalogServerItem[] |
   return servers;
 }
 
-export async function loadMcpCatalog(projectDirectory: string): Promise<McpCatalogServerItem[]> {
-  const { data, error } = await opencodeClient.mcp.status({
-    directory: normalizeDirectoryForMcpApi(projectDirectory),
-  });
-
-  if (error || !data) {
-    throw error || new Error("No MCP status data received");
-  }
-
-  const servers = parseMcpCatalogServers(data);
-  if (!servers) {
-    throw new Error("Invalid MCP status data format");
-  }
-
-  return servers;
+export async function loadMcpCatalog(_projectDirectory: string): Promise<McpCatalogServerItem[]> {
+  return [];
 }
 
 export async function toggleMcpCatalogServer(
-  projectDirectory: string,
-  serverName: string,
-  enable: boolean,
+  _projectDirectory: string,
+  _serverName: string,
+  _enable: boolean,
 ): Promise<void> {
-  const params = {
-    name: serverName,
-    directory: normalizeDirectoryForMcpApi(projectDirectory),
-  };
-
-  if (enable) {
-    const { error } = await opencodeClient.mcp.connect(params);
-    if (error) {
-      throw error;
-    }
-    return;
-  }
-
-  const { error } = await opencodeClient.mcp.disconnect(params);
-  if (error) {
-    throw error;
-  }
+  throw new Error("MCP server toggling is not available with the Antigravity backend");
 }

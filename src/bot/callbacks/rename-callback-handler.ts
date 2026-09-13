@@ -1,5 +1,4 @@
 import { Context } from "grammy";
-import { opencodeClient } from "../../opencode/client.js";
 import { setCurrentSession } from "../../app/services/session-service.js";
 import { renameManager } from "../../app/managers/rename-manager.js";
 import { interactionManager } from "../../app/managers/interaction-manager.js";
@@ -100,16 +99,8 @@ export async function handleRenameTextAnswer(ctx: Context): Promise<boolean> {
   logger.info(`[RenameHandler] Renaming session ${sessionInfo.sessionId} to: ${newTitle}`);
 
   try {
-    const { data: updatedSession, error } = await opencodeClient.session.update({
-      sessionID: sessionInfo.sessionId,
-      directory: sessionInfo.directory,
-      title: newTitle,
-    });
-
-    if (error || !updatedSession) {
-      throw error || new Error("Failed to update session");
-    }
-
+    // agy titles live in the CLI summary DB, which is a read-only interface
+    // for the bot — store the rename locally only.
     setCurrentSession({
       id: sessionInfo.sessionId,
       title: newTitle,

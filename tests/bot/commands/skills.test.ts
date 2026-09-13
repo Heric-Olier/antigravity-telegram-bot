@@ -23,15 +23,12 @@ const mocked = vi.hoisted(() => ({
 }));
 
 vi.mock("../../../src/app/stores/settings-store.js", () => ({
+  __resetSettingsForTests: vi.fn(),
   getCurrentProject: vi.fn(() => mocked.currentProject),
 }));
 
-vi.mock("../../../src/opencode/client.js", () => ({
-  opencodeClient: {
-    command: {
-      list: mocked.commandListMock,
-    },
-  },
+vi.mock("../../../src/app/services/skills-catalog-service.js", () => ({
+  loadSkillsCatalog: mocked.commandListMock,
 }));
 
 vi.mock("../../../src/bot/handlers/prompt.js", () => ({
@@ -110,18 +107,15 @@ describe("bot/commands/skills", () => {
   });
 
   it("shows skills list and starts custom interaction", async () => {
-    mocked.commandListMock.mockResolvedValue({
-      data: [
-        { name: "borsch", description: "Cook borsch", source: "skill" },
-        { name: "release", description: "Prepare release", source: "skill" },
-      ],
-      error: null,
-    });
+    mocked.commandListMock.mockResolvedValue([
+      { name: "borsch", description: "Cook borsch" },
+      { name: "release", description: "Prepare release" },
+    ]);
 
     const ctx = createCommandContext(123);
     await skillsCommand(ctx as never);
 
-    expect(mocked.commandListMock).toHaveBeenCalledWith({ directory: "D:/Projects/Repo" });
+    expect(mocked.commandListMock).toHaveBeenCalledWith("D:\\Projects\\Repo");
     expect(ctx.reply).toHaveBeenCalledTimes(1);
 
     const [, options] = defined((ctx.reply as ReturnType<typeof vi.fn>).mock.calls[0]) as [
@@ -140,16 +134,11 @@ describe("bot/commands/skills", () => {
     expect(state?.metadata.messageId).toBe(123);
   });
 
-  it("filters out non-skill sources from skill list", async () => {
-    mocked.commandListMock.mockResolvedValue({
-      data: [
-        { name: "borsch", description: "Cook borsch", source: "skill" },
-        { name: "release", description: "Prepare release", source: "skill" },
-        { name: "review", description: "Review changes", source: "command" },
-        { name: "from-mcp", description: "MCP prompt", source: "mcp" },
-      ],
-      error: null,
-    });
+  it("starts the skills interaction when the catalog has entries", async () => {
+    mocked.commandListMock.mockResolvedValue([
+      { name: "borsch", description: "Cook borsch" },
+      { name: "release", description: "Prepare release" },
+    ]);
 
     const ctx = createCommandContext(124);
     await skillsCommand(ctx as never);
@@ -336,11 +325,11 @@ describe("skills pagination helpers", () => {
 
   describe("formatSkillsSelectText", () => {
     it("returns base text for first page", () => {
-      expect(formatSkillsSelectText(0)).toBe("Choose an OpenCode skill:");
+      expect(formatSkillsSelectText(0)).toBe("Choose an Antigravity skill:");
     });
 
     it("returns page-specific text for subsequent pages", () => {
-      expect(formatSkillsSelectText(1)).toBe("Choose an OpenCode skill (page 2):");
+      expect(formatSkillsSelectText(1)).toBe("Choose an Antigravity skill (page 2):");
     });
   });
 

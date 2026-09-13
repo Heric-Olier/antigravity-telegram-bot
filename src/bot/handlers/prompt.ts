@@ -1,13 +1,9 @@
 import { Bot, Context } from "grammy";
-import type { FilePartInput, TextPartInput } from "@opencode-ai/sdk/v2";
-import type { Model } from "@opencode-ai/sdk/v2";
-import { opencodeClient } from "../../opencode/client.js";
 import {
   clearSession,
   getCurrentSession,
   setCurrentSession,
 } from "../../app/services/session-service.js";
-import { ingestSessionInfoForCache } from "../../app/services/session-cache-service.js";
 import { getCurrentProject, getTtsMode } from "../../app/stores/settings-store.js";
 import { getStoredAgent, resolveProjectAgent } from "../../app/services/agent-selection-service.js";
 import { getStoredModel } from "../../app/services/model-selection-service.js";
@@ -16,7 +12,10 @@ import { createMainKeyboard } from "../keyboards/main-reply-keyboard.js";
 import { keyboardManager } from "../keyboards/keyboard-manager.js";
 import { pinnedMessageManager } from "../pinned/pinned-message-manager.js";
 import { summaryAggregator } from "../../app/managers/summary-aggregation-manager.js";
-import { stopEventListening } from "../../antigravity/events.js";
+import {
+  sendPromptToActiveProcess,
+  stopEventListening,
+} from "../../antigravity/events.js";
 import { interactionManager } from "../../app/managers/interaction-manager.js";
 import { clearAllInteractionState } from "../../app/managers/interaction-manager.js";
 import { safeBackgroundTask } from "../../utils/safe-background-task.js";
@@ -42,6 +41,7 @@ import {
 import {
   getModelCapabilities,
   supportsInput,
+  type AgyModelCapabilities,
 } from "../../app/services/model-capabilities-service.js";
 import type { IncomingPrompt } from "../../app/types/prompt.js";
 
@@ -78,26 +78,11 @@ export function consumePromptResponseMode(sessionId: string): PromptResponseMode
   return responseMode;
 }
 
-async function isSessionBusy(sessionId: string, directory: string): Promise<boolean> {
-  try {
-    const { data, error } = await opencodeClient.session.status({ directory });
-
-    if (error || !data) {
-      logger.warn("[Bot] Failed to check session status before prompt:", error);
-      return false;
-    }
-
-    const sessionStatus = (data as Record<string, { type?: string }>)[sessionId];
-    if (!sessionStatus) {
-      return false;
-    }
-
-    logger.debug(`[Bot] Current session status before prompt: ${sessionStatus.type || "unknown"}`);
-    return sessionStatus.type === "busy";
-  } catch (err) {
-    logger.warn("[Bot] Error checking session status before prompt:", err);
-    return false;
-  }
+async function isSessionBusy(_sessionId: string, _directory: string): Promise<boolean> {
+  // agy runs one process per turn: a prompt is only sent when the previous
+  // turn ended (session.idle from the events adapter), so a prompt is never
+  // blocked here.
+  return false;
 }
 
 async function resetMismatchedSessionContext(): Promise<void> {
@@ -131,7 +116,7 @@ export interface ProcessPromptDeps {
   getModelCapabilities?: (
     providerId: string,
     modelId: string,
-  ) => Promise<Model["capabilities"] | null>;
+  ) => Promise<AgyModelCapabilities | null>;
   getStoredModel?: () => { providerID: string; modelID: string; variant?: string };
 }
 
@@ -205,27 +190,16 @@ export async function processUserPrompt(
   if (!currentSession) {
     await ctx.reply(t("bot.creating_session"));
 
-    const { data: session, error } = await opencodeClient.session.create({
-      directory: currentProject.worktree,
-    });
-
-    if (error || !session) {
-      await ctx.reply(t("bot.create_session_error"));
-      return false;
-    }
-
-    logger.info(
-      `[Bot] Created new session: id=${session.id}, title="${session.title}", project=${currentProject.worktree}`,
-    );
-
+    // agy creates the conversation lazily on the first prompt; register a
+    // placeholder session and let the agy init event report the real
+    // conversation id.
     currentSession = {
-      id: session.id,
-      title: session.title,
+      id: `new-${Date.now()}`,
+      title: "New conversation",
       directory: currentProject.worktree,
     };
 
     setCurrentSession(currentSession);
-    await ingestSessionInfoForCache(session);
     createdNewSession = true;
   } else {
     logger.info(
@@ -274,7 +248,7 @@ export async function processUserPrompt(
     }
 
     // Build parts array with text and files
-    const parts: Array<TextPartInput | FilePartInput> = [];
+    const parts: Array<Record<string, unknown>> = [];
 
     // Add text part if present
     if (preparedInput.text.trim().length > 0) {
@@ -319,46 +293,20 @@ export async function processUserPrompt(
     // above and would otherwise be missing from the logs.
     const filePartCount = parts.filter((part) => part.type === "file").length;
 
-    const promptOptions: {
-      sessionID: string;
-      directory: string;
-      parts: Array<TextPartInput | FilePartInput>;
-      model?: { providerID: string; modelID: string };
-      agent?: string;
-      variant?: string;
-    } = {
-      sessionID: currentSession.id,
-      directory: currentSession.directory,
-      parts,
-      agent: currentAgent,
-    };
-
-    // Use stored model (from settings or config)
-    if (storedModel.providerID && storedModel.modelID) {
-      promptOptions.model = {
-        providerID: storedModel.providerID,
-        modelID: storedModel.modelID,
-      };
-
-      // Add variant if specified
-      if (storedModel.variant) {
-        promptOptions.variant = storedModel.variant;
-      }
-    }
+    const promptText = preparedInput.text.trim();
+    void parts;
 
     const promptErrorLogContext = {
       sessionId: currentSession.id,
       directory: currentSession.directory,
       agent: currentAgent || "default",
-      modelProvider: storedModel.providerID || "default",
       modelId: storedModel.modelID || "default",
-      variant: storedModel.variant || "default",
-      promptLength: preparedInput.text.length,
+      promptLength: promptText.length,
       fileCount: filePartCount,
     };
 
     logger.info(
-      `[Bot] Calling session.promptAsync (start-only) with agent=${currentAgent}, fileCount=${filePartCount}...`,
+      `[Bot] Sending prompt to agy process (agent=${currentAgent}, model=${storedModel.modelID}, fileCount=${filePartCount})...`,
     );
 
     foregroundSessionState.markBusy(currentSession.id, currentSession.directory);
@@ -366,61 +314,36 @@ export async function processUserPrompt(
     assistantRunState.startRun(currentSession.id, {
       startedAt: Date.now(),
       configuredAgent: currentAgent,
-      configuredProviderID: storedModel.providerID,
       configuredModelID: storedModel.modelID,
     });
     setPromptResponseMode(currentSession.id, responseMode);
 
-    if (preparedInput.text.trim().length > 0) {
-      externalUserInputSuppressionManager.register(currentSession.id, preparedInput.text);
+    if (promptText.length > 0) {
+      externalUserInputSuppressionManager.register(currentSession.id, promptText);
     }
 
-    // CRITICAL: Use the async prompt start endpoint here.
-    // session.prompt streams the full assistant response and can outlive the original
-    // Telegram message handler, which turns late transport failures into misleading
-    // "failed to send" messages even after the run has already started.
-    // The actual assistant result still arrives via the SSE event subscription.
+    // agy: the prompt goes into the stream-json pipe. The assistant reply
+    // arrives through the agy events subscription (message.part.updated /
+    // session.idle), never through this call's return value.
     safeBackgroundTask({
-      taskName: "session.promptAsync",
-      task: () => opencodeClient.session.promptAsync(promptOptions),
-      onSuccess: ({ error }) => {
-        if (error) {
-          foregroundSessionState.markIdle(currentSession.id);
-          void markAttachedSessionIdle(currentSession.id);
-          assistantRunState.clearRun(currentSession.id, "session_prompt_api_error");
-          clearPromptResponseMode(currentSession.id);
-          const details = formatErrorDetails(error, 6000);
-          logger.error(
-            "[Bot] OpenCode API returned an error for session.promptAsync",
-            promptErrorLogContext,
-          );
-          logger.error("[Bot] session.promptAsync error details:", details);
-          logger.error("[Bot] session.promptAsync raw API error object:", error);
-
-          // Send user-friendly error via API directly because ctx is no longer available
-          if (attachManager.isAttachedSession(currentSession.id)) {
-            void bot.api.sendMessage(ctx.chat!.id, t("bot.prompt_send_error")).catch(() => {});
-          }
-          return;
-        }
-
-        logger.info("[Bot] session.promptAsync accepted");
+      taskName: "agy.sendPrompt",
+      task: () => sendPromptToActiveProcess(promptText, currentSession.directory),
+      onSuccess: () => {
+        logger.info("[Bot] agy prompt written to pipe");
       },
       onError: (error) => {
         foregroundSessionState.markIdle(currentSession.id);
         void markAttachedSessionIdle(currentSession.id);
-        assistantRunState.clearRun(currentSession.id, "session_prompt_background_error");
+        assistantRunState.clearRun(currentSession.id, "agy_prompt_background_error");
         clearPromptResponseMode(currentSession.id);
         const details = formatErrorDetails(error, 6000);
-        logger.error("[Bot] session.promptAsync background task failed", promptErrorLogContext);
-        logger.error("[Bot] session.promptAsync background failure details:", details);
-        logger.error("[Bot] session.promptAsync raw background error object:", error);
+        logger.error("[Bot] agy prompt background task failed", promptErrorLogContext);
+        logger.error("[Bot] agy prompt background failure details:", details);
         if (attachManager.isAttachedSession(currentSession.id)) {
           void bot.api.sendMessage(ctx.chat!.id, t("bot.prompt_send_error")).catch(() => {});
         }
       },
     });
-
     return true;
   } catch (err) {
     if (currentSession) {
@@ -447,8 +370,10 @@ async function prepareTelegramPhotos(
     return input;
   }
 
-  const getCapabilities = deps.getModelCapabilities ?? getModelCapabilities;
-  const capabilities = await getCapabilities(storedModel.providerID, storedModel.modelID);
+  const capabilities = await (deps.getModelCapabilities ?? getModelCapabilities)(
+    storedModel.providerID,
+    storedModel.modelID,
+  );
 
   if (!supportsInput(capabilities, "image")) {
     logger.warn(
@@ -474,7 +399,7 @@ async function prepareTelegramPhotos(
   const downloadFile = deps.downloadFile ?? downloadTelegramFile;
 
   try {
-    const downloadedParts: FilePartInput[] = [];
+    const downloadedParts: Array<Record<string, unknown>> = [];
     for (const photo of input.photos) {
       const downloaded = await downloadFile(ctx.api, photo.fileId);
       downloadedParts.push({
@@ -488,7 +413,7 @@ async function prepareTelegramPhotos(
     logger.info(`[Bot] Prepared ${downloadedParts.length} Telegram photo(s) for prompt`);
     return {
       ...input,
-      fileParts: [...input.fileParts, ...downloadedParts],
+      fileParts: [...input.fileParts, ...(downloadedParts as IncomingPrompt["fileParts"])],
       photos: [],
     };
   } catch (err) {

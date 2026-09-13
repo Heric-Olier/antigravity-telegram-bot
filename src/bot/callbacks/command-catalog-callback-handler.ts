@@ -27,7 +27,7 @@ import {
   markAttachedSessionIdle,
 } from "../../app/services/attach-service.js";
 import { externalUserInputSuppressionManager } from "../../app/managers/external-input-suppression-manager.js";
-import { opencodeClient } from "../../opencode/client.js";
+import { sendPromptToActiveProcess } from "../../antigravity/events.js";
 import {
   buildCommandsConfirmKeyboard,
   buildCommandsListKeyboard,
@@ -171,25 +171,9 @@ export function clearCommandsInteraction(reason: string): void {
   }
 }
 
-async function isSessionBusy(sessionId: string, directory: string): Promise<boolean> {
-  try {
-    const { data, error } = await opencodeClient.session.status({ directory });
-
-    if (error || !data) {
-      logger.warn("[Commands] Failed to check session status before command:", error);
-      return false;
-    }
-
-    const sessionStatus = (data as Record<string, { type?: string }>)[sessionId];
-    if (!sessionStatus) {
-      return false;
-    }
-
-    return sessionStatus.type === "busy";
-  } catch (err) {
-    logger.warn("[Commands] Error checking session status before command:", err);
-    return false;
-  }
+async function isSessionBusy(_sessionId: string, _directory: string): Promise<boolean> {
+  // agy: one process per turn — a command is only dispatched when the last turn ended.
+  return false;
 }
 
 async function ensureSessionForProject(
@@ -217,24 +201,16 @@ async function ensureSessionForProject(
 
   await ctx.reply(t("bot.creating_session"));
 
-  const { data: session, error } = await opencodeClient.session.create({
-    directory: projectDirectory,
-  });
-
-  if (error || !session) {
-    await ctx.reply(t("bot.create_session_error"));
-    return null;
-  }
-
+  // agy creates the conversation on the first prompt; placeholder session.
   const sessionInfo: SessionInfo = {
-    id: session.id,
-    title: session.title,
+    id: `new-${Date.now()}`,
+    title: "New conversation",
     directory: projectDirectory,
   };
 
   setCurrentSession(sessionInfo);
-  await ingestSessionInfoForCache(session);
-  await ctx.reply(t("bot.session_created", { title: session.title }));
+  await ingestSessionInfoForCache(sessionInfo);
+  await ctx.reply(t("bot.session_created", { title: sessionInfo.title }));
 
   return sessionInfo;
 }
@@ -272,10 +248,6 @@ export async function executeCommand(
 
   const currentAgent = await resolveProjectAgent(getStoredAgent());
   const storedModel = getStoredModel();
-  const model =
-    storedModel.providerID && storedModel.modelID
-      ? `${storedModel.providerID}/${storedModel.modelID}`
-      : undefined;
 
   foregroundSessionState.markBusy(session.id, session.directory);
   await markAttachedSessionBusy(session.id);
@@ -293,32 +265,9 @@ export async function executeCommand(
   safeBackgroundTask({
     taskName: "session.command",
     task: () =>
-      opencodeClient.session.command({
-        sessionID: session.id,
-        directory: session.directory,
-        command: params.commandName,
-        arguments: args,
-        agent: currentAgent,
-        ...(model !== undefined ? { model } : {}),
-        ...(storedModel.variant !== undefined ? { variant: storedModel.variant } : {}),
-      }),
-    onSuccess: ({ error }) => {
-      if (error) {
-        foregroundSessionState.markIdle(session.id);
-        void markAttachedSessionIdle(session.id);
-        assistantRunState.clearRun(session.id, "session_command_api_error");
-        logger.error("[Commands] OpenCode API returned an error for session.command", {
-          sessionId: session.id,
-          command: params.commandName,
-          args,
-        });
-        logger.error("[Commands] session.command error details:", error);
-        if (attachManager.isAttachedSession(session.id)) {
-          void ctx.api.sendMessage(ctx.chat!.id, t("commands.execute_error")).catch(() => {});
-        }
-        return;
-      }
-
+      // agy commands are regular prompts prefixed with the command name.
+      sendPromptToActiveProcess(args ? `/${params.commandName} ${args}` : `/${params.commandName}`, session.directory),
+    onSuccess: () => {
       logger.info(
         `[Commands] session.command completed: session=${session.id}, command=/${params.commandName}`,
       );

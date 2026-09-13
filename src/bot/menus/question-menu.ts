@@ -1,6 +1,5 @@
 import { Context, InlineKeyboard } from "grammy";
 import { questionManager } from "../../app/managers/question-manager.js";
-import { opencodeClient } from "../../opencode/client.js";
 import { getCurrentProject } from "../../app/stores/settings-store.js";
 import { getCurrentSession } from "../../app/services/session-service.js";
 import { summaryAggregator } from "../../app/managers/summary-aggregation-manager.js";
@@ -241,22 +240,12 @@ async function sendAllAnswersToAgent(bot: Context["api"], chatId: number): Promi
 
   // CRITICAL: Fire-and-forget! Do not wait for question.reply to complete,
   // otherwise it may block subsequent updates
+  // agy yolo mode: nothing to deliver to a question API — log and clear.
   safeBackgroundTask({
     taskName: "question.reply",
-    task: () =>
-      opencodeClient.question.reply({
-        requestID,
-        directory,
-        answers: allAnswers,
-      }),
-    onSuccess: ({ error }) => {
-      if (error) {
-        logger.error("[QuestionHandler] Failed to send answers via question.reply:", error);
-        void bot.sendMessage(chatId, t("question.send_answers_error")).catch(() => {});
-        return;
-      }
-
-      logger.info("[QuestionHandler] All answers sent to agent successfully via question.reply");
+    task: async () => undefined,
+    onSuccess: () => {
+      logger.info("[QuestionHandler] Answers recorded locally (agy has no question API)");
     },
   });
 }

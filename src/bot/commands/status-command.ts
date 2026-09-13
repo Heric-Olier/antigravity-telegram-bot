@@ -1,5 +1,5 @@
 import { CommandContext, Context } from "grammy";
-import { opencodeClient } from "../../opencode/client.js";
+import { config } from "../../config.js";
 import { getGitWorktreeContext } from "../../app/services/worktree-service.js";
 import { getCurrentSession } from "../../app/services/session-service.js";
 import { getCurrentProject } from "../../app/stores/settings-store.js";
@@ -9,25 +9,16 @@ import { getAgentDisplayName } from "../../app/types/agent.js";
 import { keyboardManager } from "../keyboards/keyboard-manager.js";
 import { pinnedMessageManager } from "../pinned/pinned-message-manager.js";
 import { logger } from "../../utils/logger.js";
-import { isExpectedOpencodeUnavailableError } from "../../utils/opencode-error.js";
 import { t } from "../../i18n/index.js";
 import { sendBotText } from "../messages/telegram-text.js";
 import { getBotVersion } from "../../runtime/bot-version.js";
 
 export async function statusCommand(ctx: CommandContext<Context>) {
   try {
-    const { data, error } = await opencodeClient.global.health();
-
-    if (error || !data) {
-      throw error || new Error("No data received from server");
-    }
-
     const botVersion = await getBotVersion();
     let message = `${t("status.header_running")}\n\n`;
     message += `${t("status.line.bot_version", { version: botVersion })}\n`;
-    if (data.version) {
-      message += `${t("status.line.version", { version: data.version })}\n`;
-    }
+    message += `${t("status.line.version", { version: `agy (${config.antigravity.bin})` })}\n`;
 
     // Add agent information
     const currentAgent = await fetchCurrentAgent();
@@ -38,7 +29,7 @@ export async function statusCommand(ctx: CommandContext<Context>) {
 
     // Add model information
     const currentModel = fetchCurrentModel();
-    const modelName = `${currentModel.providerID}/${currentModel.modelID}`;
+    const modelName = currentModel.modelID;
     const modelDisplay = currentModel.variant
       ? `🧠 ${modelName} (${currentModel.variant})`
       : `🧠 ${modelName}`;
@@ -107,11 +98,7 @@ export async function statusCommand(ctx: CommandContext<Context>) {
       await ctx.reply(message, keyboard ? { reply_markup: keyboard } : {});
     }
   } catch (error) {
-    if (isExpectedOpencodeUnavailableError(error)) {
-      logger.warn("[Bot] OpenCode server unavailable; cannot report status");
-    } else {
-      logger.error("[Bot] Error checking server status:", error);
-    }
+    logger.error("[Bot] Error checking server status:", error);
     const botVersion = await getBotVersion();
     await ctx.reply(
       `${t("status.header_unavailable")}\n${t("status.line.bot_version", { version: botVersion })}\n\n${t("status.unavailable_hint")}`,

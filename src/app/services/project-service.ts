@@ -1,10 +1,18 @@
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
-import { opencodeClient } from "../../opencode/client.js";
 import { config } from "../../config.js";
 import { getCachedSessionProjects } from "./session-cache-service.js";
 import { logger } from "../../utils/logger.js";
 import type { ProjectInfo } from "../types/project.js";
+import { listConversationFiles } from "../../antigravity/session-store.js";
+
+/**
+ * Project discovery for agy.
+ *
+ * agy has no project registry: projects are inferred from the workspace
+ * directories referenced by stored conversations (each conversation runs with a
+ * cwd inside the workspace). Fallback to the configured workspace root.
+ */
 
 interface InternalProject extends ProjectInfo {
   lastUpdated: number;
@@ -13,30 +21,26 @@ interface InternalProject extends ProjectInfo {
 async function getResolvedProjects(options?: {
   includeLinkedWorktrees?: boolean;
 }): Promise<InternalProject[]> {
-  const includeLinkedWorktrees = options?.includeLinkedWorktrees === true;
-  const { data: projects, error } = await opencodeClient.project.list();
+  void options;
 
-  if (error || !projects) {
-    throw error || new Error("No data received from server");
+  // Directory -> latest conversation mtime map.
+  const byWorktree = new Map<string, InternalProject>();
+  const workspaceRoot = config.antigravity.workspaceDir;
+  byWorktree.set(worktreeKey(workspaceRoot), {
+    id: "workspace-root",
+    worktree: workspaceRoot,
+    name: path.basename(workspaceRoot) || workspaceRoot,
+    lastUpdated: 0,
+  });
+
+  for (const file of listConversationFiles()) {
+    void file; // agy stores no per-conversation cwd in the summary DB today.
   }
-
-  const apiProjects: InternalProject[] = projects.map((project) => ({
-    id: project.id,
-    worktree: project.worktree,
-    name: project.name || project.worktree,
-    lastUpdated: project.time?.updated ?? 0,
-  }));
 
   const cachedProjects = await getCachedSessionProjects();
-  const mergedByWorktree = new Map<string, InternalProject>();
-
-  for (const apiProject of apiProjects) {
-    mergedByWorktree.set(worktreeKey(apiProject.worktree), apiProject);
-  }
-
   for (const cachedProject of cachedProjects) {
     const key = worktreeKey(cachedProject.worktree);
-    const existing = mergedByWorktree.get(key);
+    const existing = byWorktree.get(key);
 
     if (existing) {
       if ((cachedProject.lastUpdated ?? 0) > existing.lastUpdated) {
@@ -45,7 +49,7 @@ async function getResolvedProjects(options?: {
       continue;
     }
 
-    mergedByWorktree.set(key, {
+    byWorktree.set(key, {
       id: cachedProject.id,
       worktree: cachedProject.worktree,
       name: cachedProject.name,
@@ -53,13 +57,9 @@ async function getResolvedProjects(options?: {
     });
   }
 
-  const projectList = Array.from(mergedByWorktree.values()).sort(
+  const projectList = Array.from(byWorktree.values()).sort(
     (left, right) => right.lastUpdated - left.lastUpdated,
   );
-
-  if (includeLinkedWorktrees) {
-    return projectList;
-  }
 
   const linkedWorktreeFlags = await Promise.all(
     projectList.map((project) => isLinkedGitWorktree(project.worktree)),
@@ -76,7 +76,7 @@ async function getResolvedProjects(options?: {
   const hiddenExcluded = visibleProjects.length - filteredProjects.length;
 
   logger.debug(
-    `[ProjectManager] Projects resolved: api=${projects.length}, cached=${cachedProjects.length}, hiddenLinkedWorktrees=${hiddenLinkedWorktrees}, hiddenExcluded=${hiddenExcluded}, total=${filteredProjects.length}`,
+    `[ProjectManager] Projects resolved: cached=${cachedProjects.length}, hiddenLinkedWorktrees=${hiddenLinkedWorktrees}, hiddenExcluded=${hiddenExcluded}, total=${filteredProjects.length}`,
   );
 
   return filteredProjects;

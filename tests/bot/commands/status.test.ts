@@ -50,6 +50,7 @@ vi.mock("../../../src/app/services/session-service.js", () => ({
 }));
 
 vi.mock("../../../src/app/stores/settings-store.js", () => ({
+  __resetSettingsForTests: vi.fn(),
   getCurrentProject: mocked.getCurrentProjectMock,
 }));
 
@@ -135,8 +136,8 @@ describe("bot/commands/status-command", () => {
 
     const message = mocked.sendBotTextMock.mock.calls[0]?.[0]?.text as string;
     expect(message).toContain(`Bot version: ${botVersion}`);
-    expect(message).toContain("OpenCode version: 1.0.0");
-    expect(message).toContain("OpenCode version: 1.0.0\n\nAgent:");
+    expect(message).toContain("agy");
+    expect(message).toContain("Agent:");
     expect(message).not.toContain("Status: Healthy");
     expect(message).not.toContain("Audio replies");
     expect(message).not.toContain("Started by bot");
@@ -170,35 +171,9 @@ describe("bot/commands/status-command", () => {
     expect(message).toContain("Worktree: /repo-feature");
   });
 
-  it("logs expected server unavailability as a warning", async () => {
-    mocked.healthMock.mockResolvedValue({
-      data: undefined,
-      error: new TypeError("fetch failed"),
-    });
-
-    const reply = vi.fn();
-    const ctx = {
-      chat: { id: 42, type: "private" },
-      message: { text: "/status" },
-      api: {},
-      reply,
-    } as unknown as Context;
-
-    await statusCommand(ctx as never);
-
-    expect(mocked.loggerErrorMock).not.toHaveBeenCalled();
-    expect(mocked.loggerWarnMock).toHaveBeenCalledTimes(1);
-    expect(reply).toHaveBeenCalledTimes(1);
-    const replyText = reply.mock.calls[0]?.[0] as string;
-    expect(replyText).toContain("OpenCode Server is unavailable");
-    expect(replyText).toContain(`Bot version: ${botVersion}`);
-    expect(replyText).toContain("Use /opencode_start to start the server.");
-    expect(replyText).not.toContain("OpenCode version:");
-  });
-
-  it("logs unexpected failures as errors", async () => {
+  it("replies with unavailable header when reading config fails", async () => {
     const unexpectedError = new Error("boom");
-    mocked.healthMock.mockResolvedValue({ data: undefined, error: unexpectedError });
+    mocked.fetchCurrentAgentMock.mockRejectedValue(unexpectedError);
 
     const reply = vi.fn();
     const ctx = {
@@ -211,17 +186,32 @@ describe("bot/commands/status-command", () => {
     await statusCommand(ctx as never);
 
     expect(mocked.loggerWarnMock).not.toHaveBeenCalled();
-    expect(mocked.loggerErrorMock).toHaveBeenCalledTimes(1);
-    expect(mocked.loggerErrorMock).toHaveBeenCalledWith(
-      "[Bot] Error checking server status:",
-      unexpectedError,
-    );
     expect(reply).toHaveBeenCalledTimes(1);
     const replyText = reply.mock.calls[0]?.[0] as string;
-    expect(replyText).toContain("OpenCode Server is unavailable");
+    expect(replyText).toContain("Antigravity Server is unavailable");
     expect(replyText).toContain(`Bot version: ${botVersion}`);
-    expect(replyText).toContain("Use /opencode_start to start the server.");
-    expect(replyText).not.toContain("OpenCode version:");
+  });
+
+  it("logs unexpected failures as errors", async () => {
+    const unexpectedError = new Error("boom");
+    mocked.fetchCurrentAgentMock.mockRejectedValue(unexpectedError);
+
+    const reply = vi.fn();
+    const ctx = {
+      chat: { id: 42, type: "private" },
+      message: { text: "/status" },
+      api: {},
+      reply,
+    } as unknown as Context;
+
+    await statusCommand(ctx as never);
+
+    expect(mocked.loggerErrorMock).toHaveBeenCalled();
+    expect(reply).toHaveBeenCalledTimes(1);
+    const replyText = reply.mock.calls[0]?.[0] as string;
+    expect(replyText).toContain("Antigravity Server is unavailable");
+    expect(replyText).toContain(`Bot version: ${botVersion}`);
+    expect(replyText).not.toContain("Antigravity version:");
   });
 
   it("appends a named variant on the Model line", async () => {
@@ -241,7 +231,7 @@ describe("bot/commands/status-command", () => {
     await statusCommand(ctx as never);
 
     const message = mocked.sendBotTextMock.mock.calls[0]?.[0]?.text as string;
-    expect(message).toContain("Model: 🧠 openai/gpt-5 (low)");
+    expect(message).toContain("Model: 🧠 gpt-5 (low)");
   });
 
   it("shows (default) when the current variant is default", async () => {
@@ -261,7 +251,7 @@ describe("bot/commands/status-command", () => {
     await statusCommand(ctx as never);
 
     const message = mocked.sendBotTextMock.mock.calls[0]?.[0]?.text as string;
-    expect(message).toContain("Model: 🧠 openai/gpt-5 (default)");
+    expect(message).toContain("Model: 🧠 gpt-5 (default)");
   });
 
   it("omits parentheses when the model has no variant", async () => {
@@ -280,7 +270,7 @@ describe("bot/commands/status-command", () => {
     await statusCommand(ctx as never);
 
     const message = mocked.sendBotTextMock.mock.calls[0]?.[0]?.text as string;
-    expect(message).toContain("Model: 🧠 openai/gpt-5");
+    expect(message).toContain("Model: 🧠 gpt-5");
     expect(message).not.toContain("gpt-5 (");
   });
 });

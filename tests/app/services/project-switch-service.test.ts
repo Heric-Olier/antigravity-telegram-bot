@@ -27,6 +27,7 @@ const mocked = vi.hoisted(() => ({
 }));
 
 vi.mock("../../../src/app/stores/settings-store.js", () => ({
+  __resetSettingsForTests: vi.fn(),
   setCurrentProject: mocked.setCurrentProjectMock,
 }));
 vi.mock("../../../src/app/services/session-service.js", () => ({

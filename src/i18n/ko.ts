@@ -1,7 +1,7 @@
 import type { I18nDictionary } from "./en.js";
 
 /**
- * Korean localization for OpenCode Telegram Bot.
+ * Korean localization for Antigravity Telegram Bot.
  *
  * Keep upstream emoji and technical terms where they help recognition.
  * Prefer natural Korean wording over literal translation.
@@ -22,8 +22,8 @@ export const ko: I18nDictionary = {
   "cmd.description.commands": "사용자 지정 명령어",
   "cmd.description.skills": "스킬 카탈로그",
   "cmd.description.mcps": "MCP 서버",
-  "cmd.description.opencode_start": "OpenCode 서버 시작",
-  "cmd.description.opencode_stop": "OpenCode 서버 중지",
+  "cmd.description.opencode_start": "Antigravity 서버 시작",
+  "cmd.description.opencode_stop": "Antigravity 서버 중지",
   "cmd.description.ls": "디렉터리 내용 보기",
   "cmd.description.help": "도움말",
 
@@ -64,7 +64,7 @@ export const ko: I18nDictionary = {
   "common.unknown_error": "알 수 없는 오류",
 
   "start.welcome":
-    "👋 OpenCode Telegram Bot에 오신 것을 환영합니다!\n\n사용 가능한 명령어:\n/projects — 프로젝트 선택\n/sessions — 세션 목록\n/new — 새 세션\n/commands — 사용자 지정 명령어\n/skills — 스킬 카탈로그\n/task — 예약 작업\n/tasklist — 예약 작업 목록\n/status — 상태\n/help — 도움말\n\n아래 버튼으로 에이전트, 모델, 변형을 선택하세요.",
+    "👋 Antigravity Telegram Bot에 오신 것을 환영합니다!\n\n사용 가능한 명령어:\n/projects — 프로젝트 선택\n/sessions — 세션 목록\n/new — 새 세션\n/commands — 사용자 지정 명령어\n/skills — 스킬 카탈로그\n/task — 예약 작업\n/tasklist — 예약 작업 목록\n/status — 상태\n/help — 도움말\n\n아래 버튼으로 에이전트, 모델, 변형을 선택하세요.",
   "help.keyboard_hint":
     "💡 아래 키보드 버튼으로 에이전트, 모델, 변형 및 컨텍스트 작업을 사용할 수 있습니다.",
   "help.text":
@@ -91,8 +91,8 @@ export const ko: I18nDictionary = {
     "⏳ 에이전트가 이미 작업을 실행 중입니다. 완료될 때까지 기다리거나 /abort로 현재 실행을 중단하세요.",
   "bot.session_reset_project_mismatch":
     "⚠️ 활성 세션이 선택한 프로젝트와 일치하지 않아 초기화되었습니다. /sessions에서 세션을 선택하거나 /new로 새 세션을 만들어 주세요.",
-  "bot.prompt_send_error": "OpenCode에 요청을 보내지 못했습니다.",
-  "bot.session_error": "🔴 OpenCode 오류가 발생했습니다: {message}",
+  "bot.prompt_send_error": "Antigravity에 요청을 보내지 못했습니다.",
+  "bot.session_error": "🔴 Antigravity 오류가 발생했습니다: {message}",
   "bot.session_retry":
     "🔁 {message}\n\n재시도할 때마다 동일한 오류가 반복됩니다. /abort로 중단하세요.",
   "bot.external_user_input": "외부 사용자 입력",
@@ -116,18 +116,18 @@ export const ko: I18nDictionary = {
   "bot.rich_message_media_skipped": "⚠️ 지원되지 않는 미디어 {count}개를 건너뛰었습니다.",
   "bot.message_type_unsupported": "⚠️ 지원되지 않는 메시지 형식입니다.",
   "bot.media_group_not_processed":
-    "⚠️ 이 앨범의 일부 파일은 처리할 수 없습니다. OpenCode에 아무것도 전송되지 않았습니다.",
+    "⚠️ 이 앨범의 일부 파일은 처리할 수 없습니다. Antigravity에 아무것도 전송되지 않았습니다.",
   "bot.media_group_download_error":
-    "🔴 파일 중 하나를 다운로드하지 못했습니다. OpenCode에 아무것도 전송되지 않았습니다.",
+    "🔴 파일 중 하나를 다운로드하지 못했습니다. Antigravity에 아무것도 전송되지 않았습니다.",
   "bot.model_no_pdf": "⚠️ 현재 모델은 PDF 입력을 지원하지 않습니다. 텍스트만 전송합니다.",
   "bot.document_extraction_error": "🔴 문서 텍스트 추출에 실패했습니다.",
   "bot.text_file_too_large": "⚠️ 텍스트 파일이 너무 큽니다 (최대 {maxSizeKb}KB)",
 
-  "status.header_running": "🟢 OpenCode 서버 실행 중",
+  "status.header_running": "🟢 Antigravity 서버 실행 중",
   "status.health.healthy": "정상",
   "status.health.unhealthy": "비정상",
   "status.line.health": "상태: {health}",
-  "status.line.version": "OpenCode 버전: {version}",
+  "status.line.version": "Antigravity 버전: {version}",
   "status.line.bot_version": "Bot version: {version}",
   "status.line.managed_yes": "봇이 시작함: 예",
   "status.line.managed_no": "봇이 시작함: 아니요",
@@ -147,7 +147,7 @@ export const ko: I18nDictionary = {
   "status.session_selected": "현재 세션: {title}",
   "status.session_not_selected": "현재 세션: 선택 안 됨",
   "status.session_hint": "/sessions에서 선택하거나 /new로 새로 만들어 주세요",
-  "status.header_unavailable": "🔴 OpenCode 서버에 연결할 수 없습니다",
+  "status.header_unavailable": "🔴 Antigravity 서버에 연결할 수 없습니다",
   "status.unavailable_hint": "/opencode_start로 서버를 시작해 주세요.",
 
   "tts.off": "🔇 음성 답변이 비활성화되었습니다.",
@@ -174,14 +174,14 @@ export const ko: I18nDictionary = {
   "settings.saved": "✅ 설정이 저장되었습니다.",
 
   "projects.empty":
-    "📭 프로젝트가 없습니다.\n\nOpenCode에서 디렉터리를 열고 세션을 하나 이상 만들면 여기에 표시됩니다.",
+    "📭 프로젝트가 없습니다.\n\nAntigravity에서 디렉터리를 열고 세션을 하나 이상 만들면 여기에 표시됩니다.",
   "projects.select": "프로젝트를 선택하세요:",
   "projects.select_with_current": "프로젝트를 선택하세요:\n\n현재: 🏗 {project}",
   "projects.page_indicator": "{current}/{total} 페이지",
   "projects.prev_page": "⬅️ 이전",
   "projects.next_page": "다음 ➡️",
   "projects.fetch_error":
-    "🔴 OpenCode 서버에 연결할 수 없거나 프로젝트를 불러오는 중 오류가 발생했습니다.",
+    "🔴 Antigravity 서버에 연결할 수 없거나 프로젝트를 불러오는 중 오류가 발생했습니다.",
   "projects.page_load_error": "이 페이지를 불러올 수 없습니다. 다시 시도해 주세요.",
   "projects.selected":
     "✅ 프로젝트 선택됨: {project}\n\n📋 세션이 초기화되었습니다. 이 프로젝트에서 /sessions 또는 /new를 사용해 주세요.",
@@ -193,7 +193,7 @@ export const ko: I18nDictionary = {
   "sessions.select": "세션을 선택하세요:",
   "sessions.select_page": "세션을 선택하세요 ({page} 페이지):",
   "sessions.fetch_error":
-    "🔴 OpenCode 서버에 연결할 수 없거나 세션을 불러오는 중 오류가 발생했습니다.",
+    "🔴 Antigravity 서버에 연결할 수 없거나 세션을 불러오는 중 오류가 발생했습니다.",
   "sessions.select_project_first": "🔴 프로젝트가 선택되지 않았습니다. /projects를 사용해 주세요.",
   "sessions.page_empty_callback": "이 페이지에는 세션이 없습니다",
   "sessions.page_load_error_callback": "이 페이지를 불러올 수 없습니다. 다시 시도해 주세요.",
@@ -217,7 +217,7 @@ export const ko: I18nDictionary = {
   "messages.select": "메시지를 선택하세요:",
   "messages.select_page": "메시지를 선택하세요 ({page} 페이지):",
   "messages.fetch_error":
-    "🔴 OpenCode 서버에 연결할 수 없거나 메시지를 불러오는 중 오류가 발생했습니다.",
+    "🔴 Antigravity 서버에 연결할 수 없거나 메시지를 불러오는 중 오류가 발생했습니다.",
   "messages.inactive_callback": "이 메시지 메뉴는 비활성 상태입니다",
   "messages.page_empty_callback": "이 페이지에는 메시지가 없습니다",
   "messages.button.prev_page": "⬅️ 이전",
@@ -250,14 +250,14 @@ export const ko: I18nDictionary = {
     "🏗 프로젝트가 선택되지 않았습니다.\n\n먼저 /projects로 프로젝트를 선택해 주세요.",
   "detach.no_active_session": "ℹ️ 봇은 이미 어떤 세션에도 연결되어 있지 않습니다.",
   "detach.success":
-    "✅ 세션에서 분리됨: {title}\n\nOpenCode 세션은 중지되지 않았습니다. 아직 실행 중이라면 별도로 계속 진행됩니다. 나중에 확인하려면 /sessions에서 다시 선택하세요.",
+    "✅ 세션에서 분리됨: {title}\n\nAntigravity 세션은 중지되지 않았습니다. 아직 실행 중이라면 별도로 계속 진행됩니다. 나중에 확인하려면 /sessions에서 다시 선택하세요.",
   "detach.error": "🔴 현재 세션에서 분리하지 못했습니다.",
 
   "new.project_not_selected":
     "🏗 프로젝트가 선택되지 않았습니다.\n\n먼저 /projects로 프로젝트를 선택해 주세요.",
   "new.created": "✅ 새 세션이 생성되었습니다: {title}",
   "new.create_error":
-    "🔴 OpenCode 서버에 연결할 수 없거나 세션을 만드는 중 오류가 발생했습니다.",
+    "🔴 Antigravity 서버에 연결할 수 없거나 세션을 만드는 중 오류가 발생했습니다.",
 
   "stop.no_active_session":
     "🛑 에이전트가 시작되지 않았습니다\n\n/new로 세션을 만들거나 /sessions에서 선택해 주세요.",
@@ -275,30 +275,30 @@ export const ko: I18nDictionary = {
   "stop.error": "🔴 작업 중지에 실패했습니다.\n\n이벤트 스트림은 중지되었습니다. /abort를 다시 시도해 주세요.",
 
   "opencode_start.already_running_managed":
-    "⚠️ OpenCode 서버가 이미 실행 중입니다\n\nPID: {pid}\n가동 시간: {seconds}초",
+    "⚠️ Antigravity 서버가 이미 실행 중입니다\n\nPID: {pid}\n가동 시간: {seconds}초",
   "opencode_start.already_running_external":
-    "✅ OpenCode 서버가 외부 프로세스로 이미 실행 중입니다\n\n버전: {version}\n\n이 서버는 봇이 시작한 것이 아니므로 /opencode-stop으로 중지할 수 없습니다.",
-  "opencode_start.already_running": "✅ OpenCode 서버가 이미 실행 중입니다\n\n버전: {version}",
-  "opencode_start.remote_configured": "⚠️ /opencode_start는 로컬 OpenCode 서버에서만 동작합니다.",
-  "opencode_start.starting": "🔄 OpenCode 서버를 시작하는 중...",
+    "✅ Antigravity 서버가 외부 프로세스로 이미 실행 중입니다\n\n버전: {version}\n\n이 서버는 봇이 시작한 것이 아니므로 /opencode-stop으로 중지할 수 없습니다.",
+  "opencode_start.already_running": "✅ Antigravity 서버가 이미 실행 중입니다\n\n버전: {version}",
+  "opencode_start.remote_configured": "⚠️ /opencode_start는 로컬 Antigravity 서버에서만 동작합니다.",
+  "opencode_start.starting": "🔄 Antigravity 서버를 시작하는 중...",
   "opencode_start.start_error":
-    "🔴 OpenCode 서버 시작에 실패했습니다\n\n오류: {error}\n\nOpenCode CLI가 설치되어 있고 PATH에서 사용 가능한지 확인해 주세요:\nopencode --version\nnpm install -g @opencode-ai/cli",
+    "🔴 Antigravity 서버 시작에 실패했습니다\n\n오류: {error}\n\nAntigravity CLI가 설치되어 있고 PATH에서 사용 가능한지 확인해 주세요:\nopencode --version\nnpm install -g @opencode-ai/cli",
   "opencode_start.started_not_ready":
-    "⚠️ OpenCode 서버가 시작되었지만 응답하지 않습니다\n\nPID: {pid}\n\n서버가 아직 시작 중일 수 있습니다. 몇 초 후 /status를 시도해 주세요.",
+    "⚠️ Antigravity 서버가 시작되었지만 응답하지 않습니다\n\nPID: {pid}\n\n서버가 아직 시작 중일 수 있습니다. 몇 초 후 /status를 시도해 주세요.",
   "opencode_start.success":
-    "✅ OpenCode 서버가 성공적으로 시작되었습니다\n\nPID: {pid}\n버전: {version}",
+    "✅ Antigravity 서버가 성공적으로 시작되었습니다\n\nPID: {pid}\n버전: {version}",
   "opencode_start.error":
     "🔴 서버 시작 중 오류가 발생했습니다.\n\n자세한 내용은 애플리케이션 로그를 확인해 주세요.",
   "opencode_stop.external_running":
-    "⚠️ OpenCode 서버가 외부 프로세스로 실행 중입니다\n\n이 서버는 /opencode-start로 시작된 것이 아닙니다.\n직접 중지하거나 /status로 상태를 확인해 주세요.",
-  "opencode_stop.remote_configured": "⚠️ /opencode_stop은 로컬 OpenCode 서버에서만 동작합니다.",
-  "opencode_stop.not_running": "⚠️ OpenCode 서버가 실행 중이지 않습니다",
+    "⚠️ Antigravity 서버가 외부 프로세스로 실행 중입니다\n\n이 서버는 /opencode-start로 시작된 것이 아닙니다.\n직접 중지하거나 /status로 상태를 확인해 주세요.",
+  "opencode_stop.remote_configured": "⚠️ /opencode_stop은 로컬 Antigravity 서버에서만 동작합니다.",
+  "opencode_stop.not_running": "⚠️ Antigravity 서버가 실행 중이지 않습니다",
   "opencode_stop.pid_not_found":
-    "⚠️ OpenCode 서버가 포트 {port}에서 응답하고 있지만 중지할 로컬 프로세스를 찾을 수 없습니다.",
-  "opencode_stop.stopping": "🛑 OpenCode 서버를 중지하는 중...\n\nPID: {pid}",
-  "opencode_stop.stop_error": "🔴 OpenCode 서버 중지에 실패했습니다\n\n오류: {error}",
+    "⚠️ Antigravity 서버가 포트 {port}에서 응답하고 있지만 중지할 로컬 프로세스를 찾을 수 없습니다.",
+  "opencode_stop.stopping": "🛑 Antigravity 서버를 중지하는 중...\n\nPID: {pid}",
+  "opencode_stop.stop_error": "🔴 Antigravity 서버 중지에 실패했습니다\n\n오류: {error}",
   "opencode_stop.still_running": "중지 요청 후에도 서버가 응답하고 있습니다.",
-  "opencode_stop.success": "✅ OpenCode 서버가 성공적으로 중지되었습니다",
+  "opencode_stop.success": "✅ Antigravity 서버가 성공적으로 중지되었습니다",
   "opencode_stop.error":
     "🔴 서버 중지 중 오류가 발생했습니다.\n\n자세한 내용은 애플리케이션 로그를 확인해 주세요.",
 
@@ -314,12 +314,12 @@ export const ko: I18nDictionary = {
   "model.menu.empty": "⚠️ 사용 가능한 모델이 없습니다",
   "model.menu.select": "모델을 선택하세요:",
   "model.menu.current": "현재 모델: {name}\n\n모델을 선택하세요:",
-  "model.menu.favorites_title": "⭐ 즐겨찾기 (OpenCode CLI에서 모델을 즐겨찾기에 추가하세요)",
+  "model.menu.favorites_title": "⭐ 즐겨찾기 (Antigravity CLI에서 모델을 즐겨찾기에 추가하세요)",
   "model.menu.favorites_empty": "— 비어 있음.",
   "model.menu.recent_title": "🕘 최근 사용",
   "model.menu.recent_empty": "— 비어 있음.",
   "model.menu.favorites_hint":
-    "ℹ️ OpenCode CLI에서 모델을 즐겨찾기에 추가하면 목록 상단에 고정됩니다.",
+    "ℹ️ Antigravity CLI에서 모델을 즐겨찾기에 추가하면 목록 상단에 고정됩니다.",
   "model.menu.error": "🔴 모델 목록을 가져오지 못했습니다",
   "model.search.button": "🔍 검색",
   "model.search.prompt": "🔍 검색할 모델 이름을 입력하세요:",
@@ -464,14 +464,14 @@ export const ko: I18nDictionary = {
     "텔레그램 사용자 ID를 입력하세요 (@userinfobot에서 확인할 수 있습니다).\n> ",
   "runtime.wizard.user_id_invalid": "양의 정수를 입력하세요 (> 0).\n",
   "runtime.wizard.ask_api_url":
-    "OpenCode API URL을 입력하세요 (선택 사항).\nEnter를 누르면 기본값({defaultUrl})이 사용됩니다.\n> ",
+    "Antigravity API URL을 입력하세요 (선택 사항).\nEnter를 누르면 기본값({defaultUrl})이 사용됩니다.\n> ",
   "runtime.wizard.ask_server_username":
-    "OpenCode 서버 사용자 이름을 입력하세요 (선택 사항).\nEnter를 누르면 기본값({defaultUsername})이 사용됩니다.\n> ",
+    "Antigravity 서버 사용자 이름을 입력하세요 (선택 사항).\nEnter를 누르면 기본값({defaultUsername})이 사용됩니다.\n> ",
   "runtime.wizard.ask_server_password":
-    "OpenCode 서버 비밀번호를 입력하세요 (선택 사항).\nEnter를 누르면 비워 둡니다.\n> ",
+    "Antigravity 서버 비밀번호를 입력하세요 (선택 사항).\nEnter를 누르면 비워 둡니다.\n> ",
   "runtime.wizard.api_url_invalid":
     "유효한 URL(http/https)을 입력하거나 Enter를 눌러 기본값을 사용하세요.\n",
-  "runtime.wizard.start": "OpenCode Telegram Bot 설정을 시작합니다.\n",
+  "runtime.wizard.start": "Antigravity Telegram Bot 설정을 시작합니다.\n",
   "runtime.wizard.saved": "설정이 저장되었습니다:\n- {envPath}\n",
   "runtime.wizard.not_configured_starting":
     "아직 구성되지 않았습니다. 설정 마법사를 시작합니다...\n",
@@ -540,9 +540,9 @@ export const ko: I18nDictionary = {
   "tasklist.inactive_callback": "이 예약 작업 메뉴는 비활성 상태입니다",
   "tasklist.load_error": "🔴 예약 작업을 불러오지 못했습니다.",
 
-  "commands.select": "OpenCode 명령어를 선택하세요:",
-  "commands.empty": "📭 이 프로젝트에서 사용 가능한 OpenCode 명령어가 없습니다.",
-  "commands.fetch_error": "🔴 OpenCode 명령어를 불러오지 못했습니다.",
+  "commands.select": "Antigravity 명령어를 선택하세요:",
+  "commands.empty": "📭 이 프로젝트에서 사용 가능한 Antigravity 명령어가 없습니다.",
+  "commands.fetch_error": "🔴 Antigravity 명령어를 불러오지 못했습니다.",
   "commands.no_description": "설명 없음",
   "commands.button.execute": "✅ 실행",
   "commands.button.cancel": "❌ 취소",
@@ -552,8 +552,8 @@ export const ko: I18nDictionary = {
   "commands.execute_callback": "명령어를 실행하는 중...",
   "commands.executing_prefix": "⚡ 명령어 실행 중:",
   "commands.arguments_empty": "⚠️ 인자는 비워 둘 수 없습니다. 텍스트를 보내거나 실행을 탭해 주세요.",
-  "commands.execute_error": "🔴 OpenCode 명령어 실행에 실패했습니다.",
-  "commands.select_page": "OpenCode 명령어를 선택하세요 ({page} 페이지):",
+  "commands.execute_error": "🔴 Antigravity 명령어 실행에 실패했습니다.",
+  "commands.select_page": "Antigravity 명령어를 선택하세요 ({page} 페이지):",
   "commands.button.prev_page": "⬅️ 이전",
   "commands.button.next_page": "다음 ➡️",
   "commands.page_empty_callback": "이 페이지에는 명령어가 없습니다",
@@ -567,9 +567,9 @@ export const ko: I18nDictionary = {
   "commands.download.modified": "수정됨",
   "commands.download.error": "파일 다운로드에 실패했습니다.",
 
-  "skills.select": "OpenCode 스킬을 선택하세요:",
-  "skills.empty": "📭 이 프로젝트에서 사용 가능한 OpenCode 스킬이 없습니다.",
-  "skills.fetch_error": "🔴 OpenCode 스킬을 불러오지 못했습니다.",
+  "skills.select": "Antigravity 스킬을 선택하세요:",
+  "skills.empty": "📭 이 프로젝트에서 사용 가능한 Antigravity 스킬이 없습니다.",
+  "skills.fetch_error": "🔴 Antigravity 스킬을 불러오지 못했습니다.",
   "skills.no_description": "설명 없음",
   "skills.button.execute": "✅ 실행",
   "skills.button.cancel": "❌ 취소",
@@ -579,7 +579,7 @@ export const ko: I18nDictionary = {
   "skills.execute_callback": "스킬을 사용하는 중...",
   "skills.executing_prefix": "⚡ 스킬 사용 중:",
   "skills.arguments_empty": "⚠️ 인자는 비워 둘 수 없습니다. 텍스트를 보내거나 실행을 탭해 주세요.",
-  "skills.select_page": "OpenCode 스킬을 선택하세요 ({page} 페이지):",
+  "skills.select_page": "Antigravity 스킬을 선택하세요 ({page} 페이지):",
   "skills.button.prev_page": "⬅️ 이전",
   "skills.button.next_page": "다음 ➡️",
   "skills.page_empty_callback": "이 페이지에는 스킬이 없습니다",
@@ -607,7 +607,7 @@ export const ko: I18nDictionary = {
   "cmd.description.rename": "현재 세션 이름 변경",
 
   "legacy.models.fetch_error": "🔴 모델 목록을 가져오지 못했습니다. /status로 서버 상태를 확인해 주세요.",
-  "legacy.models.empty": "📋 사용 가능한 모델이 없습니다. OpenCode에서 프로바이더를 설정해 주세요.",
+  "legacy.models.empty": "📋 사용 가능한 모델이 없습니다. Antigravity에서 프로바이더를 설정해 주세요.",
   "legacy.models.header": "📋 사용 가능한 모델:\n\n",
   "legacy.models.no_provider_models": "  ⚠️ 사용 가능한 모델이 없습니다\n",
   "legacy.models.env_hint": "💡 .env에서 이 모델을 사용하려면:\n",

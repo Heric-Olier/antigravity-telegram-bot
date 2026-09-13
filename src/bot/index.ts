@@ -7,7 +7,6 @@ import {
   configureAttachPresentation,
   restoreAttachedCurrentSession,
 } from "../app/services/attach-service.js";
-import { opencodeReadyLifecycle } from "../opencode/ready-lifecycle.js";
 import { logger } from "../utils/logger.js";
 import { safeBackgroundTask } from "../utils/safe-background-task.js";
 import { withTelegramRateLimitRetry } from "../utils/telegram-rate-limit-retry.js";
@@ -31,7 +30,6 @@ import { createAttachPresentation } from "./services/attach-presentation.js";
 import { createTelegramBotOptions } from "./telegram-client-options.js";
 
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
-let unsubscribeReadyRestore: (() => void) | null = null;
 
 const eventSubscriptionService: BotEventSubscriptionService = createEventSubscriptionService();
 
@@ -95,27 +93,31 @@ export function createBot(localCommandRegistry = LocalCommandRegistry.empty()): 
     ensureEventSubscription: eventSubscriptionService.ensureEventSubscription,
   });
 
-  unsubscribeReadyRestore?.();
-  unsubscribeReadyRestore = opencodeReadyLifecycle.onReady(async (reason) => {
-    const restored = await restoreAttachedCurrentSession({
-      bot,
-      chatId: config.telegram.allowedUserId,
-      ensureEventSubscription: eventSubscriptionService.ensureEventSubscription,
-      forceFullRestore: true,
-    });
+  // agy has no separate server lifecycle: the ready-restore cycle from the
+  // OpenCode era collapses to an immediate restore attempt on bot creation.
+  safeBackgroundTask({
+    taskName: "bot.restoreAfterCreate",
+    task: async () => {
+      const restored = await restoreAttachedCurrentSession({
+        bot,
+        chatId: config.telegram.allowedUserId,
+        ensureEventSubscription: eventSubscriptionService.ensureEventSubscription,
+        forceFullRestore: true,
+      });
 
-    if (restored) {
-      logger.info(`[Bot] Restored followed session after OpenCode ready: reason=${reason}`);
-      return;
-    }
+      if (restored) {
+        logger.info("[Bot] Restored followed session after bot startup");
+        return;
+      }
 
-    const currentProject = getCurrentProject();
-    if (config.bot.trackBackgroundSessions && currentProject?.worktree) {
-      await eventSubscriptionService.ensureEventSubscription(currentProject.worktree);
-      logger.info(
-        `[Bot] Started background session tracking after OpenCode ready: reason=${reason}, directory=${currentProject.worktree}`,
-      );
-    }
+      const currentProject = getCurrentProject();
+      if (config.bot.trackBackgroundSessions && currentProject?.worktree) {
+        await eventSubscriptionService.ensureEventSubscription(currentProject.worktree);
+        logger.info(
+          `[Bot] Started background session tracking after bot startup: directory=${currentProject.worktree}`,
+        );
+      }
+    },
   });
 
   let heartbeatCounter = 0;
@@ -250,8 +252,6 @@ export function restoreFollowedSessionOnPollingStart(bot: Bot<Context>): void {
 }
 
 export function cleanupBotRuntime(reason: string): void {
-  unsubscribeReadyRestore?.();
-  unsubscribeReadyRestore = null;
   eventSubscriptionService.cleanup(reason);
 
   if (heartbeatTimer) {

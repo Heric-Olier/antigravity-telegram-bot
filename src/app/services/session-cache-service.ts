@@ -1,12 +1,21 @@
-import { createHash } from "node:crypto";
-import path from "node:path";
-import Database from "better-sqlite3";
-import { opencodeClient } from "../../opencode/client.js";
-import { getSessionDirectoryCache, setSessionDirectoryCache } from "../stores/settings-store.js";
-import { isServerUnavailableError } from "../../utils/opencode-error.js";
-import { isRecord } from "../../utils/type-guards.js";
+import { config } from "../../config.js";
 import { logger } from "../../utils/logger.js";
+import {
+  getSessionDirectoryCache,
+  setSessionDirectoryCache,
+  __resetSettingsForTests,
+} from "../stores/settings-store.js";
+import { isRecord } from "../../utils/type-guards.js";
 import type { CachedSessionDirectory, SessionDirectoryProject } from "../types/session.js";
+
+/**
+ * Session directory cache (agy version).
+ *
+ * agy scans conversations under one fixed root
+ * (~/.gemini/antigravity-cli/conversations), so the OpenCode-era storage-root
+ * discovery / SQLite fallback layers are gone. The cache now just remembers the
+ * workspace directory as the single project.
+ */
 
 interface SessionDirectoryCacheData {
   version: 1;
@@ -15,13 +24,7 @@ interface SessionDirectoryCacheData {
 }
 
 const CACHE_VERSION = 1;
-const INITIAL_WARMUP_LIMIT = 1000;
-const INCREMENTAL_SYNC_LIMIT = 1000;
 const MAX_CACHED_DIRECTORIES = 10;
-const SYNC_SAFETY_WINDOW_MS = 60_000;
-const SYNC_COOLDOWN_MS = 60_000;
-const STORAGE_FALLBACK_SCAN_LIMIT = 200;
-const SQLITE_FALLBACK_QUERY_LIMIT = 200;
 
 const EMPTY_CACHE: SessionDirectoryCacheData = {
   version: CACHE_VERSION,
@@ -39,9 +42,8 @@ function createEmptyCacheData(): SessionDirectoryCacheData {
 
 let cacheData: SessionDirectoryCacheData = createEmptyCacheData();
 let cacheLoaded = false;
-let syncInFlight: Promise<void> | null = null;
 let lastSyncAttemptAt = 0;
-let persistQueue: Promise<void> = Promise.resolve();
+const persistQueue: Promise<void> = Promise.resolve();
 
 function worktreeKey(worktree: string): string {
   if (process.platform === "win32") {
@@ -121,20 +123,20 @@ async function ensureCacheLoaded(): Promise<void> {
   );
 }
 
-function queuePersist(): Promise<void> {
-  persistQueue = persistQueue
-    .catch(() => {
-      // Keep queue chain alive if previous write failed.
-    })
-    .then(async () => {
-      try {
-        await setSessionDirectoryCache(cacheData);
-      } catch (error) {
-        logger.error("[SessionCache] Failed to persist sessions cache", error);
-      }
-    });
+async function persist(): Promise<void> {
+  try {
+    await setSessionDirectoryCache(configCacheSnapshot());
+  } catch (error) {
+    logger.error("[SessionCache] Failed to persist sessions cache", error);
+  }
+}
 
-  return persistQueue;
+function configCacheSnapshot(): SessionDirectoryCacheData {
+  return {
+    version: cacheData.version,
+    lastSyncedUpdatedAt: cacheData.lastSyncedUpdatedAt,
+    directories: [...cacheData.directories],
+  };
 }
 
 function upsertDirectory(worktree: string, lastUpdated: number): boolean {
@@ -142,428 +144,108 @@ function upsertDirectory(worktree: string, lastUpdated: number): boolean {
     return false;
   }
 
-  const normalizedWorktree = worktree.trim();
-  const key = worktreeKey(normalizedWorktree);
-  const existingIndex = cacheData.directories.findIndex(
-    (item) => worktreeKey(item.worktree) === key,
-  );
+  const key = worktreeKey(worktree);
+  const existing = cacheData.directories.find((d) => worktreeKey(d.worktree) === key);
 
-  if (existingIndex >= 0) {
-    const existing = cacheData.directories[existingIndex];
-    if (!existing || existing.lastUpdated >= lastUpdated) {
-      return false;
-    }
+  if (existing && existing.lastUpdated >= lastUpdated) {
+    return false;
+  }
 
-    cacheData.directories[existingIndex] = {
-      worktree: existing.worktree,
-      lastUpdated,
-    };
+  if (existing) {
+    existing.lastUpdated = lastUpdated;
   } else {
-    cacheData.directories.push({
-      worktree: normalizedWorktree,
-      lastUpdated,
-    });
+    cacheData.directories.push({ worktree, lastUpdated });
   }
 
   dedupeAndTrimDirectories(cacheData);
   return true;
 }
 
-function buildListParams(options?: {
-  force?: boolean;
-}): { limit: number; start?: number } {
-  if (options?.force || cacheData.lastSyncedUpdatedAt === 0) {
-    return { limit: INITIAL_WARMUP_LIMIT };
-  }
-
-  return {
-    limit: INCREMENTAL_SYNC_LIMIT,
-    start: Math.max(0, cacheData.lastSyncedUpdatedAt - SYNC_SAFETY_WINDOW_MS),
-  };
-}
-
-function createVirtualProjectId(worktree: string): string {
-  const hash = createHash("sha1").update(worktree).digest("hex").slice(0, 16);
-  return `dir_${hash}`;
-}
-
-async function runSync(options?: { force?: boolean }): Promise<void> {
+async function runSync(): Promise<void> {
   await ensureCacheLoaded();
 
-  const shouldPrune = options?.force || cacheData.lastSyncedUpdatedAt === 0;
-  const params = buildListParams(options);
-  const { data: sessions, error } = await opencodeClient.session.list(params);
-
-  if (error || !sessions) {
-    throw error || new Error("No session list received from server");
-  }
-
+  // agy keeps every conversation under the configured workspace; nothing
+  // external to sync, just make sure the workspace root itself is cached.
   let changed = false;
-  let maxUpdated = cacheData.lastSyncedUpdatedAt;
-  const seenDirectories = new Set<string>();
-
-  for (const session of sessions) {
-    const updatedAt = session.time?.updated ?? Date.now();
-    if (upsertDirectory(session.directory, updatedAt)) {
-      changed = true;
-    }
-
-    if (session.directory && isValidWorktree(session.directory)) {
-      seenDirectories.add(worktreeKey(session.directory.trim()));
-    }
-
-    if (updatedAt > maxUpdated) {
-      maxUpdated = updatedAt;
-    }
-  }
-
-  const responseIsTruncated = sessions.length >= INITIAL_WARMUP_LIMIT;
-
-  if (shouldPrune && !responseIsTruncated) {
-    const before = cacheData.directories.length;
-    cacheData.directories = cacheData.directories.filter((d) =>
-      seenDirectories.has(worktreeKey(d.worktree)),
-    );
-    if (cacheData.directories.length !== before) {
-      changed = true;
-      logger.info(
-        `[SessionCache] Pruned ${before - cacheData.directories.length} stale directories from cache`,
-      );
-    }
-  }
-
-  if (maxUpdated !== cacheData.lastSyncedUpdatedAt) {
-    cacheData.lastSyncedUpdatedAt = maxUpdated;
+  const workspace = config.antigravity.workspaceDir;
+  if (upsertDirectory(workspace, Date.now())) {
     changed = true;
   }
 
   if (changed) {
-    await queuePersist();
+    await persist();
   }
 
-  logger.debug(
-    `[SessionCache] Synced sessions: fetched=${sessions.length}, directories=${cacheData.directories.length}, lastSyncedUpdatedAt=${cacheData.lastSyncedUpdatedAt}`,
-  );
-}
-
-function getStorageRootCandidates(pathInfo: { home?: string; state?: string }): string[] {
-  const candidates = new Set<string>();
-
-  if (pathInfo.home) {
-    candidates.add(path.join(pathInfo.home, ".local", "share", "opencode"));
-  }
-
-  if (pathInfo.state) {
-    const normalizedState = pathInfo.state.replace(/[\\/]+$/, "");
-    const lowerState = normalizedState.toLowerCase();
-    const marker = `${path.sep}state${path.sep}opencode`;
-    const lowerMarker = marker.toLowerCase();
-
-    if (lowerState.endsWith(lowerMarker)) {
-      const prefix = normalizedState.slice(0, normalizedState.length - marker.length);
-      candidates.add(path.join(prefix, "share", "opencode"));
-    }
-  }
-
-  return Array.from(candidates);
-}
-
-function getPathApi():
-  | {
-      get?: () => Promise<{
-        data?: { home?: string; state?: string };
-        error?: unknown;
-      }>;
-    }
-  | undefined {
-  return opencodeClient.path as
-    | {
-        get?: () => Promise<{
-          data?: { home?: string; state?: string };
-          error?: unknown;
-        }>;
-      }
-    | undefined;
-}
-
-async function getStorageRootsFromApi(): Promise<string[]> {
-  const pathApi = getPathApi();
-  if (!pathApi?.get) {
-    return [];
-  }
-
-  const { data: pathInfo, error } = await pathApi.get();
-  if (error || !pathInfo) {
-    return [];
-  }
-
-  return getStorageRootCandidates(pathInfo);
-}
-
-async function querySessionDirectoriesFromSqlite(
-  dbPath: string,
-): Promise<CachedSessionDirectory[] | null> {
-  try {
-    const db = new Database(dbPath, {
-      readonly: true,
-      fileMustExist: true,
-    });
-
-    try {
-      const rows = db
-        .prepare(
-          `
-            SELECT directory, MAX(time_updated) AS updated
-            FROM session
-            GROUP BY directory
-            ORDER BY updated DESC
-            LIMIT ?
-          `,
-        )
-        .all(SQLITE_FALLBACK_QUERY_LIMIT) as Array<{ directory?: string; updated?: number | null }>;
-
-      return rows
-        .filter(
-          (item): item is { directory: string; updated: number | null } =>
-            Boolean(item) && typeof item.directory === "string",
-        )
-        .map((item) => ({
-          worktree: item.directory,
-          lastUpdated:
-            typeof item.updated === "number" && Number.isFinite(item.updated) ? item.updated : 0,
-        }));
-    } finally {
-      db.close();
-    }
-  } catch (error) {
-    logger.debug(`[SessionCache] Failed to read sqlite fallback at ${dbPath}`, error);
-  }
-
-  return null;
-}
-
-async function ingestFromSqliteSessionDatabase(): Promise<void> {
-  await ensureCacheLoaded();
-
-  const fs = await import("node:fs/promises");
-  const roots = await getStorageRootsFromApi();
-
-  for (const root of roots) {
-    const dbPath = path.join(root, "opencode.db");
-
-    try {
-      await fs.access(dbPath);
-    } catch {
-      continue;
-    }
-
-    const rows = await querySessionDirectoriesFromSqlite(dbPath);
-    if (!rows || rows.length === 0) {
-      continue;
-    }
-
-    let changed = false;
-    let maxUpdated = cacheData.lastSyncedUpdatedAt;
-
-    for (const row of rows) {
-      if (upsertDirectory(row.worktree, row.lastUpdated)) {
-        changed = true;
-      }
-
-      if (row.lastUpdated > maxUpdated) {
-        maxUpdated = row.lastUpdated;
-      }
-    }
-
-    if (maxUpdated !== cacheData.lastSyncedUpdatedAt) {
-      cacheData.lastSyncedUpdatedAt = maxUpdated;
-      changed = true;
-    }
-
-    if (changed) {
-      await queuePersist();
-    }
-
-    logger.debug(
-      `[SessionCache] SQLite fallback loaded: db=${dbPath}, rows=${rows.length}, directories=${cacheData.directories.length}`,
-    );
-
-    return;
-  }
-}
-
-async function ingestFromGlobalSessionStorage(): Promise<void> {
-  await ensureCacheLoaded();
-
-  const fs = await import("node:fs/promises");
-  const candidates = await getStorageRootsFromApi();
-
-  for (const storageRoot of candidates) {
-    const globalDir = path.join(storageRoot, "storage", "session", "global");
-
-    try {
-      const entries = await fs.readdir(globalDir, { withFileTypes: true });
-      const sessionFiles = entries.filter(
-        (entry) => entry.isFile() && entry.name.endsWith(".json"),
-      );
-
-      const withMtime = await Promise.all(
-        sessionFiles.map(async (entry) => {
-          const fullPath = path.join(globalDir, entry.name);
-          const stat = await fs.stat(fullPath);
-          return { fullPath, mtimeMs: stat.mtimeMs };
-        }),
-      );
-
-      const sorted = withMtime
-        .sort((a, b) => b.mtimeMs - a.mtimeMs)
-        .slice(0, STORAGE_FALLBACK_SCAN_LIMIT);
-
-      let changed = false;
-      let maxUpdated = cacheData.lastSyncedUpdatedAt;
-
-      for (const file of sorted) {
-        try {
-          const raw = await fs.readFile(file.fullPath, "utf-8");
-          const session = JSON.parse(raw) as {
-            directory?: string;
-            time?: { updated?: number };
-          };
-
-          if (!session.directory) {
-            continue;
-          }
-
-          const updated = session.time?.updated ?? Math.trunc(file.mtimeMs);
-          if (upsertDirectory(session.directory, updated)) {
-            changed = true;
-          }
-
-          if (updated > maxUpdated) {
-            maxUpdated = updated;
-          }
-        } catch {
-          // Ignore malformed session files.
-        }
-      }
-
-      if (maxUpdated !== cacheData.lastSyncedUpdatedAt) {
-        cacheData.lastSyncedUpdatedAt = maxUpdated;
-        changed = true;
-      }
-
-      if (changed) {
-        await queuePersist();
-      }
-
-      logger.debug(
-        `[SessionCache] Storage fallback loaded: root=${storageRoot}, scanned=${sorted.length}, directories=${cacheData.directories.length}`,
-      );
-
-      return;
-    } catch {
-      // Try next candidate path.
-    }
-  }
-}
-
-export async function warmupSessionDirectoryCache(): Promise<void> {
-  await syncSessionDirectoryCache({ force: true });
-
-  try {
-    await ingestFromSqliteSessionDatabase();
-  } catch (error) {
-    logger.warn("[SessionCache] Failed sqlite fallback warmup", error);
-  }
-
-  try {
-    await ingestFromGlobalSessionStorage();
-  } catch (error) {
-    logger.warn("[SessionCache] Failed storage fallback warmup", error);
-  }
+  logger.debug(`[SessionCache] Synced agy workspace: directories=${cacheData.directories.length}`);
 }
 
 export async function syncSessionDirectoryCache(options?: { force?: boolean }): Promise<void> {
-  await ensureCacheLoaded();
+  void options;
 
-  if (!options?.force && Date.now() - lastSyncAttemptAt < SYNC_COOLDOWN_MS) {
+  const now = Date.now();
+  if (now - lastSyncAttemptAt < 60_000) {
     return;
   }
 
-  if (syncInFlight) {
-    return syncInFlight;
+  lastSyncAttemptAt = now;
+
+  try {
+    await runSync();
+  } catch (error) {
+    logger.warn("[SessionCache] Failed to sync session directory cache", error);
   }
-
-  syncInFlight = runSync(options)
-    .then(() => {
-      lastSyncAttemptAt = Date.now();
-    })
-    .catch((error) => {
-      if (isServerUnavailableError(error)) {
-        logger.warn("[SessionCache] OpenCode server is not running. Start it with: opencode serve");
-      } else {
-        logger.warn("[SessionCache] Failed to sync sessions cache", error);
-      }
-
-      lastSyncAttemptAt = 0;
-    })
-    .finally(() => {
-      syncInFlight = null;
-    });
-
-  return syncInFlight;
-}
-
-export async function getCachedSessionDirectories(): Promise<CachedSessionDirectory[]> {
-  await ensureCacheLoaded();
-  return cacheData.directories.map((item) => ({ ...item }));
 }
 
 export async function getCachedSessionProjects(): Promise<SessionDirectoryProject[]> {
-  const directories = await getCachedSessionDirectories();
-
-  return directories.map((item) => ({
-    id: createVirtualProjectId(item.worktree),
-    worktree: item.worktree,
-    name: item.worktree,
-    lastUpdated: item.lastUpdated,
+  await ensureCacheLoaded();
+  return cacheData.directories.map((directory) => ({
+    id: `agy-${worktreeKey(directory.worktree)}`,
+    worktree: directory.worktree,
+    name: directory.worktree.split("/").pop() || directory.worktree,
+    lastUpdated: directory.lastUpdated,
   }));
+}
+
+/**
+ * Persist a session's directory info into the cache (call sites pass agy
+ * conversation metadata; the worktree is the directory key).
+ */
+export async function ingestSessionInfoForCache(session: {
+  id?: string | undefined;
+  directory?: string | undefined;
+  title?: string | undefined;
+  time?: { updated?: number | undefined };
+}): Promise<void> {
+  if (!session.directory || !isValidWorktree(session.directory)) {
+    return;
+  }
+
+  await ensureCacheLoaded();
+  if (
+    upsertDirectory(session.directory, session.time?.updated ?? Date.now())
+  ) {
+    await persist();
+  }
 }
 
 export async function upsertSessionDirectory(
   worktree: string,
-  lastUpdated: number = Date.now(),
+  lastUpdated: number,
 ): Promise<void> {
   await ensureCacheLoaded();
-
-  if (!upsertDirectory(worktree, lastUpdated)) {
-    return;
+  if (upsertDirectory(worktree, lastUpdated)) {
+    await persist();
   }
-
-  if (lastUpdated > cacheData.lastSyncedUpdatedAt) {
-    cacheData.lastSyncedUpdatedAt = lastUpdated;
-  }
-
-  await queuePersist();
 }
 
-export async function ingestSessionInfoForCache(session: {
-  directory?: string;
-  time?: { updated?: number };
-}): Promise<void> {
-  const directory = session.directory;
-  if (!directory) {
-    return;
-  }
-
-  const updated = session.time?.updated ?? Date.now();
-  await upsertSessionDirectory(directory, updated);
-}
-
-export function __resetSessionDirectoryCacheForTests(): void {
+export function __resetSessionCacheForTests(): void {
   cacheData = createEmptyCacheData();
   cacheLoaded = false;
-  syncInFlight = null;
   lastSyncAttemptAt = 0;
-  persistQueue = Promise.resolve();
+  __resetSettingsForTests();
 }
+
+// Legacy alias kept for the shared test reset helper (opencode-era name).
+export const __resetSessionDirectoryCacheForTests = __resetSessionCacheForTests;
+
+void persistQueue;

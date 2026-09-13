@@ -4,16 +4,11 @@ import { defined } from "../../helpers/defined.js";
 
 const mocked = vi.hoisted(() => ({
   flushPendingPrompt: vi.fn(),
-  opencodeStopCommand: vi.fn(),
 }));
 
 vi.mock("../../../src/bot/handlers/message-merger.js", () => ({
   flushPendingPrompt: mocked.flushPendingPrompt,
   __resetMessageMergerForTests: vi.fn(),
-}));
-
-vi.mock("../../../src/bot/commands/opencode-stop-command.js", () => ({
-  opencodeStopCommand: mocked.opencodeStopCommand,
 }));
 
 import {
@@ -37,8 +32,6 @@ describe("bot/routers/command-router", () => {
       "help",
       "status",
       "settings",
-      "opencode_start",
-      "opencode_stop",
       "projects",
       "worktree",
       "open",
@@ -73,24 +66,32 @@ describe("bot/routers/command-router", () => {
     expect(next).toHaveBeenCalledOnce();
   });
 
-  it("passes clearRuntimeState to the opencode_stop handler", async () => {
+  it("registers local commands from the registry after the built-ins", async () => {
     const bot = { command: vi.fn(), use: vi.fn() };
-    const clearRuntimeState = vi.fn();
-    mocked.opencodeStopCommand.mockReset();
-    mocked.opencodeStopCommand.mockResolvedValue(undefined);
+    const localCommandRegistry = {
+      definitions: vi.fn(() => [{ command: "ping", description: "Ping", allowWhenBusy: false }]),
+      execute: vi.fn(),
+    };
 
     registerCommandRouter(bot as never, {
       ensureEventSubscription: vi.fn(),
-      clearRuntimeState,
+      clearRuntimeState: vi.fn(),
+      localCommandRegistry: localCommandRegistry as never,
     });
 
-    const stopRegistration = bot.command.mock.calls.find(([command]) => command === "opencode_stop");
-    expect(stopRegistration).toBeDefined();
+    const registeredCommands = bot.command.mock.calls.map(([command]) => command);
+    expect(registeredCommands).toContain("ping");
+    const pingRegistration = bot.command.mock.calls.find(([command]) => command === "ping");
 
-    const ctx = { chat: { id: 123 } } as unknown as Context;
-    await stopRegistration?.[1](ctx);
+    const ctx = {
+      chat: { id: 123 },
+      api: { sendMessage: vi.fn().mockResolvedValue(undefined) },
+    } as unknown as Context;
+    localCommandRegistry.execute.mockResolvedValue({ kind: "success", text: "pong" });
+    await pingRegistration?.[1](ctx);
 
-    expect(mocked.opencodeStopCommand).toHaveBeenCalledWith(ctx, { clearRuntimeState });
+    expect(localCommandRegistry.execute).toHaveBeenCalledWith("ping");
+    expect(ctx.api.sendMessage).toHaveBeenCalled();
   });
 
   it("initializes commands for the authorized chat", async () => {

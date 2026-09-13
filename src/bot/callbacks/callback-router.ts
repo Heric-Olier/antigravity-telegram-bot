@@ -12,12 +12,7 @@ import { handleLsCallback, handleOpenCallback } from "./file-browser-callback-ha
 import { handleInlineMenuCancel } from "./inline-menu-cancel-callback-handler.js";
 import { handleMcpsCallback } from "./mcp-catalog-callback-handler.js";
 import { handleMessagesCallback } from "./message-history-callback-handler.js";
-import {
-  handleModelProvidersCallback,
-  handleModelSearchCallback,
-  handleModelSearchResults,
-  handleModelSelect,
-} from "./model-selection-callback-handler.js";
+import { handleModelSelect } from "./model-selection-callback-handler.js";
 import { handlePermissionCallback } from "./permission-callback-handler.js";
 import { handleProjectSelect } from "./project-callback-handler.js";
 import { handlePromptAttachmentCancel } from "./prompt-attachment-callback-handler.js";
@@ -113,12 +108,7 @@ export function registerCallbackRouter(bot: Bot<Context>, deps: CallbackRouterDe
       "model",
       {
         name: "model",
-        handlers: [
-          handleModelSearchCallback,
-          handleModelSearchResults,
-          handleModelProvidersCallback,
-          handleModelSelect,
-        ],
+        handlers: [handleModelSelect],
         errorScope: "interaction",
       },
     ],

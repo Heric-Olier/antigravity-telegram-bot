@@ -2,11 +2,6 @@ import fs from "node:fs/promises";
 import { cleanupBotRuntime, createBot, restoreFollowedSessionOnPollingStart } from "../../bot/index.js";
 import { createScheduledTaskDeliverySender } from "../../bot/messages/scheduled-task-delivery.js";
 import { config } from "../../config.js";
-import { opencodeAutoRestartService } from "../../opencode/auto-restart.js";
-import {
-  notifyOpencodeReadyIfHealthy,
-  registerOpenCodeReadyRefreshHandler,
-} from "../../opencode/ready-refresh.js";
 import { flushSettings, loadSettings } from "../stores/settings-store.js";
 import { scheduledTaskRuntime } from "../services/scheduled-task-runtime-service.js";
 import { LocalCommandRegistry } from "../services/local-command-registry.js";
@@ -18,7 +13,6 @@ import { getRuntimePaths } from "../../runtime/paths.js";
 import { clearServiceStateFile } from "../../runtime/service/manager.js";
 import { getServiceStateFilePathFromEnv, isServiceChildProcess } from "../../runtime/service/env.js";
 import { flushLogger, getLogFilePath, initializeLogger, logger } from "../../utils/logger.js";
-import { safeBackgroundTask } from "../../utils/safe-background-task.js";
 import { getTelegramRetryAfterMs } from "../../utils/telegram-rate-limit-retry.js";
 
 const SHUTDOWN_TIMEOUT_MS = 5000;
@@ -205,7 +199,6 @@ export async function startBotApp(): Promise<void> {
 
   await loadSettings();
   await reconcileStoredModelSelection();
-  registerOpenCodeReadyRefreshHandler();
   const localCommandRegistry = await LocalCommandRegistry.load({
     directoryPath: runtimePaths.localCommandsDirPath,
     builtInCommands: BUILT_IN_COMMAND_NAMES,
@@ -215,14 +208,6 @@ export async function startBotApp(): Promise<void> {
     bot,
     createScheduledTaskDeliverySender(bot.api, config.telegram.allowedUserId),
   );
-  safeBackgroundTask({
-    taskName: "app.opencodeStartup",
-    task: async () => {
-      await opencodeAutoRestartService.start();
-      await notifyOpencodeReadyIfHealthy("startup");
-    },
-  });
-
   let shutdownStarted = false;
   let shutdownTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -234,7 +219,6 @@ export async function startBotApp(): Promise<void> {
     shutdownStarted = true;
     logger.info(`[App] Received ${signal}, shutting down...`);
     cleanupBotRuntime(`app_shutdown_${signal.toLowerCase()}`);
-    opencodeAutoRestartService.stop();
     scheduledTaskRuntime.shutdown();
 
     shutdownTimeout = setTimeout(() => {
@@ -318,7 +302,6 @@ export async function startBotApp(): Promise<void> {
       shutdownTimeout = null;
     }
     cleanupBotRuntime("app_shutdown_complete");
-    opencodeAutoRestartService.stop();
     scheduledTaskRuntime.shutdown();
     await clearManagedServiceState().catch((error) => {
       logger.warn("[App] Failed to clear managed service state", error);

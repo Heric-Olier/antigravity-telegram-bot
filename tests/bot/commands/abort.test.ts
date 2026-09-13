@@ -1,49 +1,51 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Context } from "grammy";
-import { abortCommand, abortCurrentOperation } from "../../../src/bot/commands/abort-command.js";
-import { clearAllInteractionState } from "../../../src/app/managers/interaction-manager.js";
-import { questionManager } from "../../../src/app/managers/question-manager.js";
-import { permissionManager } from "../../../src/app/managers/permission-manager.js";
-import { renameManager } from "../../../src/app/managers/rename-manager.js";
-import { interactionManager } from "../../../src/app/managers/interaction-manager.js";
-import { foregroundSessionState } from "../../../src/app/managers/foreground-session-state-manager.js";
-import { promptQueue } from "../../../src/app/managers/prompt-queue-manager.js";
-import { createIncomingPrompt } from "../../../src/app/types/prompt.js";
-import { promptAttachment } from "../../../src/app/managers/prompt-attachment-manager.js";
-import type { Question } from "../../../src/app/types/question.js";
-import type { PermissionRequest } from "../../../src/app/types/permission.js";
-import { t } from "../../../src/i18n/index.js";
-import {
-  __resetUserAbortErrorSuppressionForTests,
-  shouldSuppressUserAbortSessionError,
-} from "../../../src/app/managers/abort-suppression-manager.js";
 
 const mocked = vi.hoisted(() => ({
-  currentSession: null as { id: string; title: string; directory: string } | null,
-  abortMock: vi.fn(),
-  statusMock: vi.fn(),
+  getCurrentSessionMock: vi.fn(),
+  clearAllInteractionStateMock: vi.fn(),
+  promptQueueClearMock: vi.fn(),
+  promptAttachmentClearMock: vi.fn(),
+  markUserAbortRequestedMock: vi.fn(),
+  stopEventListeningMock: vi.fn(),
+  markIdleMock: vi.fn(),
   clearRunMock: vi.fn(),
   markAttachedSessionIdleMock: vi.fn(),
   clearPromptResponseModeMock: vi.fn(),
+  loggerErrorMock: vi.fn(),
 }));
 
 vi.mock("../../../src/app/services/session-service.js", () => ({
-  getCurrentSession: vi.fn(() => mocked.currentSession),
+  getCurrentSession: mocked.getCurrentSessionMock,
 }));
 
-vi.mock("../../../src/opencode/client.js", () => ({
-  opencodeClient: {
-    session: {
-      abort: mocked.abortMock,
-      status: mocked.statusMock,
-    },
-  },
+vi.mock("../../../src/app/managers/interaction-manager.js", () => ({
+  clearAllInteractionState: mocked.clearAllInteractionStateMock,
+  interactionManager: { getSnapshot: vi.fn(() => null), clear: vi.fn() },
+}));
+
+vi.mock("../../../src/app/managers/prompt-queue-manager.js", () => ({
+  promptQueue: { clear: mocked.promptQueueClearMock, __resetForTests: vi.fn() },
+}));
+
+vi.mock("../../../src/app/managers/prompt-attachment-manager.js", () => ({
+  promptAttachment: { clear: mocked.promptAttachmentClearMock, __resetForTests: vi.fn() },
+}));
+
+vi.mock("../../../src/app/managers/abort-suppression-manager.js", () => ({
+  markUserAbortRequested: mocked.markUserAbortRequestedMock,
+}));
+
+vi.mock("../../../src/antigravity/events.js", () => ({
+  stopEventListening: mocked.stopEventListeningMock,
+}));
+
+vi.mock("../../../src/app/managers/foreground-session-state-manager.js", () => ({
+  foregroundSessionState: { markIdle: mocked.markIdleMock },
 }));
 
 vi.mock("../../../src/app/managers/assistant-run-state-manager.js", () => ({
-  assistantRunState: {
-    clearRun: mocked.clearRunMock,
-  },
+  assistantRunState: { clearRun: mocked.clearRunMock },
 }));
 
 vi.mock("../../../src/app/services/attach-service.js", () => ({
@@ -54,341 +56,80 @@ vi.mock("../../../src/bot/handlers/prompt.js", () => ({
   clearPromptResponseMode: mocked.clearPromptResponseModeMock,
 }));
 
-const TEST_QUESTION: Question = {
-  header: "Q1",
-  question: "Pick one",
-  options: [
-    { label: "Yes", description: "accept" },
-    { label: "No", description: "decline" },
-  ],
-};
+vi.mock("../../../src/utils/logger.js", () => ({
+  logger: { info: vi.fn(), debug: vi.fn(), warn: vi.fn(), error: mocked.loggerErrorMock },
+}));
 
-const TEST_PERMISSION: PermissionRequest = {
-  id: "perm-1",
-  sessionID: "session-1",
-  permission: "bash",
-  patterns: ["npm test"],
-  metadata: {},
-  always: [],
-};
+vi.mock("../../../src/i18n/index.js", () => ({
+  t: (key: string) => key,
+  normalizeLocale: vi.fn((l: string) => l),
+}));
 
-function activateInteractionState(): void {
-  questionManager.startQuestions([TEST_QUESTION], "req-abort");
-  permissionManager.startPermission(TEST_PERMISSION, 101);
-  renameManager.startWaiting("session-1", "D:/repo", "Old title");
-  interactionManager.start({
-    kind: "rename",
-    expectedInput: "text",
-    metadata: { sessionId: "session-1" },
-  });
+import { abortCommand, abortCurrentOperation } from "../../../src/bot/commands/abort-command.js";
+
+function createCtx(): Context {
+  return {
+    chat: { id: 777, type: "private" },
+    reply: vi.fn(),
+  } as unknown as Context;
 }
 
-describe("bot/commands/abort", () => {
+describe("bot/commands/abort (agy)", () => {
   beforeEach(() => {
-    clearAllInteractionState("test_setup");
-    foregroundSessionState.__resetForTests();
-    mocked.currentSession = null;
-    mocked.abortMock.mockReset();
-    mocked.statusMock.mockReset();
-    mocked.clearRunMock.mockReset();
-    mocked.markAttachedSessionIdleMock.mockReset();
+    Object.values(mocked).forEach((m) => m.mockReset());
+    mocked.getCurrentSessionMock.mockReturnValue({
+      id: "session-1",
+      title: "Session",
+      directory: "/repo",
+    });
+    mocked.stopEventListeningMock.mockResolvedValue(undefined);
     mocked.markAttachedSessionIdleMock.mockResolvedValue(undefined);
-    mocked.clearPromptResponseModeMock.mockReset();
-    __resetUserAbortErrorSuppressionForTests();
   });
 
-  function markSessionBusy(): void {
-    foregroundSessionState.markBusy("session-1", "D:/repo");
-  }
+  it("clears interaction state and stops the agy process (SIGINT path)", async () => {
+    const ctx = createCtx();
 
-  function expectAbortStateReleased(reason: string): void {
-    expect(foregroundSessionState.isBusy()).toBe(false);
-    expect(mocked.clearRunMock).toHaveBeenCalledWith("session-1", reason);
+    await abortCommand(ctx as never);
+
+    expect(mocked.clearAllInteractionStateMock).toHaveBeenCalledWith("abort_command");
+    expect(mocked.promptQueueClearMock).toHaveBeenCalledWith("abort_command");
+    expect(mocked.promptAttachmentClearMock).toHaveBeenCalledWith("abort_command");
+    expect(mocked.markUserAbortRequestedMock).toHaveBeenCalledWith("session-1");
+    expect(mocked.stopEventListeningMock).toHaveBeenCalled();
+    expect(mocked.markIdleMock).toHaveBeenCalledWith("session-1");
+    expect(mocked.clearRunMock).toHaveBeenCalledWith("session-1", "abort_confirmed");
     expect(mocked.markAttachedSessionIdleMock).toHaveBeenCalledWith("session-1");
     expect(mocked.clearPromptResponseModeMock).toHaveBeenCalledWith("session-1");
-  }
-
-  it("clears interaction state even when there is no active session", async () => {
-    activateInteractionState();
-
-    const replyMock = vi.fn().mockResolvedValue(undefined);
-    const ctx = {
-      reply: replyMock,
-    } as unknown as Context;
-
-    await abortCommand(ctx as never);
-
-    expect(replyMock).toHaveBeenCalledWith(t("stop.no_active_session"));
-    expect(questionManager.isActive()).toBe(false);
-    expect(permissionManager.isActive()).toBe(false);
-    expect(renameManager.isWaitingForName()).toBe(false);
-    expect(interactionManager.getSnapshot()).toBeNull();
-    expect(mocked.abortMock).not.toHaveBeenCalled();
-  });
-
-  it("clears interaction state and aborts active session", async () => {
-    activateInteractionState();
-
-    mocked.currentSession = {
-      id: "session-1",
-      title: "Session",
-      directory: "D:/repo",
-    };
-    markSessionBusy();
-
-    mocked.abortMock.mockResolvedValue({ data: true, error: null });
-    mocked.statusMock.mockResolvedValue({
-      data: {
-        "session-1": { type: "idle" },
-      },
-      error: null,
-    });
-
-    const replyMock = vi.fn().mockResolvedValue({ message_id: 88 });
-    const editMessageTextMock = vi.fn().mockResolvedValue(undefined);
-
-    const ctx = {
-      chat: { id: 777 },
-      reply: replyMock,
-      api: {
-        editMessageText: editMessageTextMock,
-      },
-    } as unknown as Context;
-
-    await abortCommand(ctx as never);
-
-    expect(replyMock).toHaveBeenCalledWith(t("stop.in_progress"));
-    expect(mocked.abortMock).toHaveBeenCalled();
-    expect(editMessageTextMock).toHaveBeenCalledWith(777, 88, t("stop.success"));
-
-    expect(questionManager.isActive()).toBe(false);
-    expect(permissionManager.isActive()).toBe(false);
-    expect(renameManager.isWaitingForName()).toBe(false);
-    expect(interactionManager.getSnapshot()).toBeNull();
-    expectAbortStateReleased("abort_confirmed");
-    expect(shouldSuppressUserAbortSessionError("session-1", "Aborted")).toBe(true);
-  });
-
-  it("drops queued prompts so they do not run after the abort", async () => {
-    mocked.currentSession = {
-      id: "session-1",
-      title: "Session",
-      directory: "D:\\Projects\\Repo",
-    };
-    mocked.abortMock.mockResolvedValue({ data: true, error: null });
-    mocked.statusMock.mockResolvedValue({
-      data: { "session-1": { type: "idle" } },
-      error: null,
-    });
-    promptQueue.add(createIncomingPrompt("queued while running"));
-
-    const ctx = {
-      chat: { id: 777 },
-      reply: vi.fn().mockResolvedValue({ message_id: 88 }),
-      api: { editMessageText: vi.fn().mockResolvedValue(undefined) },
-    } as unknown as Context;
-
-    await abortCommand(ctx as never);
-
-    expect(promptQueue.size()).toBe(0);
-  });
-
-  it("drops the pending attachment so it does not ride along on a later prompt", async () => {
-    mocked.currentSession = {
-      id: "session-1",
-      title: "Session",
-      directory: "D:\\Projects\\Repo",
-    };
-    mocked.abortMock.mockResolvedValue({ data: true, error: null });
-    mocked.statusMock.mockResolvedValue({
-      data: { "session-1": { type: "idle" } },
-      error: null,
-    });
-    promptAttachment.set("D:\\Projects\\Repo\\src\\index.ts", "D:\\Projects\\Repo");
-
-    const ctx = {
-      chat: { id: 777 },
-      reply: vi.fn().mockResolvedValue({ message_id: 88 }),
-      api: { editMessageText: vi.fn().mockResolvedValue(undefined) },
-    } as unknown as Context;
-
-    await abortCommand(ctx as never);
-
-    expect(promptAttachment.get()).toBeNull();
-  });
-
-  it("marks only Aborted session errors for suppression after user abort", async () => {
-    mocked.currentSession = {
-      id: "session-1",
-      title: "Session",
-      directory: "D:/repo",
-    };
-    markSessionBusy();
-
-    mocked.abortMock.mockResolvedValue({ data: true, error: null });
-    mocked.statusMock.mockResolvedValue({
-      data: {
-        "session-1": { type: "idle" },
-      },
-      error: null,
-    });
-
-    const ctx = {
-      chat: { id: 777 },
-      reply: vi.fn().mockResolvedValue({ message_id: 88 }),
-      api: {
-        editMessageText: vi.fn().mockResolvedValue(undefined),
-      },
-    } as unknown as Context;
-
-    await abortCommand(ctx as never);
-
-    expect(shouldSuppressUserAbortSessionError("session-1", "Model not found")).toBe(false);
-    expect(shouldSuppressUserAbortSessionError("session-1", " Aborted ")).toBe(true);
-    expect(shouldSuppressUserAbortSessionError("session-1", "Aborted")).toBe(false);
+    expect(ctx.reply).toHaveBeenCalledWith("stop.success");
   });
 
   it("can abort silently without progress messages", async () => {
-    activateInteractionState();
+    const ctx = createCtx();
 
-    mocked.currentSession = {
-      id: "session-1",
-      title: "Session",
-      directory: "D:/repo",
-    };
-    markSessionBusy();
+    await abortCurrentOperation(ctx, { notifyUser: false });
 
-    mocked.abortMock.mockResolvedValue({ data: true, error: null });
-    mocked.statusMock.mockResolvedValue({
-      data: {
-        "session-1": { type: "idle" },
-      },
-      error: null,
-    });
-
-    const replyMock = vi.fn().mockResolvedValue({ message_id: 88 });
-    const editMessageTextMock = vi.fn().mockResolvedValue(undefined);
-
-    const ctx = {
-      chat: { id: 777 },
-      reply: replyMock,
-      api: {
-        editMessageText: editMessageTextMock,
-      },
-    } as unknown as Context;
-
-    await abortCurrentOperation(ctx as never, { notifyUser: false });
-
-    expect(mocked.abortMock).toHaveBeenCalled();
-    expect(replyMock).not.toHaveBeenCalled();
-    expect(editMessageTextMock).not.toHaveBeenCalled();
-
-    expect(questionManager.isActive()).toBe(false);
-    expect(permissionManager.isActive()).toBe(false);
-    expect(renameManager.isWaitingForName()).toBe(false);
-    expect(interactionManager.getSnapshot()).toBeNull();
-    expectAbortStateReleased("abort_confirmed");
+    expect(mocked.stopEventListeningMock).toHaveBeenCalled();
+    expect(ctx.reply).not.toHaveBeenCalled();
   });
 
-  it("releases local busy state when abort request returns an API error", async () => {
-    mocked.currentSession = {
-      id: "session-1",
-      title: "Session",
-      directory: "D:/repo",
-    };
-    markSessionBusy();
-
-    mocked.abortMock.mockResolvedValue({ data: null, error: new Error("abort failed") });
-
-    const editMessageTextMock = vi.fn().mockResolvedValue(undefined);
-    const ctx = {
-      chat: { id: 777 },
-      reply: vi.fn().mockResolvedValue({ message_id: 88 }),
-      api: {
-        editMessageText: editMessageTextMock,
-      },
-    } as unknown as Context;
+  it("replies with no_active_session when there is none", async () => {
+    const ctx = createCtx();
+    mocked.getCurrentSessionMock.mockReturnValue(null);
 
     await abortCommand(ctx as never);
 
-    expect(editMessageTextMock).toHaveBeenCalledWith(777, 88, t("stop.warn_unconfirmed"));
-    expectAbortStateReleased("abort_unconfirmed");
+    expect(mocked.stopEventListeningMock).not.toHaveBeenCalled();
+    expect(ctx.reply).toHaveBeenCalledWith("stop.no_active_session");
+    expect(mocked.markIdleMock).not.toHaveBeenCalled();
   });
 
-  it("releases local busy state when abort result is not confirmed", async () => {
-    mocked.currentSession = {
-      id: "session-1",
-      title: "Session",
-      directory: "D:/repo",
-    };
-    markSessionBusy();
-
-    mocked.abortMock.mockResolvedValue({ data: false, error: null });
-
-    const editMessageTextMock = vi.fn().mockResolvedValue(undefined);
-    const ctx = {
-      chat: { id: 777 },
-      reply: vi.fn().mockResolvedValue({ message_id: 88 }),
-      api: {
-        editMessageText: editMessageTextMock,
-      },
-    } as unknown as Context;
+  it("replies with stop.error when SIGINT fails", async () => {
+    const ctx = createCtx();
+    mocked.stopEventListeningMock.mockRejectedValue(new Error("kill failed"));
 
     await abortCommand(ctx as never);
 
-    expect(editMessageTextMock).toHaveBeenCalledWith(777, 88, t("stop.warn_maybe_finished"));
-    expectAbortStateReleased("abort_maybe_finished");
-  });
-
-  it("releases local busy state when abort request times out", async () => {
-    mocked.currentSession = {
-      id: "session-1",
-      title: "Session",
-      directory: "D:/repo",
-    };
-    markSessionBusy();
-
-    const abortError = new Error("timeout");
-    abortError.name = "AbortError";
-    mocked.abortMock.mockRejectedValue(abortError);
-
-    const editMessageTextMock = vi.fn().mockResolvedValue(undefined);
-    const ctx = {
-      chat: { id: 777 },
-      reply: vi.fn().mockResolvedValue({ message_id: 88 }),
-      api: {
-        editMessageText: editMessageTextMock,
-      },
-    } as unknown as Context;
-
-    await abortCommand(ctx as never);
-
-    expect(editMessageTextMock).toHaveBeenCalledWith(777, 88, t("stop.warn_timeout"));
-    expectAbortStateReleased("abort_error");
-  });
-
-  it("releases local busy state when abort request fails locally", async () => {
-    mocked.currentSession = {
-      id: "session-1",
-      title: "Session",
-      directory: "D:/repo",
-    };
-    markSessionBusy();
-
-    mocked.abortMock.mockRejectedValue(new Error("network failed"));
-
-    const editMessageTextMock = vi.fn().mockResolvedValue(undefined);
-    const ctx = {
-      chat: { id: 777 },
-      reply: vi.fn().mockResolvedValue({ message_id: 88 }),
-      api: {
-        editMessageText: editMessageTextMock,
-      },
-    } as unknown as Context;
-
-    await abortCommand(ctx as never);
-
-    expect(editMessageTextMock).toHaveBeenCalledWith(777, 88, t("stop.warn_local_only"));
-    expectAbortStateReleased("abort_error");
+    expect(mocked.loggerErrorMock).toHaveBeenCalled();
+    expect(ctx.reply).toHaveBeenCalledWith("stop.error");
   });
 });

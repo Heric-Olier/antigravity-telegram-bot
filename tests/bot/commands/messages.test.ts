@@ -42,6 +42,7 @@ const mocked = vi.hoisted(() => ({
 }));
 
 vi.mock("../../../src/app/stores/settings-store.js", () => ({
+  __resetSettingsForTests: vi.fn(),
   getCurrentProject: vi.fn(() => mocked.currentProject),
 }));
 
@@ -78,15 +79,9 @@ vi.mock("../../../src/app/services/session-cache-service.js", () => ({
   __resetSessionDirectoryCacheForTests: vi.fn(),
 }));
 
-vi.mock("../../../src/opencode/client.js", () => ({
-  opencodeClient: {
-    session: {
-      messages: mocked.sessionMessagesMock,
-      get: mocked.sessionGetMock,
-      revert: mocked.sessionRevertMock,
-      fork: mocked.sessionForkMock,
-    },
-  },
+vi.mock("../../../src/app/services/message-history-service.js", () => ({
+  loadUserMessages: mocked.sessionMessagesMock,
+  loadLatestAssistantResponse: vi.fn(async () => null),
 }));
 
 function createCommandContext(messageId: number): Context {
@@ -204,26 +199,15 @@ describe("bot/commands/messages", () => {
   it("shows user messages newest first and starts custom interaction", async () => {
     const oldTime = new Date(2026, 4, 30, 10, 3).getTime();
     const newTime = new Date(2026, 4, 30, 14, 5).getTime();
-    mocked.sessionMessagesMock.mockResolvedValue({
-      data: [
-        makeUserMessage("old", "older prompt", oldTime),
-        {
-          info: { id: "assistant-1", role: "assistant", time: { created: newTime + 1 } },
-          parts: [{ type: "text", text: "assistant reply" }],
-        },
-        makeUserMessage("empty", "", newTime + 2),
-        makeUserMessage("new", "newer prompt with\nline break", newTime),
-      ],
-      error: null,
-    });
+    mocked.sessionMessagesMock.mockResolvedValue([
+      { id: "new", text: "newer prompt with\nline break", created: newTime },
+      { id: "old", text: "older prompt", created: oldTime },
+    ]);
 
     const ctx = createCommandContext(200);
     await messagesCommand(ctx as never);
 
-    expect(mocked.sessionMessagesMock).toHaveBeenCalledWith({
-      sessionID: "session-1",
-      directory: "D:\\Projects\\Repo",
-    });
+    expect(mocked.sessionMessagesMock).toHaveBeenCalledWith("session-1", "D:\\Projects\\Repo");
 
     const [, options] = defined((ctx.reply as ReturnType<typeof vi.fn>).mock.calls[0]) as [
       string,
@@ -249,15 +233,7 @@ describe("bot/commands/messages", () => {
   });
 
   it("shows empty state when there are no user messages", async () => {
-    mocked.sessionMessagesMock.mockResolvedValue({
-      data: [
-        {
-          info: { id: "assistant-1", role: "assistant", time: { created: 1 } },
-          parts: [{ type: "text", text: "assistant reply" }],
-        },
-      ],
-      error: null,
-    });
+    mocked.sessionMessagesMock.mockResolvedValue([]);
 
     const ctx = createCommandContext(201);
     await messagesCommand(ctx as never);
@@ -265,29 +241,12 @@ describe("bot/commands/messages", () => {
     expect(ctx.reply).toHaveBeenCalledWith(t("messages.empty"));
   });
 
-  it("filters messages to show only those before revert point", async () => {
+  it("renders the single preview message served by agy history", async () => {
     const time1 = new Date(2026, 4, 30, 10, 0).getTime();
-    const time2 = new Date(2026, 4, 30, 11, 0).getTime();
-    const time3 = new Date(2026, 4, 30, 12, 0).getTime();
 
-    mocked.sessionMessagesMock.mockResolvedValue({
-      data: [
-        makeUserMessage("msg-1", "first message", time1),
-        makeUserMessage("msg-2", "second message", time2),
-        makeUserMessage("msg-3", "third message", time3),
-      ],
-      error: null,
-    });
-
-    // Session has revert to msg-2, so only msg-1 should be shown
-    mocked.sessionGetMock.mockResolvedValue({
-      data: {
-        id: "session-1",
-        directory: "D:\\Projects\\Repo",
-        revert: { messageID: "msg-2" },
-      },
-      error: null,
-    });
+    mocked.sessionMessagesMock.mockResolvedValue([
+      { id: "msg-1", text: "first message", created: time1 },
+    ]);
 
     const ctx = createCommandContext(202);
     await messagesCommand(ctx as never);
@@ -297,10 +256,8 @@ describe("bot/commands/messages", () => {
       { reply_markup: { inline_keyboard: Array<Array<{ callback_data?: string; text: string }>> } },
     ];
 
-    // Should only show msg-1 (before the revert point)
     expect(options.reply_markup.inline_keyboard[0]?.[0]?.callback_data).toBe("messages:select:0");
     expect(options.reply_markup.inline_keyboard[0]?.[0]?.text).toContain("first message");
-    // msg-2 and msg-3 should not be present
     expect(options.reply_markup.inline_keyboard[1]?.[0]?.callback_data).toBe("messages:cancel");
 
     const state = interactionManager.getSnapshot();
@@ -459,7 +416,7 @@ describe("bot/commands/messages", () => {
     expect(interactionManager.getSnapshot()).toBeNull();
   });
 
-  it("reverts message successfully", async () => {
+  it("reports revert as unsupported on the agy backend", async () => {
     const messages = [{ id: "msg-1", text: "test prompt", created: 1000 }];
     interactionManager.start({
       kind: "custom",
@@ -476,53 +433,11 @@ describe("bot/commands/messages", () => {
       },
     });
 
-    mocked.sessionRevertMock.mockResolvedValue({});
-
     const ctx = createCallbackContext("messages:revert", 600);
     const handled = await handleMessagesCallback(ctx, testDeps);
 
     expect(handled).toBe(true);
     expect(ctx.answerCallbackQuery).toHaveBeenCalledWith();
-    expect(mocked.sessionRevertMock).toHaveBeenCalledWith({
-      sessionID: "session-1",
-      directory: "D:\\Projects\\Repo",
-      messageID: "msg-1",
-    });
-    expect(ctx.editMessageText).toHaveBeenCalledWith(
-      t("messages.revert_success", { text: "test prompt" }),
-    );
-    expect(interactionManager.getSnapshot()).toBeNull();
-  });
-
-  it("handles revert error", async () => {
-    const messages = [{ id: "msg-1", text: "test prompt", created: 1000 }];
-    interactionManager.start({
-      kind: "custom",
-      expectedInput: "callback",
-      metadata: {
-        flow: "messages",
-        stage: "detail",
-        messageId: 600,
-        projectDirectory: "D:\\Projects\\Repo",
-        sessionId: "session-1",
-        messages,
-        page: 0,
-        selectedIndex: 0,
-      },
-    });
-
-    mocked.sessionRevertMock.mockRejectedValue(new Error("API error"));
-
-    const ctx = createCallbackContext("messages:revert", 600);
-    const handled = await handleMessagesCallback(ctx, testDeps);
-
-    expect(handled).toBe(true);
-    expect(ctx.answerCallbackQuery).toHaveBeenCalledWith();
-    expect(mocked.sessionRevertMock).toHaveBeenCalledWith({
-      sessionID: "session-1",
-      directory: "D:\\Projects\\Repo",
-      messageID: "msg-1",
-    });
     expect(ctx.editMessageText).toHaveBeenCalledWith(t("messages.revert_error"));
     expect(interactionManager.getSnapshot()).toBeNull();
   });
@@ -555,7 +470,7 @@ describe("bot/commands/messages", () => {
     expect(ctx.editMessageText).not.toHaveBeenCalled();
   });
 
-  it("handles successful fork", async () => {
+  it("reports fork as unsupported on the agy backend", async () => {
     const messages = [{ id: "msg-1", text: "test prompt", created: 1000 }];
     interactionManager.start({
       kind: "custom",
@@ -571,119 +486,12 @@ describe("bot/commands/messages", () => {
         selectedIndex: 0,
       },
     });
-
-    const forkedSession = {
-      id: "session-2",
-      title: "Forked Session",
-      directory: "D:\\Projects\\Repo",
-    };
-    mocked.sessionForkMock.mockResolvedValue({ data: forkedSession, error: null });
-    mocked.attachToSessionMock.mockResolvedValue({
-      busy: false,
-      alreadyAttached: false,
-      restoredQuestion: false,
-      restoredPermissions: 0,
-    });
-    mocked.ingestSessionInfoForCacheMock.mockResolvedValue(undefined);
 
     const ctx = createCallbackContext("messages:fork", 600);
     const handled = await handleMessagesCallback(ctx, testDeps);
 
     expect(handled).toBe(true);
     expect(ctx.answerCallbackQuery).toHaveBeenCalledWith();
-    expect(mocked.sessionForkMock).toHaveBeenCalledWith({
-      sessionID: "session-1",
-      messageID: "msg-1",
-      directory: "D:\\Projects\\Repo",
-    });
-    expect(mocked.setCurrentSessionMock).toHaveBeenCalledWith({
-      id: "session-2",
-      title: "Forked Session",
-      directory: "D:\\Projects\\Repo",
-    });
-    expect(mocked.attachToSessionMock).toHaveBeenCalled();
-    expect(ctx.editMessageText).toHaveBeenCalledWith(
-      t("messages.fork_success", { text: "test prompt" }),
-    );
-    expect(interactionManager.getSnapshot()).toBeNull();
-  });
-
-  it("pulls the forked session settings before attaching and syncs the keyboard state", async () => {
-    const messages = [{ id: "msg-1", text: "test prompt", created: 1000 }];
-    interactionManager.start({
-      kind: "custom",
-      expectedInput: "callback",
-      metadata: {
-        flow: "messages",
-        stage: "detail",
-        messageId: 600,
-        projectDirectory: "D:\\Projects\\Repo",
-        sessionId: "session-1",
-        messages,
-        page: 0,
-        selectedIndex: 0,
-      },
-    });
-
-    const forkedSession = {
-      id: "session-2",
-      title: "Forked Session",
-      directory: "D:\\Projects\\Repo",
-      agent: "plan",
-      model: { providerID: "opencode-go", id: "deepseek-v4-flash", variant: "high" },
-    };
-    mocked.sessionForkMock.mockResolvedValue({ data: forkedSession, error: null });
-    mocked.attachToSessionMock.mockResolvedValue({
-      busy: false,
-      alreadyAttached: false,
-      restoredQuestion: false,
-      restoredPermissions: 0,
-    });
-    mocked.ingestSessionInfoForCacheMock.mockResolvedValue(undefined);
-
-    await handleMessagesCallback(createCallbackContext("messages:fork", 600), testDeps);
-
-    expect(mocked.applySessionSettingsMock).toHaveBeenCalledWith(forkedSession);
-    expect(defined(mocked.applySessionSettingsMock.mock.invocationCallOrder[0])).toBeLessThan(
-      defined(mocked.attachToSessionMock.mock.invocationCallOrder[0]),
-    );
-    expect(mocked.keyboardUpdateAgentMock).toHaveBeenCalledWith("build");
-    expect(mocked.keyboardUpdateModelMock).toHaveBeenCalledWith({
-      providerID: "opencode-go",
-      modelID: "deepseek-v4-flash",
-      variant: "default",
-    });
-  });
-
-  it("handles fork error", async () => {
-    const messages = [{ id: "msg-1", text: "test prompt", created: 1000 }];
-    interactionManager.start({
-      kind: "custom",
-      expectedInput: "callback",
-      metadata: {
-        flow: "messages",
-        stage: "detail",
-        messageId: 600,
-        projectDirectory: "D:\\Projects\\Repo",
-        sessionId: "session-1",
-        messages,
-        page: 0,
-        selectedIndex: 0,
-      },
-    });
-
-    mocked.sessionForkMock.mockRejectedValue(new Error("API error"));
-
-    const ctx = createCallbackContext("messages:fork", 600);
-    const handled = await handleMessagesCallback(ctx, testDeps);
-
-    expect(handled).toBe(true);
-    expect(ctx.answerCallbackQuery).toHaveBeenCalledWith();
-    expect(mocked.sessionForkMock).toHaveBeenCalledWith({
-      sessionID: "session-1",
-      messageID: "msg-1",
-      directory: "D:\\Projects\\Repo",
-    });
     expect(ctx.editMessageText).toHaveBeenCalledWith(t("messages.fork_error"));
     expect(interactionManager.getSnapshot()).toBeNull();
   });

@@ -1,5 +1,4 @@
 import { CommandContext, Context } from "grammy";
-import { opencodeClient } from "../../opencode/client.js";
 import { getCurrentSession } from "../../app/services/session-service.js";
 import { clearAllInteractionState } from "../../app/managers/interaction-manager.js";
 import { logger } from "../../utils/logger.js";
@@ -11,17 +10,10 @@ import { clearPromptResponseMode } from "../handlers/prompt.js";
 import { markUserAbortRequested } from "../../app/managers/abort-suppression-manager.js";
 import { promptQueue } from "../../app/managers/prompt-queue-manager.js";
 import { promptAttachment } from "../../app/managers/prompt-attachment-manager.js";
-
-type SessionState = "idle" | "busy" | "not-found";
+import { stopEventListening } from "../../antigravity/events.js";
 
 interface AbortCurrentOperationOptions {
   notifyUser?: boolean;
-}
-
-const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
-
-function abortLocalStreaming(): void {
-  clearAllInteractionState("abort_command");
 }
 
 async function releaseAbortBusyState(sessionId: string, reason: string): Promise<void> {
@@ -31,45 +23,6 @@ async function releaseAbortBusyState(sessionId: string, reason: string): Promise
   clearPromptResponseMode(sessionId);
 }
 
-async function pollSessionStatus(
-  sessionId: string,
-  directory: string,
-  maxWaitMs: number = 5000,
-): Promise<SessionState> {
-  const startedAt = Date.now();
-  const pollIntervalMs = 500;
-
-  while (Date.now() - startedAt < maxWaitMs) {
-    try {
-      const { data, error } = await opencodeClient.session.status({ directory });
-
-      if (error || !data) {
-        break;
-      }
-
-      const sessionStatus = (data as Record<string, { type?: string }>)[sessionId];
-      if (!sessionStatus) {
-        return "not-found";
-      }
-
-      if (sessionStatus.type === "idle" || sessionStatus.type === "error") {
-        return "idle";
-      }
-
-      if (sessionStatus.type !== "busy") {
-        return "not-found";
-      }
-
-      await sleep(pollIntervalMs);
-    } catch (error) {
-      logger.warn("[Abort] Failed to poll session status:", error);
-      break;
-    }
-  }
-
-  return "busy";
-}
-
 export async function abortCurrentOperation(
   ctx: Context,
   options: AbortCurrentOperationOptions = {},
@@ -77,10 +30,8 @@ export async function abortCurrentOperation(
   const notifyUser = options.notifyUser ?? true;
 
   try {
-    abortLocalStreaming();
+    clearAllInteractionState("abort_command");
     promptQueue.clear("abort_command");
-    // abortLocalStreaming drops the waiting mode, so the attachment has to go with it -
-    // otherwise it would ride along on the next, unrelated prompt with no confirmation left.
     promptAttachment.clear("abort_command");
 
     const currentSession = getCurrentSession();
@@ -92,84 +43,16 @@ export async function abortCurrentOperation(
       return;
     }
 
-    let waitingMessageId: number | null = null;
-    let chatId: number | null = null;
-
-    if (notifyUser) {
-      // No reply_markup here: this message is edited below, and Telegram
-      // refuses to edit a message that carries a custom reply keyboard.
-      const waitingMessage = await ctx.reply(t("stop.in_progress"));
-      waitingMessageId = waitingMessage.message_id;
-      chatId = ctx.chat?.id ?? null;
-
-      if (!chatId) {
-        logger.warn("[Abort] Chat context is missing while aborting active session");
-        return;
-      }
-    }
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
     markUserAbortRequested(currentSession.id);
 
-    try {
-      const { data: abortResult, error: abortError } = await opencodeClient.session.abort(
-        {
-          sessionID: currentSession.id,
-          directory: currentSession.directory,
-        },
-        { signal: controller.signal },
-      );
+    // Abort for agy = SIGINT the running agy process; the events adapter then
+    // emits session.idle by itself. There is no remote API call to confirm.
+    await stopEventListening();
 
-      clearTimeout(timeoutId);
+    await releaseAbortBusyState(currentSession.id, "abort_confirmed");
 
-      if (abortError) {
-        logger.warn("[Abort] Abort request failed:", abortError);
-        await releaseAbortBusyState(currentSession.id, "abort_unconfirmed");
-        if (notifyUser && chatId !== null && waitingMessageId !== null) {
-          await ctx.api.editMessageText(chatId, waitingMessageId, t("stop.warn_unconfirmed"));
-        }
-        return;
-      }
-
-      if (abortResult !== true) {
-        await releaseAbortBusyState(currentSession.id, "abort_maybe_finished");
-        if (notifyUser && chatId !== null && waitingMessageId !== null) {
-          await ctx.api.editMessageText(chatId, waitingMessageId, t("stop.warn_maybe_finished"));
-        }
-        return;
-      }
-
-      const finalStatus = await pollSessionStatus(
-        currentSession.id,
-        currentSession.directory,
-        5000,
-      );
-
-      if (finalStatus === "idle" || finalStatus === "not-found") {
-        await releaseAbortBusyState(currentSession.id, "abort_confirmed");
-        if (notifyUser && chatId !== null && waitingMessageId !== null) {
-          await ctx.api.editMessageText(chatId, waitingMessageId, t("stop.success"));
-        }
-      } else {
-        if (notifyUser && chatId !== null && waitingMessageId !== null) {
-          await ctx.api.editMessageText(chatId, waitingMessageId, t("stop.warn_still_busy"));
-        }
-      }
-    } catch (error) {
-      clearTimeout(timeoutId);
-      await releaseAbortBusyState(currentSession.id, "abort_error");
-
-      if (error instanceof Error && error.name === "AbortError") {
-        if (notifyUser && chatId !== null && waitingMessageId !== null) {
-          await ctx.api.editMessageText(chatId, waitingMessageId, t("stop.warn_timeout"));
-        }
-      } else {
-        logger.error("[Abort] Error while aborting session:", error);
-        if (notifyUser && chatId !== null && waitingMessageId !== null) {
-          await ctx.api.editMessageText(chatId, waitingMessageId, t("stop.warn_local_only"));
-        }
-      }
+    if (notifyUser) {
+      await ctx.reply(t("stop.success"));
     }
   } catch (error) {
     logger.error("[Abort] Unexpected error:", error);

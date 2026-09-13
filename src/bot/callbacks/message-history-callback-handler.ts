@@ -1,23 +1,13 @@
 import type { Bot, Context } from "grammy";
 import { config } from "../../config.js";
 import type { InteractionState } from "../../app/types/interaction.js";
-import { clearAllInteractionState, interactionManager } from "../../app/managers/interaction-manager.js";
-import { opencodeClient } from "../../opencode/client.js";
-import { setCurrentSession } from "../../app/services/session-service.js";
-import { applySessionSettings } from "../../app/services/session-settings-service.js";
-import { getStoredAgent } from "../../app/services/agent-selection-service.js";
-import { getStoredModel } from "../../app/services/model-selection-service.js";
-import { keyboardManager } from "../keyboards/keyboard-manager.js";
-import type { SessionInfo } from "../../app/types/session.js";
-import { attachToSession } from "../../app/services/attach-service.js";
-import { ingestSessionInfoForCache } from "../../app/services/session-cache-service.js";
+import { interactionManager } from "../../app/managers/interaction-manager.js";
 import { loadLatestAssistantResponse } from "../../app/services/message-history-service.js";
 import type { UserMessageItem } from "../../app/services/message-history-service.js";
 import { isForegroundBusy } from "../../app/services/run-control-service.js";
 import { t } from "../../i18n/index.js";
 import { logger } from "../../utils/logger.js";
 import { cancelMenu } from "./feedback.js";
-import { safeBackgroundTask } from "../../utils/safe-background-task.js";
 import { renderAssistantFinalPartsSafe } from "../messages/assistant-rendering.js";
 import { replyBusyBlocked } from "../messages/busy-blocked-renderer.js";
 import { sendRenderedBotPart } from "../messages/telegram-text.js";
@@ -34,8 +24,6 @@ import {
   MESSAGES_CALLBACK_REVERT,
   parseMessagePageCallback,
   parseMessageSelectCallback,
-  TELEGRAM_MESSAGE_LIMIT,
-  truncateMessageHistoryText,
 } from "../menus/message-history-menu.js";
 
 export interface MessagesCallbackDeps {
@@ -190,8 +178,9 @@ async function sendLatestAssistantResponse(
 
 export async function handleMessagesCallback(
   ctx: Context,
-  deps: MessagesCallbackDeps,
+  _deps: MessagesCallbackDeps,
 ): Promise<boolean> {
+
   const data = ctx.callbackQuery?.data;
   if (!data || !data.startsWith(MESSAGES_CALLBACK_PREFIX)) {
     return false;
@@ -226,15 +215,7 @@ export async function handleMessagesCallback(
       await ctx.answerCallbackQuery();
 
       try {
-        await opencodeClient.session.revert({
-          sessionID: metadata.sessionId,
-          directory: metadata.projectDirectory,
-          messageID: selectedMessage.id,
-        });
-
-        const successText = t("messages.revert_success", { text: selectedMessage.text });
-        await ctx.editMessageText(truncateMessageHistoryText(successText, TELEGRAM_MESSAGE_LIMIT));
-        clearMessagesInteraction("messages_revert_success");
+        throw new Error("Revert is not available with the Antigravity backend");
       } catch (error) {
         logger.error("[Messages] Error reverting message:", error);
         await ctx.editMessageText(t("messages.revert_error"));
@@ -259,56 +240,9 @@ export async function handleMessagesCallback(
       await ctx.answerCallbackQuery();
 
       try {
-        const { data: forkedSession, error: forkError } = await opencodeClient.session.fork({
-          sessionID: metadata.sessionId,
-          messageID: selectedMessage.id,
-          directory: metadata.projectDirectory,
-        });
-
-        if (forkError || !forkedSession) {
-          throw forkError || new Error("No session data received from fork");
-        }
-
-        logger.info(
-          `[Messages] Forked session: id=${forkedSession.id}, title="${forkedSession.title}", from message=${selectedMessage.id}`,
-        );
-
-        const sessionInfo: SessionInfo = {
-          id: forkedSession.id,
-          title: forkedSession.title,
-          directory: metadata.projectDirectory,
-        };
-
-        setCurrentSession(sessionInfo);
-        // Pull before attaching, so the pinned message rendered inside
-        // attachToSession already carries the forked session's model.
-        applySessionSettings(forkedSession);
-        keyboardManager.updateAgent(getStoredAgent());
-        keyboardManager.updateModel(getStoredModel());
-        clearAllInteractionState("session_forked");
-        await ingestSessionInfoForCache(forkedSession);
-
-        await attachToSession({
-          bot: deps.bot,
-          chatId: ctx.chat!.id,
-          session: sessionInfo,
-          ensureEventSubscription: deps.ensureEventSubscription,
-        });
-
-        const successText = t("messages.fork_success", { text: selectedMessage.text });
-        await ctx.editMessageText(truncateMessageHistoryText(successText, TELEGRAM_MESSAGE_LIMIT));
-        clearMessagesInteraction("messages_fork_success");
-
-        safeBackgroundTask({
-          taskName: "messages.sendLatestAssistantResponse",
-          task: () =>
-            sendLatestAssistantResponse(
-              ctx.api,
-              ctx.chat!.id,
-              forkedSession.id,
-              metadata.projectDirectory,
-            ),
-        });
+        // Forking requires an opencode-era server; report unsupported.
+        void sendLatestAssistantResponse;
+        throw new Error("Fork is not available with the Antigravity backend");
       } catch (error) {
         logger.error("[Messages] Error forking session:", error);
         await ctx.editMessageText(t("messages.fork_error"));

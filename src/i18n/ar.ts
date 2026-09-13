@@ -1,7 +1,7 @@
 import type { I18nDictionary } from "./en.js";
 
 /**
- * Arabic localization for OpenCode Telegram Bot.
+ * Arabic localization for Antigravity Telegram Bot.
  *
  * Keep upstream emoji and technical terms where they help recognition.
  * Prefer natural Arabic wording over literal translation.
@@ -22,8 +22,8 @@ export const ar: I18nDictionary = {
   "cmd.description.commands": "الأوامر المخصصة",
   "cmd.description.skills": "قائمة المهارات",
   "cmd.description.mcps": "خوادم MCP",
-  "cmd.description.opencode_start": "تشغيل خادم OpenCode",
-  "cmd.description.opencode_stop": "إيقاف خادم OpenCode",
+  "cmd.description.opencode_start": "تشغيل خادم Antigravity",
+  "cmd.description.opencode_stop": "إيقاف خادم Antigravity",
   "cmd.description.ls": "استعراض ملفات المجلد",
   "cmd.description.help": "المساعدة",
   "cmd.description.rename": "تغيير اسم الجلسة الحالية",
@@ -59,7 +59,7 @@ export const ar: I18nDictionary = {
   "common.unknown_error": "خطأ غير معروف",
 
   "start.welcome":
-    "👋 أهلًا بك في OpenCode Telegram Bot!\n\nالأوامر الأساسية:\n/projects — اختيار مشروع\n/sessions — عرض الجلسات\n/new — بدء جلسة جديدة\n/commands — الأوامر المخصصة\n/skills — قائمة المهارات\n/task — إنشاء مهمة مجدولة\n/tasklist — عرض المهام المجدولة\n/status — حالة الخادم والجلسة\n/help — المساعدة\n\nاستخدم الأزرار السفلية للتبديل بين الوكيل والنموذج وخيارات التشغيل.",
+    "👋 أهلًا بك في Antigravity Telegram Bot!\n\nالأوامر الأساسية:\n/projects — اختيار مشروع\n/sessions — عرض الجلسات\n/new — بدء جلسة جديدة\n/commands — الأوامر المخصصة\n/skills — قائمة المهارات\n/task — إنشاء مهمة مجدولة\n/tasklist — عرض المهام المجدولة\n/status — حالة الخادم والجلسة\n/help — المساعدة\n\nاستخدم الأزرار السفلية للتبديل بين الوكيل والنموذج وخيارات التشغيل.",
   "help.keyboard_hint":
     "💡 استخدم الأزرار السفلية للتبديل بين الوكيل والنموذج وخيارات التشغيل وإدارة السياق.",
   "help.text":
@@ -85,8 +85,8 @@ export const ar: I18nDictionary = {
     "⏳ الوكيل مشغول بتنفيذ مهمة الآن. انتظر حتى ينتهي، أو استخدم /abort لإيقاف المهمة الحالية.",
   "bot.session_reset_project_mismatch":
     "⚠️ الجلسة النشطة مرتبطة بمشروع مختلف، لذلك تمت إعادة ضبطها. استخدم /sessions لاختيار جلسة أو /new لبدء جلسة جديدة.",
-  "bot.prompt_send_error": "تعذر إرسال الطلب إلى OpenCode.",
-  "bot.session_error": "🔴 أعاد OpenCode الخطأ التالي: {message}",
+  "bot.prompt_send_error": "تعذر إرسال الطلب إلى Antigravity.",
+  "bot.session_error": "🔴 أعاد Antigravity الخطأ التالي: {message}",
   "bot.session_retry":
     "🔁 {message}\n\nاستمر مزوّد الخدمة في إرجاع الخطأ نفسه بعد عدة محاولات. استخدم /abort لإيقاف المهمة.",
   "bot.external_user_input": "رسالة واردة من واجهة أخرى",
@@ -110,17 +110,17 @@ export const ar: I18nDictionary = {
   "bot.rich_message_media_skipped": "⚠️ تم تخطي {count} من أجزاء الوسائط غير المدعومة.",
   "bot.message_type_unsupported": "⚠️ نوع الرسالة هذا غير مدعوم.",
   "bot.media_group_not_processed":
-    "⚠️ تعذر معالجة ملف أو أكثر في هذه المجموعة. لم يتم إرسال أي ملف إلى OpenCode.",
-  "bot.media_group_download_error": "🔴 تعذر تنزيل أحد الملفات. لم يتم إرسال أي ملف إلى OpenCode.",
+    "⚠️ تعذر معالجة ملف أو أكثر في هذه المجموعة. لم يتم إرسال أي ملف إلى Antigravity.",
+  "bot.media_group_download_error": "🔴 تعذر تنزيل أحد الملفات. لم يتم إرسال أي ملف إلى Antigravity.",
   "bot.model_no_pdf": "⚠️ النموذج الحالي لا يدعم ملفات PDF. سيتم إرسال النص فقط.",
   "bot.document_extraction_error": "🔴 فشل استخراج نص المستند.",
   "bot.text_file_too_large": "⚠️ حجم الملف النصي أكبر من الحد المسموح ({maxSizeKb}KB)",
 
-  "status.header_running": "🟢 خادم OpenCode يعمل",
+  "status.header_running": "🟢 خادم Antigravity يعمل",
   "status.health.healthy": "يعمل بشكل طبيعي",
   "status.health.unhealthy": "توجد مشكلة",
   "status.line.health": "الحالة: {health}",
-  "status.line.version": "إصدار OpenCode: {version}",
+  "status.line.version": "إصدار Antigravity: {version}",
   "status.line.bot_version": "Bot version: {version}",
   "status.line.managed_yes": "تم تشغيله بواسطة البوت: نعم",
   "status.line.managed_no": "تم تشغيله بواسطة البوت: لا",
@@ -140,7 +140,7 @@ export const ar: I18nDictionary = {
   "status.session_selected": "الجلسة الحالية: {title}",
   "status.session_not_selected": "الجلسة الحالية: غير محددة",
   "status.session_hint": "استخدم /sessions لاختيار جلسة أو /new لبدء جلسة جديدة",
-  "status.header_unavailable": "🔴 خادم OpenCode غير متاح",
+  "status.header_unavailable": "🔴 خادم Antigravity غير متاح",
   "status.unavailable_hint": "استخدم /opencode_start لتشغيل الخادم.",
 
   "tts.off": "🔇 تم تعطيل الردود الصوتية.",
@@ -167,13 +167,13 @@ export const ar: I18nDictionary = {
   "settings.saved": "✅ تم حفظ الإعداد.",
 
   "projects.empty":
-    "📭 لم يتم العثور على مشاريع.\n\nافتح مجلدًا في OpenCode وأنشئ جلسة واحدة على الأقل، ثم سيظهر المشروع هنا.",
+    "📭 لم يتم العثور على مشاريع.\n\nافتح مجلدًا في Antigravity وأنشئ جلسة واحدة على الأقل، ثم سيظهر المشروع هنا.",
   "projects.select": "اختر مشروعًا:",
   "projects.select_with_current": "اختر مشروعًا:\n\nالمشروع الحالي: 🏗 {project}",
   "projects.page_indicator": "الصفحة {current}/{total}",
   "projects.prev_page": "⬅️ السابق",
   "projects.next_page": "التالي ➡️",
-  "projects.fetch_error": "🔴 تعذر تحميل المشاريع. تأكد من أن خادم OpenCode يعمل ثم حاول مرة أخرى.",
+  "projects.fetch_error": "🔴 تعذر تحميل المشاريع. تأكد من أن خادم Antigravity يعمل ثم حاول مرة أخرى.",
   "projects.page_load_error": "تعذر تحميل هذه الصفحة. حاول مرة أخرى.",
   "projects.selected":
     "✅ تم اختيار المشروع: {project}\n\n📋 تمت إعادة ضبط الجلسة الحالية. استخدم /sessions لاختيار جلسة أو /new لبدء جلسة جديدة.",
@@ -184,7 +184,7 @@ export const ar: I18nDictionary = {
   "sessions.empty": "📭 لا توجد جلسات لهذا المشروع.\n\nابدأ جلسة جديدة باستخدام /new.",
   "sessions.select": "اختر جلسة:",
   "sessions.select_page": "اختر جلسة (الصفحة {page}):",
-  "sessions.fetch_error": "🔴 تعذر تحميل الجلسات. تأكد من أن خادم OpenCode يعمل ثم حاول مرة أخرى.",
+  "sessions.fetch_error": "🔴 تعذر تحميل الجلسات. تأكد من أن خادم Antigravity يعمل ثم حاول مرة أخرى.",
   "sessions.select_project_first": "🔴 حدد مشروعًا أولًا باستخدام /projects.",
   "sessions.page_empty_callback": "لا توجد جلسات في هذه الصفحة",
   "sessions.page_load_error_callback": "تعذر تحميل هذه الصفحة. حاول مرة أخرى.",
@@ -207,7 +207,7 @@ export const ar: I18nDictionary = {
   "messages.empty": "📭 لا توجد رسائل منك في الجلسة الحالية.",
   "messages.select": "اختر رسالة:",
   "messages.select_page": "اختر رسالة (الصفحة {page}):",
-  "messages.fetch_error": "🔴 تعذر تحميل الرسائل. تأكد من أن خادم OpenCode يعمل ثم حاول مرة أخرى.",
+  "messages.fetch_error": "🔴 تعذر تحميل الرسائل. تأكد من أن خادم Antigravity يعمل ثم حاول مرة أخرى.",
   "messages.inactive_callback": "انتهت صلاحية قائمة الرسائل",
   "messages.page_empty_callback": "لا توجد رسائل في هذه الصفحة",
   "messages.button.prev_page": "⬅️ السابق",
@@ -239,12 +239,12 @@ export const ar: I18nDictionary = {
     "🏗 لم تحدد مشروعًا بعد.\n\nاختر مشروعًا أولًا باستخدام /projects.",
   "detach.no_active_session": "ℹ️ البوت غير متصل بأي جلسة بالفعل.",
   "detach.success":
-    "✅ تم قطع الاتصال بالجلسة: {title}\n\nلم يتم إيقاف جلسة OpenCode. إذا كانت لا تزال تعمل، فستستمر بشكل منفصل. للتحقق منها لاحقًا، اخترها مجددًا باستخدام /sessions.",
+    "✅ تم قطع الاتصال بالجلسة: {title}\n\nلم يتم إيقاف جلسة Antigravity. إذا كانت لا تزال تعمل، فستستمر بشكل منفصل. للتحقق منها لاحقًا، اخترها مجددًا باستخدام /sessions.",
   "detach.error": "🔴 تعذر قطع الاتصال بالجلسة الحالية.",
 
   "new.project_not_selected": "🏗 لم تحدد مشروعًا بعد.\n\nاختر مشروعًا أولًا باستخدام /projects.",
   "new.created": "✅ تم إنشاء جلسة جديدة: {title}",
-  "new.create_error": "🔴 خادم OpenCode غير متاح أو حدث خطأ أثناء إنشاء الجلسة.",
+  "new.create_error": "🔴 خادم Antigravity غير متاح أو حدث خطأ أثناء إنشاء الجلسة.",
 
   "stop.no_active_session":
     "🛑 لم يتم تشغيل الوكيل\n\nأنشئ جلسة باستخدام /new أو اختر جلسة باستخدام /sessions.",
@@ -262,28 +262,28 @@ export const ar: I18nDictionary = {
   "stop.error": "🔴 تعذر إيقاف الإجراء.\n\nتم إيقاف تدفق الأحداث، حاول /abort مرة أخرى.",
 
   "opencode_start.already_running_managed":
-    "⚠️ خادم OpenCode يعمل بالفعل\n\nPID: {pid}\nمدة التشغيل: {seconds} ثانية",
+    "⚠️ خادم Antigravity يعمل بالفعل\n\nPID: {pid}\nمدة التشغيل: {seconds} ثانية",
   "opencode_start.already_running_external":
-    "✅ خادم OpenCode يعمل بالفعل كعملية خارجية\n\nالإصدار: {version}\n\nلم يتم تشغيل هذا الخادم بواسطة البوت، لذلك لا يمكن إيقافه باستخدام /opencode-stop.",
-  "opencode_start.already_running": "✅ خادم OpenCode يعمل بالفعل\n\nالإصدار: {version}",
-  "opencode_start.remote_configured": "⚠️ يعمل /opencode_start فقط مع خادم OpenCode محلي.",
-  "opencode_start.starting": "🔄 جارٍ تشغيل خادم OpenCode...",
+    "✅ خادم Antigravity يعمل بالفعل كعملية خارجية\n\nالإصدار: {version}\n\nلم يتم تشغيل هذا الخادم بواسطة البوت، لذلك لا يمكن إيقافه باستخدام /opencode-stop.",
+  "opencode_start.already_running": "✅ خادم Antigravity يعمل بالفعل\n\nالإصدار: {version}",
+  "opencode_start.remote_configured": "⚠️ يعمل /opencode_start فقط مع خادم Antigravity محلي.",
+  "opencode_start.starting": "🔄 جارٍ تشغيل خادم Antigravity...",
   "opencode_start.start_error":
-    "🔴 تعذر تشغيل خادم OpenCode\n\nالخطأ: {error}\n\nتأكد من تثبيت OpenCode CLI وأنه متاح في PATH:\nopencode --version\nnpm install -g @opencode-ai/cli",
+    "🔴 تعذر تشغيل خادم Antigravity\n\nالخطأ: {error}\n\nتأكد من تثبيت Antigravity CLI وأنه متاح في PATH:\nopencode --version\nnpm install -g @opencode-ai/cli",
   "opencode_start.started_not_ready":
-    "⚠️ تم تشغيل خادم OpenCode، لكنه لا يستجيب\n\nPID: {pid}\n\nقد لا يزال الخادم قيد التشغيل. جرّب /status بعد بضع ثوانٍ.",
-  "opencode_start.success": "✅ تم تشغيل خادم OpenCode بنجاح\n\nPID: {pid}\nالإصدار: {version}",
+    "⚠️ تم تشغيل خادم Antigravity، لكنه لا يستجيب\n\nPID: {pid}\n\nقد لا يزال الخادم قيد التشغيل. جرّب /status بعد بضع ثوانٍ.",
+  "opencode_start.success": "✅ تم تشغيل خادم Antigravity بنجاح\n\nPID: {pid}\nالإصدار: {version}",
   "opencode_start.error": "🔴 حدث خطأ أثناء تشغيل الخادم.\n\nراجع سجلات التطبيق للتفاصيل.",
   "opencode_stop.external_running":
-    "⚠️ خادم OpenCode يعمل كعملية خارجية\n\nلم يتم تشغيل هذا الخادم عبر /opencode-start.\nأوقفه يدويًا أو استخدم /status للتحقق من الحالة.",
-  "opencode_stop.remote_configured": "⚠️ يعمل /opencode_stop فقط مع خادم OpenCode محلي.",
-  "opencode_stop.not_running": "⚠️ خادم OpenCode لا يعمل",
+    "⚠️ خادم Antigravity يعمل كعملية خارجية\n\nلم يتم تشغيل هذا الخادم عبر /opencode-start.\nأوقفه يدويًا أو استخدم /status للتحقق من الحالة.",
+  "opencode_stop.remote_configured": "⚠️ يعمل /opencode_stop فقط مع خادم Antigravity محلي.",
+  "opencode_stop.not_running": "⚠️ خادم Antigravity لا يعمل",
   "opencode_stop.pid_not_found":
-    "⚠️ يستجيب خادم OpenCode على المنفذ {port}، لكن لم يتم العثور على عملية محلية لإيقافها.",
-  "opencode_stop.stopping": "🛑 جارٍ إيقاف خادم OpenCode...\n\nPID: {pid}",
-  "opencode_stop.stop_error": "🔴 تعذر إيقاف خادم OpenCode\n\nالخطأ: {error}",
+    "⚠️ يستجيب خادم Antigravity على المنفذ {port}، لكن لم يتم العثور على عملية محلية لإيقافها.",
+  "opencode_stop.stopping": "🛑 جارٍ إيقاف خادم Antigravity...\n\nPID: {pid}",
+  "opencode_stop.stop_error": "🔴 تعذر إيقاف خادم Antigravity\n\nالخطأ: {error}",
   "opencode_stop.still_running": "لا يزال الخادم يستجيب بعد طلب الإيقاف.",
-  "opencode_stop.success": "✅ تم إيقاف خادم OpenCode بنجاح",
+  "opencode_stop.success": "✅ تم إيقاف خادم Antigravity بنجاح",
   "opencode_stop.error": "🔴 حدث خطأ أثناء إيقاف الخادم.\n\nراجع سجلات التطبيق للتفاصيل.",
 
   "agent.changed_message": "✅ تم تغيير الوكيل إلى: {name}",
@@ -297,11 +297,11 @@ export const ar: I18nDictionary = {
   "model.menu.empty": "⚠️ لا توجد نماذج متاحة",
   "model.menu.select": "اختر نموذجًا:",
   "model.menu.current": "النموذج الحالي: {name}\n\nاختر نموذجًا:",
-  "model.menu.favorites_title": "⭐ المفضلة (أضف النماذج إلى المفضلة من OpenCode CLI)",
+  "model.menu.favorites_title": "⭐ المفضلة (أضف النماذج إلى المفضلة من Antigravity CLI)",
   "model.menu.favorites_empty": "— لا توجد نماذج في المفضلة.",
   "model.menu.recent_title": "🕘 المستخدمة مؤخرًا",
   "model.menu.recent_empty": "— لا توجد نماذج مستخدمة مؤخرًا.",
-  "model.menu.favorites_hint": "ℹ️ أضف النماذج إلى المفضلة في OpenCode CLI لإبقائها أعلى القائمة.",
+  "model.menu.favorites_hint": "ℹ️ أضف النماذج إلى المفضلة في Antigravity CLI لإبقائها أعلى القائمة.",
   "model.menu.error": "🔴 تعذر تحميل قائمة النماذج",
   "model.search.button": "🔍 بحث",
   "model.search.prompt": "🔍 اكتب اسم النموذج للبحث عنه:",
@@ -444,14 +444,14 @@ export const ar: I18nDictionary = {
     "أدخل معرّف حسابك في Telegram. يمكنك الحصول عليه من @userinfobot.\n> ",
   "runtime.wizard.user_id_invalid": "أدخل رقمًا صحيحًا موجبًا أكبر من صفر.\n",
   "runtime.wizard.ask_api_url":
-    "أدخل رابط OpenCode API، أو اضغط Enter لاستخدام الرابط الافتراضي: {defaultUrl}\n> ",
+    "أدخل رابط Antigravity API، أو اضغط Enter لاستخدام الرابط الافتراضي: {defaultUrl}\n> ",
   "runtime.wizard.ask_server_username":
-    "أدخل اسم مستخدم خادم OpenCode (اختياري).\nاضغط Enter لاستخدام القيمة الافتراضية: {defaultUsername}\n> ",
+    "أدخل اسم مستخدم خادم Antigravity (اختياري).\nاضغط Enter لاستخدام القيمة الافتراضية: {defaultUsername}\n> ",
   "runtime.wizard.ask_server_password":
-    "أدخل كلمة مرور خادم OpenCode (اختياري).\nاضغط Enter لتركها فارغة.\n> ",
+    "أدخل كلمة مرور خادم Antigravity (اختياري).\nاضغط Enter لتركها فارغة.\n> ",
   "runtime.wizard.api_url_invalid":
     "أدخل رابطًا صالحًا (http/https) أو اضغط Enter لاستخدام الافتراضي.\n",
-  "runtime.wizard.start": "إعداد OpenCode Telegram Bot.\n",
+  "runtime.wizard.start": "إعداد Antigravity Telegram Bot.\n",
   "runtime.wizard.saved": "تم حفظ الإعدادات في:\n- {envPath}\n",
   "runtime.wizard.not_configured_starting":
     "لم يتم إعداد التطبيق بعد. جارٍ تشغيل معالج الإعداد...\n",
@@ -517,9 +517,9 @@ export const ar: I18nDictionary = {
   "tasklist.inactive_callback": "انتهت صلاحية قائمة المهام المجدولة",
   "tasklist.load_error": "🔴 تعذر تحميل المهام المجدولة.",
 
-  "commands.select": "اختر أمرًا من OpenCode:",
+  "commands.select": "اختر أمرًا من Antigravity:",
   "commands.empty": "📭 لا توجد أوامر مخصصة لهذا المشروع.",
-  "commands.fetch_error": "🔴 تعذر تحميل أوامر OpenCode.",
+  "commands.fetch_error": "🔴 تعذر تحميل أوامر Antigravity.",
   "commands.no_description": "لا يوجد وصف",
   "commands.button.execute": "✅ تنفيذ",
   "commands.button.cancel": "❌ إلغاء",
@@ -528,8 +528,8 @@ export const ar: I18nDictionary = {
   "commands.execute_callback": "جارٍ تنفيذ الأمر...",
   "commands.executing_prefix": "⚡ جارٍ تنفيذ الأمر:",
   "commands.arguments_empty": "⚠️ لا يمكن أن تكون الوسيطات فارغة. أرسل نصًا أو اضغط تنفيذ.",
-  "commands.execute_error": "🔴 تعذر تنفيذ أمر OpenCode.",
-  "commands.select_page": "اختر أمرًا من OpenCode (الصفحة {page}):",
+  "commands.execute_error": "🔴 تعذر تنفيذ أمر Antigravity.",
+  "commands.select_page": "اختر أمرًا من Antigravity (الصفحة {page}):",
   "commands.button.prev_page": "⬅️ السابق",
   "commands.button.next_page": "التالي ➡️",
   "commands.page_empty_callback": "لا توجد أوامر في هذه الصفحة",
@@ -543,9 +543,9 @@ export const ar: I18nDictionary = {
   "commands.download.modified": "آخر تعديل",
   "commands.download.error": "تعذر تنزيل الملف.",
 
-  "skills.select": "اختر مهارة من OpenCode:",
+  "skills.select": "اختر مهارة من Antigravity:",
   "skills.empty": "📭 لا توجد مهارات متاحة لهذا المشروع.",
-  "skills.fetch_error": "🔴 تعذر تحميل مهارات OpenCode.",
+  "skills.fetch_error": "🔴 تعذر تحميل مهارات Antigravity.",
   "skills.no_description": "لا يوجد وصف",
   "skills.button.execute": "✅ تشغيل",
   "skills.button.cancel": "❌ إلغاء",
@@ -554,7 +554,7 @@ export const ar: I18nDictionary = {
   "skills.execute_callback": "جارٍ تشغيل المهارة...",
   "skills.executing_prefix": "⚡ جارٍ تشغيل المهارة:",
   "skills.arguments_empty": "⚠️ لا يمكن أن تكون الوسيطات فارغة. أرسل نصًا أو اضغط تشغيل.",
-  "skills.select_page": "اختر مهارة من OpenCode (الصفحة {page}):",
+  "skills.select_page": "اختر مهارة من Antigravity (الصفحة {page}):",
   "skills.button.prev_page": "⬅️ السابق",
   "skills.button.next_page": "التالي ➡️",
   "skills.page_empty_callback": "لا توجد مهارات في هذه الصفحة",
@@ -580,7 +580,7 @@ export const ar: I18nDictionary = {
   "mcps.auth_required": "هذا الخادم يحتاج إلى تسجيل دخول، ولا يمكن تفعيله من داخل البوت.",
 
   "legacy.models.fetch_error": "🔴 تعذر تحميل قائمة النماذج. تحقق من حالة الخادم باستخدام /status.",
-  "legacy.models.empty": "📋 لا توجد نماذج متاحة. اضبط المزوّدين في OpenCode.",
+  "legacy.models.empty": "📋 لا توجد نماذج متاحة. اضبط المزوّدين في Antigravity.",
   "legacy.models.header": "📋 النماذج المتاحة:\n\n",
   "legacy.models.no_provider_models": "  ⚠️ لا توجد نماذج متاحة\n",
   "legacy.models.env_hint": "💡 لاستخدام النموذج في .env:\n",

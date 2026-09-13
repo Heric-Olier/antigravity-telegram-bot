@@ -15,17 +15,8 @@ const mocked = vi.hoisted(() => ({
     title: "Old title",
     directory: "D:/repo",
   } as { id: string; title: string; directory: string } | null,
-  updateSessionMock: vi.fn(),
   setCurrentSessionMock: vi.fn(),
   pinnedOnSessionChangeMock: vi.fn(),
-}));
-
-vi.mock("../../../src/opencode/client.js", () => ({
-  opencodeClient: {
-    session: {
-      update: mocked.updateSessionMock,
-    },
-  },
 }));
 
 vi.mock("../../../src/app/services/session-service.js", () => ({
@@ -80,11 +71,7 @@ describe("bot/commands/rename", () => {
       title: "Old title",
       directory: "D:/repo",
     };
-    mocked.updateSessionMock.mockReset();
-    mocked.updateSessionMock.mockResolvedValue({
-      data: { id: "session-1", title: "New title" },
-      error: null,
-    });
+
     mocked.setCurrentSessionMock.mockReset();
     mocked.pinnedOnSessionChangeMock.mockReset();
     mocked.pinnedOnSessionChangeMock.mockResolvedValue(undefined);
@@ -118,11 +105,6 @@ describe("bot/commands/rename", () => {
     const handled = await handleRenameTextAnswer(ctx);
 
     expect(handled).toBe(true);
-    expect(mocked.updateSessionMock).toHaveBeenCalledWith({
-      sessionID: "session-1",
-      directory: "D:/repo",
-      title: "New title",
-    });
     expect(mocked.setCurrentSessionMock).toHaveBeenCalledWith({
       id: "session-1",
       title: "New title",
@@ -148,7 +130,7 @@ describe("bot/commands/rename", () => {
 
     expect(handled).toBe(true);
     expect(ctx.reply).toHaveBeenCalledWith(t("rename.empty_title"));
-    expect(mocked.updateSessionMock).not.toHaveBeenCalled();
+    expect(mocked.setCurrentSessionMock).not.toHaveBeenCalled();
     expect(renameManager.isWaitingForName()).toBe(true);
     expect(interactionManager.getSnapshot()?.kind).toBe("rename");
   });
@@ -226,7 +208,7 @@ describe("bot/commands/rename", () => {
     // `true` keeps the text from falling through to the prompt pipeline.
     expect(handled).toBe(true);
     expect(ctx.reply).toHaveBeenCalledWith(t("rename.inactive"));
-    expect(mocked.updateSessionMock).not.toHaveBeenCalled();
+    expect(mocked.setCurrentSessionMock).not.toHaveBeenCalled();
     expect(renameManager.isWaitingForName()).toBe(false);
     expect(interactionManager.getSnapshot()).toBeNull();
   });
@@ -240,7 +222,7 @@ describe("bot/commands/rename", () => {
 
     expect(handled).toBe(true);
     expect(ctx.reply).toHaveBeenCalledWith(t("rename.inactive"));
-    expect(mocked.updateSessionMock).not.toHaveBeenCalled();
+    expect(mocked.setCurrentSessionMock).not.toHaveBeenCalled();
     expect(renameManager.isWaitingForName()).toBe(false);
   });
 });

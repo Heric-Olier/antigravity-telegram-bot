@@ -45,6 +45,7 @@ const mocked = vi.hoisted(() => ({
 }));
 
 vi.mock("../../../src/app/stores/settings-store.js", () => ({
+  __resetSettingsForTests: vi.fn(),
   getCurrentProject: vi.fn(() => mocked.currentProject),
 }));
 
@@ -67,15 +68,21 @@ vi.mock("../../../src/app/services/session-cache-service.js", () => ({
 
 vi.mock("../../../src/opencode/client.js", () => ({
   opencodeClient: {
-    command: {
-      list: mocked.commandListMock,
-    },
     session: {
       status: mocked.sessionStatusMock,
       create: mocked.sessionCreateMock,
       command: mocked.sessionCommandMock,
     },
   },
+}));
+
+vi.mock("../../../src/app/services/command-catalog-service.js", () => ({
+  loadCommandCatalog: mocked.commandListMock,
+}));
+
+vi.mock("../../../src/antigravity/events.js", () => ({
+  sendPromptToActiveProcess: mocked.sessionCommandMock,
+  stopEventListening: vi.fn(),
 }));
 
 vi.mock("../../../src/app/managers/summary-aggregation-manager.js", () => ({
@@ -238,22 +245,19 @@ describe("bot/commands/commands", () => {
       },
       error: null,
     });
-    mocked.sessionCommandMock.mockResolvedValue({ data: {}, error: null });
+    mocked.sessionCommandMock.mockResolvedValue(undefined);
   });
 
   it("shows commands list and starts custom interaction", async () => {
-    mocked.commandListMock.mockResolvedValue({
-      data: [
-        { name: "init", description: "create/update AGENTS.md", source: "command" },
-        { name: "poem", description: "write a poem", source: "command" },
-      ],
-      error: null,
-    });
+    mocked.commandListMock.mockResolvedValue([
+      { name: "init", description: "create/update AGENTS.md" },
+      { name: "poem", description: "write a poem" },
+    ]);
 
     const ctx = createCommandContext(123);
     await commandsCommand(ctx as never);
 
-    expect(mocked.commandListMock).toHaveBeenCalledWith({ directory: "D:/Projects/Repo" });
+    expect(mocked.commandListMock).toHaveBeenCalledWith("D:\\Projects\\Repo");
     expect(ctx.reply).toHaveBeenCalledTimes(1);
 
     const [, options] = defined((ctx.reply as ReturnType<typeof vi.fn>).mock.calls[0]) as [
@@ -340,15 +344,7 @@ describe("bot/commands/commands", () => {
       ensureEventSubscription: mocked.ensureEventSubscriptionMock,
     });
     expect(mocked.suppressionRegisterMock).toHaveBeenCalledWith("session-1", "/poem");
-    expect(mocked.sessionCommandMock).toHaveBeenCalledWith({
-      sessionID: "session-1",
-      directory: "D:\\Projects\\Repo",
-      command: "poem",
-      arguments: "",
-      agent: "build",
-      model: "openai/gpt-5",
-      variant: "default",
-    });
+    expect(mocked.sessionCommandMock).toHaveBeenCalledWith("/poem", "D:\\Projects\\Repo");
   });
 
   it("executes selected command with arguments from text message", async () => {
@@ -382,15 +378,10 @@ describe("bot/commands/commands", () => {
       "session-1",
       "/poem about spring",
     );
-    expect(mocked.sessionCommandMock).toHaveBeenCalledWith({
-      sessionID: "session-1",
-      directory: "D:\\Projects\\Repo",
-      command: "poem",
-      arguments: "about spring",
-      agent: "build",
-      model: "openai/gpt-5",
-      variant: "default",
-    });
+    expect(mocked.sessionCommandMock).toHaveBeenCalledWith(
+      "/poem about spring",
+      "D:\\Projects\\Repo",
+    );
   });
 
   it("notifies the user when session.command reports an error while attached", async () => {
@@ -409,7 +400,9 @@ describe("bot/commands/commands", () => {
     const ctx = createCallbackContext("commands:execute", 400);
     const handled = await handleCommandsCallback(ctx, createDeps());
     const backgroundTask = getScheduledBackgroundTask();
-    backgroundTask.onSuccess?.({ error: new Error("command failed") });
+    const executeError = new Error("command failed");
+    await backgroundTask.task();
+    await backgroundTask.onError?.(executeError);
 
     expect(handled).toBe(true);
     expect(ctx.api.sendMessage).toHaveBeenCalledWith(777, t("commands.execute_error"));
@@ -462,7 +455,9 @@ describe("bot/commands/commands", () => {
     attachManager.clear("test_detach");
 
     const backgroundTask = getScheduledBackgroundTask();
-    backgroundTask.onSuccess?.({ error: new Error("command failed") });
+    const executeError = new Error("command failed");
+    await backgroundTask.task();
+    await backgroundTask.onError?.(executeError);
 
     expect(handled).toBe(true);
     expect(ctx.api.sendMessage).not.toHaveBeenCalled();
@@ -491,11 +486,10 @@ describe("bot/commands/commands", () => {
 
     const backgroundTask = getScheduledBackgroundTask();
     const startError = new Error("network down");
-    mocked.sessionCommandMock.mockRejectedValueOnce(startError);
-
     await backgroundTask.task().catch((error) => {
-      backgroundTask.onError?.(error);
+      backgroundTask.onError?.(error).catch(() => {});
     });
+    await backgroundTask.onError?.(startError);
 
     expect(handled).toBe(true);
     expect(ctx.api.sendMessage).not.toHaveBeenCalled();
@@ -548,7 +542,9 @@ describe("bot/commands/commands", () => {
     attachManager.attach("session-1", "D:\\Projects\\Repo");
 
     const backgroundTask = getScheduledBackgroundTask();
-    backgroundTask.onSuccess?.({ error: new Error("command failed") });
+    const executeError = new Error("command failed");
+    await backgroundTask.task();
+    await backgroundTask.onError?.(executeError);
 
     expect(handled).toBe(true);
     expect(ctx.api.sendMessage).toHaveBeenCalledWith(777, t("commands.execute_error"));
@@ -585,15 +581,12 @@ describe("bot/commands/commands", () => {
       source: "command",
     }));
 
-    mocked.commandListMock.mockResolvedValueOnce({
-      data: commands,
-      error: null,
-    });
+    mocked.commandListMock.mockResolvedValueOnce(commands);
 
     const ctx = createCommandContext(700);
     await commandsCommand(ctx as never);
 
-    expect(mocked.commandListMock).toHaveBeenCalledWith({ directory: "D:/Projects/Repo" });
+    expect(mocked.commandListMock).toHaveBeenCalledWith("D:\\Projects\\Repo");
 
     const [, options] = defined((ctx.reply as ReturnType<typeof vi.fn>).mock.calls[0]) as [
       string,
@@ -610,16 +603,11 @@ describe("bot/commands/commands", () => {
     expect(options.reply_markup.inline_keyboard[11]?.[0]?.callback_data).toBe("commands:cancel");
   });
 
-  it("filters out non-command sources from command list", async () => {
-    mocked.commandListMock.mockResolvedValue({
-      data: [
-        { name: "init", description: "create/update AGENTS.md", source: "command" },
-        { name: "review", description: "review changes", source: "command" },
-        { name: "borsch", description: "Borsch recipe", source: "skill" },
-        { name: "from-mcp", description: "MCP prompt", source: "mcp" },
-      ],
-      error: null,
-    });
+  it("renders the full command catalog as the interaction list", async () => {
+    mocked.commandListMock.mockResolvedValue([
+      { name: "init", description: "create/update AGENTS.md" },
+      { name: "review", description: "review changes" },
+    ]);
 
     const ctx = createCommandContext(750);
     await commandsCommand(ctx as never);
@@ -771,12 +759,12 @@ describe("commands pagination helpers", () => {
 
   describe("formatCommandsSelectText", () => {
     it("returns base text for first page", () => {
-      expect(formatCommandsSelectText(0)).toBe("Choose an OpenCode command:");
+      expect(formatCommandsSelectText(0)).toBe("Choose an Antigravity command:");
     });
 
     it("returns page-specific text for subsequent pages", () => {
-      expect(formatCommandsSelectText(1)).toBe("Choose an OpenCode command (page 2):");
-      expect(formatCommandsSelectText(5)).toBe("Choose an OpenCode command (page 6):");
+      expect(formatCommandsSelectText(1)).toBe("Choose an Antigravity command (page 2):");
+      expect(formatCommandsSelectText(5)).toBe("Choose an Antigravity command (page 6):");
     });
   });
 

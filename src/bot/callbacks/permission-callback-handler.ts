@@ -1,7 +1,6 @@
 import type { Context } from "grammy";
 import { permissionManager } from "../../app/managers/permission-manager.js";
 import type { PermissionReply } from "../../app/types/permission.js";
-import { opencodeClient } from "../../opencode/client.js";
 import { getCurrentProject } from "../../app/stores/settings-store.js";
 import { getCurrentSession } from "../../app/services/session-service.js";
 import { summaryAggregator } from "../../app/managers/summary-aggregation-manager.js";
@@ -24,31 +23,7 @@ function isPermissionReply(value: string): value is PermissionReply {
   return value === "once" || value === "always" || value === "reject";
 }
 
-function isPermissionRequestNotFound(error: unknown): boolean {
-  if (!error || typeof error !== "object") {
-    return false;
-  }
-
-  const candidate = error as {
-    _tag?: unknown;
-    name?: unknown;
-    message?: unknown;
-    data?: { message?: unknown };
-  };
-
-  if (candidate._tag === "PermissionNotFoundError") {
-    return true;
-  }
-
-  if (candidate.name === "NotFoundError") {
-    return true;
-  }
-
-  return [candidate.message, candidate.data?.message].some(
-    (message) =>
-      typeof message === "string" && message.toLowerCase().includes("permission request not found"),
-  );
-}
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 
 export async function handlePermissionCallback(ctx: Context): Promise<boolean> {
   const data = ctx.callbackQuery?.data;
@@ -139,52 +114,17 @@ async function handlePermissionReply(
     `[PermissionHandler] Sending permission reply: ${reply}, requestIDs=${requestIDs.join(",")}`,
   );
 
+  // agy runs yolo: there are no server-tracked permission requests. The bot
+  // state is cleared locally and reported immediately.
   safeBackgroundTask({
     taskName: "permission.reply",
     task: async () => {
-      let firstError: unknown = null;
-      let lastResponse: Awaited<ReturnType<typeof opencodeClient.permission.reply>> | null = null;
-
       for (const requestID of requestIDs) {
-        const response = await opencodeClient.permission.reply({
-          requestID,
-          directory,
-          reply,
-        });
-        lastResponse = response;
-
-        if (!response.error) {
-          continue;
-        }
-
-        if (requestIDs.length > 1 && isPermissionRequestNotFound(response.error)) {
-          logger.debug(
-            `[PermissionHandler] Ignoring duplicate permission reply miss: requestID=${requestID}`,
-          );
-          continue;
-        }
-
-        firstError ??= response.error;
+        logger.debug(`[PermissionHandler] Local permission clear: requestID=${requestID}`);
       }
-
-      return { ...lastResponse, error: firstError };
+      return { error: null };
     },
-    onSuccess: ({ error }) => {
-      if (error) {
-        if (isPermissionRequestNotFound(error)) {
-          logger.debug(
-            `[PermissionHandler] Permission request already resolved: requestIDs=${requestIDs.join(",")}`,
-          );
-          return;
-        }
-
-        logger.error("[PermissionHandler] Failed to send permission reply:", error);
-        if (ctx.api && chatId) {
-          void ctx.api.sendMessage(chatId, t("permission.send_reply_error")).catch(() => {});
-        }
-        return;
-      }
-
+    onSuccess: () => {
       logger.info("[PermissionHandler] Permission reply sent successfully");
     },
   });

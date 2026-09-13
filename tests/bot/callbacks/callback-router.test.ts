@@ -12,9 +12,6 @@ const mocked = vi.hoisted(() => ({
   handleInlineMenuCancel: vi.fn(),
   handleMcpsCallback: vi.fn(),
   handleMessagesCallback: vi.fn(),
-  handleModelProvidersCallback: vi.fn(),
-  handleModelSearchCallback: vi.fn(),
-  handleModelSearchResults: vi.fn(),
   handleModelSelect: vi.fn(),
   handlePermissionCallback: vi.fn(),
   handleProjectSelect: vi.fn(),
@@ -67,9 +64,6 @@ vi.mock("../../../src/bot/callbacks/message-history-callback-handler.js", () => 
   handleMessagesCallback: mocked.handleMessagesCallback,
 }));
 vi.mock("../../../src/bot/callbacks/model-selection-callback-handler.js", () => ({
-  handleModelProvidersCallback: mocked.handleModelProvidersCallback,
-  handleModelSearchCallback: mocked.handleModelSearchCallback,
-  handleModelSearchResults: mocked.handleModelSearchResults,
   handleModelSelect: mocked.handleModelSelect,
 }));
 vi.mock("../../../src/bot/callbacks/permission-callback-handler.js", () => ({
@@ -122,9 +116,6 @@ const tableHandlers = [
   mocked.handleOpenCallback,
   mocked.handleMcpsCallback,
   mocked.handleMessagesCallback,
-  mocked.handleModelProvidersCallback,
-  mocked.handleModelSearchCallback,
-  mocked.handleModelSearchResults,
   mocked.handleModelSelect,
   mocked.handlePermissionCallback,
   mocked.handleProjectSelect,
@@ -178,28 +169,13 @@ describe("bot/callbacks/callback-router", () => {
     expect(calledHandlers).toEqual([mocked.handleSettingsCallback]);
   });
 
-  it("runs the model handlers as a chain until one handles the callback", async () => {
+  it("routes a model callback to the single agy model handler", async () => {
     mocked.handleModelSelect.mockResolvedValue(true);
     const callback = registerAndGetCallback();
 
-    await callback(createCallbackContext("model:anthropic:claude"));
+    await callback(createCallbackContext("model:list:0"));
 
-    expect(mocked.handleModelSearchCallback).toHaveBeenCalledTimes(1);
-    expect(mocked.handleModelSearchResults).toHaveBeenCalledTimes(1);
-    expect(mocked.handleModelProvidersCallback).toHaveBeenCalledTimes(1);
     expect(mocked.handleModelSelect).toHaveBeenCalledTimes(1);
-  });
-
-  it("stops the model chain when an earlier handler handles the callback", async () => {
-    mocked.handleModelSearchResults.mockResolvedValue(true);
-    const callback = registerAndGetCallback();
-
-    await callback(createCallbackContext("model:result:0"));
-
-    expect(mocked.handleModelSearchCallback).toHaveBeenCalledTimes(1);
-    expect(mocked.handleModelSearchResults).toHaveBeenCalledTimes(1);
-    expect(mocked.handleModelProvidersCallback).not.toHaveBeenCalled();
-    expect(mocked.handleModelSelect).not.toHaveBeenCalled();
   });
 
   it("does not call table handlers when the background session pre-hook handles the callback", async () => {

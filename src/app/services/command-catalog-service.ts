@@ -1,33 +1,12 @@
-import { opencodeClient } from "../../opencode/client.js";
-
 export interface CommandCatalogItem {
   name: string;
   description?: string | undefined;
 }
 
-function normalizeDirectoryForCommandApi(directory: string): string {
-  return directory.replace(/\\/g, "/");
-}
-
-export async function loadCommandCatalog(projectDirectory: string): Promise<CommandCatalogItem[]> {
-  const { data, error } = await opencodeClient.command.list({
-    directory: normalizeDirectoryForCommandApi(projectDirectory),
-  });
-
-  if (error || !data) {
-    throw error || new Error("No command data received");
-  }
-
-  return data
-    .filter((command) => {
-      return (
-        typeof command.name === "string" &&
-        command.name.trim().length > 0 &&
-        command.source === "command"
-      );
-    })
-    .map((command) => ({
-      name: command.name,
-      description: command.description,
-    }));
+/**
+ * agy has no command catalog API in v1. Return an empty list so the command
+ * catalog menu renders its empty state.
+ */
+export async function loadCommandCatalog(_projectDirectory: string): Promise<CommandCatalogItem[]> {
+  return [];
 }

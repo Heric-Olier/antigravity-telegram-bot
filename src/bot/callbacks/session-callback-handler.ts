@@ -1,9 +1,6 @@
 import type { Bot, Context } from "grammy";
-import { opencodeClient } from "../../opencode/client.js";
-import { resolveProjectAgent } from "../../app/services/agent-selection-service.js";
 import { getStoredModel } from "../../app/services/model-selection-service.js";
 import { setCurrentSession } from "../../app/services/session-service.js";
-import { applySessionSettings } from "../../app/services/session-settings-service.js";
 import type { SessionInfo } from "../../app/types/session.js";
 import { getCurrentProject } from "../../app/stores/settings-store.js";
 import { clearAllInteractionState, interactionManager } from "../../app/managers/interaction-manager.js";
@@ -17,8 +14,6 @@ import { config } from "../../config.js";
 import { t } from "../../i18n/index.js";
 import { alert, failure } from "./feedback.js";
 import { attachToSession } from "../../app/services/attach-service.js";
-import { renderAssistantFinalPartsSafe } from "../messages/assistant-rendering.js";
-import { sendRenderedBotPart } from "../messages/telegram-text.js";
 import {
   buildSessionSelectionMenuView,
   parseBackgroundSessionCallback,
@@ -27,6 +22,7 @@ import {
   SESSION_CALLBACK_PREFIX,
   loadSessionPage,
 } from "../menus/session-selection-menu.js";
+import { formatConversationPreview, getConversation } from "../../antigravity/session-store.js";
 
 export interface SessionSelectDeps {
   bot: Bot<Context>;
@@ -40,28 +36,6 @@ interface SelectSessionByIdOptions {
   postSelectAction: "preview" | "latest_assistant_response" | "none";
 }
 
-type SessionPreviewItem = {
-  role: "user" | "assistant";
-  text: string;
-  created: number;
-};
-
-const PREVIEW_MESSAGES_LIMIT = 6;
-const LATEST_ASSISTANT_RESPONSE_MESSAGES_LIMIT = 20;
-const PREVIEW_ITEM_MAX_LENGTH = 420;
-const TELEGRAM_MESSAGE_LIMIT = 4096;
-
-type SessionMessageLike = {
-  info: {
-    role?: string;
-    summary?: boolean;
-    time?: {
-      created?: number;
-    };
-  };
-  parts: Array<{ type: string; text?: string }>;
-};
-
 async function removeCallbackReplyMarkup(ctx: Context): Promise<void> {
   try {
     await ctx.editMessageReplyMarkup();
@@ -70,7 +44,7 @@ async function removeCallbackReplyMarkup(ctx: Context): Promise<void> {
   }
 }
 
-async function selectSessionById(
+export async function selectSessionById(
   ctx: Context,
   deps: SessionSelectDeps,
   sessionId: string,
@@ -84,28 +58,21 @@ async function selectSessionById(
     return;
   }
 
-  const { data: session, error } = await opencodeClient.session.get({
-    sessionID: sessionId,
-    directory: currentProject.worktree,
-  });
-
-  if (error || !session) {
-    throw error || new Error("Failed to get session details");
-  }
+  // Conversation id -> display title known on disk (summary DB); the preview
+  // only exists for real agy conversations, otherwise the raw id is used.
+  const conversation = getConversation(sessionId);
+  const title = conversation?.title ?? sessionId.slice(0, 8);
 
   logger.info(
-    `[Bot] Session selected: id=${session.id}, title="${session.title}", project=${currentProject.worktree}, source=${options.source}`,
+    `[Bot] Session selected: id=${sessionId}, title="${title}", project=${currentProject.worktree}, source=${options.source}`,
   );
 
   const sessionInfo: SessionInfo = {
-    id: session.id,
-    title: session.title,
+    id: sessionId,
+    title,
     directory: currentProject.worktree,
   };
   setCurrentSession(sessionInfo);
-  // Pull before attaching: the pinned message is rendered inside attachToSession
-  // and reads the stored model, so its Model line comes out already pulled.
-  applySessionSettings(session);
   clearAllInteractionState("session_switched");
 
   await ctx.answerCallbackQuery();
@@ -141,9 +108,6 @@ async function selectSessionById(
 
   if (ctx.chat) {
     const chatId = ctx.chat.id;
-    const currentAgent = await resolveProjectAgent();
-
-    keyboardManager.updateAgent(currentAgent);
     keyboardManager.updateModel(getStoredModel());
 
     const contextInfo = keyboardManager.getContextInfo();
@@ -163,7 +127,7 @@ async function selectSessionById(
     try {
       await ctx.api.sendMessage(
         chatId,
-        t("sessions.selected", { title: session.title }),
+        t("sessions.selected", { title: sessionInfo.title }),
         keyboard ? { reply_markup: keyboard } : {},
       );
     } catch (err) {
@@ -173,22 +137,7 @@ async function selectSessionById(
     if (options.postSelectAction === "preview") {
       safeBackgroundTask({
         taskName: "sessions.sendPreview",
-        task: () =>
-          sendSessionPreview(
-            ctx.api,
-            chatId,
-            null,
-            session.title,
-            session.id,
-            currentProject.worktree,
-          ),
-      });
-    }
-
-    if (options.postSelectAction === "latest_assistant_response") {
-      safeBackgroundTask({
-        taskName: "sessions.sendLatestAssistantResponse",
-        task: () => sendLatestAssistantResponse(ctx.api, chatId, session.id, currentProject.worktree),
+        task: () => sendSessionPreview(ctx.api, chatId, null, sessionInfo),
       });
     }
   }
@@ -319,112 +268,19 @@ export async function handleSessionSelect(ctx: Context, deps: SessionSelectDeps)
   return true;
 }
 
-function extractTextParts(
-  parts: Array<{ type: string; text?: string }>,
-  options: { trim?: boolean } = {},
-): string | null {
-  const textParts = parts
-    .filter((part) => part.type === "text" && typeof part.text === "string")
-    .map((part) => part.text as string);
-
-  if (textParts.length === 0) {
-    return null;
-  }
-
-  const text = textParts.join("");
-  const normalizedText = options.trim === false ? text : text.trim();
-  return normalizedText.trim().length > 0 ? normalizedText : null;
-}
-
-function truncateText(text: string, maxLength: number): string {
-  if (text.length <= maxLength) {
-    return text;
-  }
-
-  const clipped = text.slice(0, Math.max(0, maxLength - 3)).trimEnd();
-  return `${clipped}...`;
-}
-
-async function loadSessionPreview(
-  sessionId: string,
-  directory: string,
-): Promise<SessionPreviewItem[]> {
-  try {
-    const { data: messages, error } = await opencodeClient.session.messages({
-      sessionID: sessionId,
-      directory,
-      limit: PREVIEW_MESSAGES_LIMIT,
-    });
-
-    if (error || !messages) {
-      logger.warn("[Sessions] Failed to fetch session messages:", error);
-      return [];
-    }
-
-    const items = messages
-      .map(({ info, parts }) => {
-        const role = info.role as "user" | "assistant" | undefined;
-        if (role !== "user" && role !== "assistant") {
-          return null;
-        }
-
-        if (role === "assistant" && (info as { summary?: boolean }).summary) {
-          return null;
-        }
-
-        const text = extractTextParts(parts as Array<{ type: string; text?: string }>);
-        if (!text) {
-          return null;
-        }
-
-        const created = info.time?.created ?? 0;
-        return {
-          role,
-          text: truncateText(text, PREVIEW_ITEM_MAX_LENGTH),
-          created,
-        } as SessionPreviewItem;
-      })
-      .filter((item): item is SessionPreviewItem => Boolean(item));
-
-    return items.sort((a, b) => a.created - b.created);
-  } catch (err) {
-    logger.error("[Sessions] Error loading session preview:", err);
-    return [];
-  }
-}
-
-function formatSessionPreview(_sessionTitle: string, items: SessionPreviewItem[]): string {
-  const lines: string[] = [];
-
-  if (items.length === 0) {
-    lines.push(t("sessions.preview.empty"));
-    return lines.join("\n");
-  }
-
-  lines.push(t("sessions.preview.title"));
-
-  items.forEach((item, index) => {
-    const label = item.role === "user" ? t("sessions.preview.you") : t("sessions.preview.agent");
-    lines.push(`${label} ${item.text}`);
-    if (index < items.length - 1) {
-      lines.push("");
-    }
-  });
-
-  const rawMessage = lines.join("\n");
-  return truncateText(rawMessage, TELEGRAM_MESSAGE_LIMIT);
-}
-
 async function sendSessionPreview(
   api: Context["api"],
   chatId: number,
   messageId: number | null,
-  sessionTitle: string,
-  sessionId: string,
-  directory: string,
+  session: SessionInfo,
 ): Promise<void> {
-  const previewItems = await loadSessionPreview(sessionId, directory);
-  const finalText = formatSessionPreview(sessionTitle, previewItems);
+  // TODO(v2): agy .db conversation files store messages as protobuf; once the
+  // schema is verifiable, render full "Tú/Agente" transcripts here. For now the
+  // preview comes from the CLI's own summary DB (title + first user prompt).
+  const conversation = getConversation(session.id);
+  const finalText = conversation
+    ? formatConversationPreview(conversation)
+    : t("sessions.preview.empty");
 
   if (messageId) {
     try {
@@ -439,70 +295,5 @@ async function sendSessionPreview(
     await api.sendMessage(chatId, finalText);
   } catch (err) {
     logger.error("[Sessions] Failed to send session preview message:", err);
-  }
-}
-
-async function loadLatestAssistantResponse(
-  sessionId: string,
-  directory: string,
-): Promise<string | null> {
-  try {
-    const { data: messages, error } = await opencodeClient.session.messages({
-      sessionID: sessionId,
-      directory,
-      limit: LATEST_ASSISTANT_RESPONSE_MESSAGES_LIMIT,
-    });
-
-    if (error || !messages) {
-      logger.warn("[Sessions] Failed to fetch latest assistant response:", error);
-      return null;
-    }
-
-    const latestResponse = (messages as SessionMessageLike[]).reduce<{
-      text: string;
-      created: number;
-    } | null>((latest, message) => {
-      if (message.info.role !== "assistant" || message.info.summary) {
-        return latest;
-      }
-
-      const text = extractTextParts(message.parts, { trim: false });
-      if (!text) {
-        return latest;
-      }
-
-      const created = message.info.time?.created ?? 0;
-      if (!latest || created >= latest.created) {
-        return { text, created };
-      }
-
-      return latest;
-    }, null);
-
-    return latestResponse?.text ?? null;
-  } catch (err) {
-    logger.error("[Sessions] Error loading latest assistant response:", err);
-    return null;
-  }
-}
-
-async function sendLatestAssistantResponse(
-  api: Context["api"],
-  chatId: number,
-  sessionId: string,
-  directory: string,
-): Promise<void> {
-  const responseText = await loadLatestAssistantResponse(sessionId, directory);
-  if (!responseText) {
-    return;
-  }
-
-  const parts = renderAssistantFinalPartsSafe(responseText);
-  for (const part of parts) {
-    await sendRenderedBotPart({
-      api,
-      chatId,
-      part,
-    });
   }
 }

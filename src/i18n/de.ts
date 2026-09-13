@@ -15,8 +15,8 @@ export const de: I18nDictionary = {
   "cmd.description.commands": "Benutzerdefinierte Befehle",
   "cmd.description.skills": "Skill-Katalog",
   "cmd.description.mcps": "MCP servers",
-  "cmd.description.opencode_start": "OpenCode-Server starten",
-  "cmd.description.opencode_stop": "OpenCode-Server stoppen",
+  "cmd.description.opencode_start": "Antigravity-Server starten",
+  "cmd.description.opencode_stop": "Antigravity-Server stoppen",
   "cmd.description.ls": "Verzeichnisinhalt auflisten",
   "cmd.description.help": "Hilfe",
 
@@ -58,7 +58,7 @@ export const de: I18nDictionary = {
   "common.unknown_error": "unbekannter Fehler",
 
   "start.welcome":
-    "👋 Willkommen beim OpenCode Telegram Bot!\n\nNutze Befehle:\n/projects — Projekt auswählen\n/sessions — Sitzungsliste\n/new — neue Sitzung\n/commands — benutzerdefinierte Befehle\n/skills — Skill-Katalog\n/task — geplante Aufgabe\n/tasklist — geplante Aufgaben\n/status — Status\n/help — Hilfe\n\nNutze die unteren Buttons, um Agent, Modell und Variante zu wählen.",
+    "👋 Willkommen beim Antigravity Telegram Bot!\n\nNutze Befehle:\n/projects — Projekt auswählen\n/sessions — Sitzungsliste\n/new — neue Sitzung\n/commands — benutzerdefinierte Befehle\n/skills — Skill-Katalog\n/task — geplante Aufgabe\n/tasklist — geplante Aufgaben\n/status — Status\n/help — Hilfe\n\nNutze die unteren Buttons, um Agent, Modell und Variante zu wählen.",
   "help.keyboard_hint":
     "💡 Nutze die unteren Buttons für Agent, Modell, Variante und Kontextaktionen.",
   "help.text":
@@ -85,8 +85,8 @@ export const de: I18nDictionary = {
     "⏳ Agent führt bereits eine Aufgabe aus. Warte auf Abschluss oder nutze /abort, um den aktuellen Lauf zu unterbrechen.",
   "bot.session_reset_project_mismatch":
     "⚠️ Die aktive Sitzung passt nicht zum ausgewählten Projekt und wurde daher zurückgesetzt. Nutze /sessions zur Auswahl oder /new, um eine neue Sitzung zu erstellen.",
-  "bot.prompt_send_error": "Anfrage konnte nicht an OpenCode gesendet werden.",
-  "bot.session_error": "🔴 OpenCode meldete einen Fehler: {message}",
+  "bot.prompt_send_error": "Anfrage konnte nicht an Antigravity gesendet werden.",
+  "bot.session_error": "🔴 Antigravity meldete einen Fehler: {message}",
   "bot.session_retry":
     "🔁 {message}\n\nDer Provider liefert bei wiederholten Versuchen immer wieder denselben Fehler. Mit /abort abbrechen.",
   "bot.external_user_input": "Externe Benutzereingabe",
@@ -115,18 +115,18 @@ export const de: I18nDictionary = {
     "⚠️ {count} nicht unterstützte Medienteile wurden übersprungen.",
   "bot.message_type_unsupported": "⚠️ Dieser Nachrichtentyp wird nicht unterstützt.",
   "bot.media_group_not_processed":
-    "⚠️ Eine oder mehrere Dateien in diesem Album können nicht verarbeitet werden. Es wurde nichts an OpenCode gesendet.",
+    "⚠️ Eine oder mehrere Dateien in diesem Album können nicht verarbeitet werden. Es wurde nichts an Antigravity gesendet.",
   "bot.media_group_download_error":
-    "🔴 Eine der Dateien konnte nicht heruntergeladen werden. Es wurde nichts an OpenCode gesendet.",
+    "🔴 Eine der Dateien konnte nicht heruntergeladen werden. Es wurde nichts an Antigravity gesendet.",
   "bot.model_no_pdf": "⚠️ Das aktuelle Modell unterstützt keine PDF-Eingabe. Sende nur Text.",
   "bot.document_extraction_error": "🔴 Dokumenttext konnte nicht extrahiert werden.",
   "bot.text_file_too_large": "⚠️ Textdatei ist zu groß (max. {maxSizeKb}KB)",
 
-  "status.header_running": "🟢 OpenCode-Server läuft",
+  "status.header_running": "🟢 Antigravity-Server läuft",
   "status.health.healthy": "OK",
   "status.health.unhealthy": "Nicht OK",
   "status.line.health": "Status: {health}",
-  "status.line.version": "OpenCode-Version: {version}",
+  "status.line.version": "Antigravity-Version: {version}",
   "status.line.bot_version": "Bot version: {version}",
   "status.line.managed_yes": "Vom Bot gestartet: Ja",
   "status.line.managed_no": "Vom Bot gestartet: Nein",
@@ -146,7 +146,7 @@ export const de: I18nDictionary = {
   "status.session_selected": "Aktuelle Sitzung: {title}",
   "status.session_not_selected": "Aktuelle Sitzung: nicht ausgewählt",
   "status.session_hint": "Nutze /sessions zur Auswahl oder /new zum Erstellen",
-  "status.header_unavailable": "🔴 OpenCode-Server ist nicht verfügbar",
+  "status.header_unavailable": "🔴 Antigravity-Server ist nicht verfügbar",
   "status.unavailable_hint": "Nutze /opencode_start, um den Server zu starten.",
 
   "tts.off": "🔇 Audioantworten deaktiviert.",
@@ -174,14 +174,14 @@ export const de: I18nDictionary = {
   "settings.saved": "✅ Einstellung gespeichert.",
 
   "projects.empty":
-    "📭 Keine Projekte gefunden.\n\nÖffne ein Verzeichnis in OpenCode und erstelle mindestens eine Sitzung, dann erscheint es hier.",
+    "📭 Keine Projekte gefunden.\n\nÖffne ein Verzeichnis in Antigravity und erstelle mindestens eine Sitzung, dann erscheint es hier.",
   "projects.select": "Projekt auswählen:",
   "projects.select_with_current": "Projekt auswählen:\n\nAktuell: 🏗 {project}",
   "projects.page_indicator": "Seite {current}/{total}",
   "projects.prev_page": "⬅️ Zurück",
   "projects.next_page": "Weiter ➡️",
   "projects.fetch_error":
-    "🔴 OpenCode-Server ist nicht verfügbar oder beim Laden der Projekte ist ein Fehler aufgetreten.",
+    "🔴 Antigravity-Server ist nicht verfügbar oder beim Laden der Projekte ist ein Fehler aufgetreten.",
   "projects.page_load_error": "Diese Seite konnte nicht geladen werden. Bitte versuche es erneut.",
   "projects.selected":
     "✅ Projekt ausgewählt: {project}\n\n📋 Sitzung wurde zurückgesetzt. Nutze /sessions oder /new für dieses Projekt.",
@@ -193,7 +193,7 @@ export const de: I18nDictionary = {
   "sessions.select": "Sitzung auswählen:",
   "sessions.select_page": "Sitzung auswählen (Seite {page}):",
   "sessions.fetch_error":
-    "🔴 OpenCode-Server ist nicht verfügbar oder beim Laden der Sitzungen ist ein Fehler aufgetreten.",
+    "🔴 Antigravity-Server ist nicht verfügbar oder beim Laden der Sitzungen ist ein Fehler aufgetreten.",
   "sessions.select_project_first": "🔴 Projekt ist nicht ausgewählt. Nutze /projects.",
   "sessions.page_empty_callback": "Auf dieser Seite gibt es keine Sitzungen",
   "sessions.page_load_error_callback":
@@ -218,7 +218,7 @@ export const de: I18nDictionary = {
   "messages.select": "Wähle eine Nachricht:",
   "messages.select_page": "Wähle eine Nachricht (Seite {page}):",
   "messages.fetch_error":
-    "🔴 OpenCode Server ist nicht erreichbar oder beim Laden der Nachrichten ist ein Fehler aufgetreten.",
+    "🔴 Antigravity Server ist nicht erreichbar oder beim Laden der Nachrichten ist ein Fehler aufgetreten.",
   "messages.inactive_callback": "Dieses Nachrichtenmenü ist nicht mehr aktiv",
   "messages.page_empty_callback": "Keine Nachrichten auf dieser Seite",
   "messages.button.prev_page": "⬅️ Zurück",
@@ -253,14 +253,14 @@ export const de: I18nDictionary = {
     "🏗 Projekt ist nicht ausgewählt.\n\nWähle zuerst ein Projekt mit /projects.",
   "detach.no_active_session": "ℹ️ Der Bot ist bereits von allen Sitzungen getrennt.",
   "detach.success":
-    "✅ Von Sitzung getrennt: {title}\n\nDie OpenCode-Sitzung wurde nicht gestoppt. Falls sie noch läuft, läuft sie separat weiter. Um sie später zu prüfen, wähle sie erneut über /sessions aus.",
+    "✅ Von Sitzung getrennt: {title}\n\nDie Antigravity-Sitzung wurde nicht gestoppt. Falls sie noch läuft, läuft sie separat weiter. Um sie später zu prüfen, wähle sie erneut über /sessions aus.",
   "detach.error": "🔴 Trennen von der aktuellen Sitzung fehlgeschlagen.",
 
   "new.project_not_selected":
     "🏗 Projekt ist nicht ausgewählt.\n\nWähle zuerst ein Projekt mit /projects.",
   "new.created": "✅ Neue Sitzung erstellt: {title}",
   "new.create_error":
-    "🔴 OpenCode-Server ist nicht verfügbar oder beim Erstellen der Sitzung ist ein Fehler aufgetreten.",
+    "🔴 Antigravity-Server ist nicht verfügbar oder beim Erstellen der Sitzung ist ein Fehler aufgetreten.",
 
   "stop.no_active_session":
     "🛑 Agent wurde nicht gestartet\n\nErstelle eine Sitzung mit /new oder wähle eine über /sessions aus.",
@@ -282,32 +282,32 @@ export const de: I18nDictionary = {
     "🔴 Aktion konnte nicht gestoppt werden.\n\nEvent-Stream ist gestoppt, versuche /abort erneut.",
 
   "opencode_start.already_running_managed":
-    "⚠️ OpenCode-Server läuft bereits\n\nPID: {pid}\nBetriebszeit: {seconds} Sekunden",
+    "⚠️ Antigravity-Server läuft bereits\n\nPID: {pid}\nBetriebszeit: {seconds} Sekunden",
   "opencode_start.already_running_external":
-    "✅ OpenCode-Server läuft bereits als externer Prozess\n\nVersion: {version}\n\nDieser Server wurde nicht vom Bot gestartet, daher kann /opencode-stop ihn nicht stoppen.",
-  "opencode_start.already_running": "✅ OpenCode-Server läuft bereits\n\nVersion: {version}",
+    "✅ Antigravity-Server läuft bereits als externer Prozess\n\nVersion: {version}\n\nDieser Server wurde nicht vom Bot gestartet, daher kann /opencode-stop ihn nicht stoppen.",
+  "opencode_start.already_running": "✅ Antigravity-Server läuft bereits\n\nVersion: {version}",
   "opencode_start.remote_configured":
-    "⚠️ /opencode_start funktioniert nur mit einem lokalen OpenCode-Server.",
-  "opencode_start.starting": "🔄 Starte OpenCode-Server...",
+    "⚠️ /opencode_start funktioniert nur mit einem lokalen Antigravity-Server.",
+  "opencode_start.starting": "🔄 Starte Antigravity-Server...",
   "opencode_start.start_error":
-    "🔴 OpenCode-Server konnte nicht gestartet werden\n\nFehler: {error}\n\nPrüfe, ob OpenCode CLI installiert und im PATH verfügbar ist:\nopencode --version\nnpm install -g @opencode-ai/cli",
+    "🔴 Antigravity-Server konnte nicht gestartet werden\n\nFehler: {error}\n\nPrüfe, ob Antigravity CLI installiert und im PATH verfügbar ist:\nopencode --version\nnpm install -g @opencode-ai/cli",
   "opencode_start.started_not_ready":
-    "⚠️ OpenCode-Server gestartet, aber reagiert nicht\n\nPID: {pid}\n\nDer Server startet möglicherweise noch. Versuche /status in ein paar Sekunden.",
+    "⚠️ Antigravity-Server gestartet, aber reagiert nicht\n\nPID: {pid}\n\nDer Server startet möglicherweise noch. Versuche /status in ein paar Sekunden.",
   "opencode_start.success":
-    "✅ OpenCode-Server erfolgreich gestartet\n\nPID: {pid}\nVersion: {version}",
+    "✅ Antigravity-Server erfolgreich gestartet\n\nPID: {pid}\nVersion: {version}",
   "opencode_start.error":
     "🔴 Beim Starten des Servers ist ein Fehler aufgetreten.\n\nSiehe Anwendungslogs für Details.",
   "opencode_stop.external_running":
-    "⚠️ OpenCode-Server läuft als externer Prozess\n\nDieser Server wurde nicht über /opencode-start gestartet.\nStoppe ihn manuell oder nutze /status, um den Zustand zu prüfen.",
+    "⚠️ Antigravity-Server läuft als externer Prozess\n\nDieser Server wurde nicht über /opencode-start gestartet.\nStoppe ihn manuell oder nutze /status, um den Zustand zu prüfen.",
   "opencode_stop.remote_configured":
-    "⚠️ /opencode_stop funktioniert nur mit einem lokalen OpenCode-Server.",
-  "opencode_stop.not_running": "⚠️ OpenCode-Server läuft nicht",
+    "⚠️ /opencode_stop funktioniert nur mit einem lokalen Antigravity-Server.",
+  "opencode_stop.not_running": "⚠️ Antigravity-Server läuft nicht",
   "opencode_stop.pid_not_found":
-    "⚠️ OpenCode-Server antwortet auf Port {port}, aber es wurde kein lokaler Prozess zum Stoppen gefunden.",
-  "opencode_stop.stopping": "🛑 Stoppe OpenCode-Server...\n\nPID: {pid}",
-  "opencode_stop.stop_error": "🔴 OpenCode-Server konnte nicht gestoppt werden\n\nFehler: {error}",
+    "⚠️ Antigravity-Server antwortet auf Port {port}, aber es wurde kein lokaler Prozess zum Stoppen gefunden.",
+  "opencode_stop.stopping": "🛑 Stoppe Antigravity-Server...\n\nPID: {pid}",
+  "opencode_stop.stop_error": "🔴 Antigravity-Server konnte nicht gestoppt werden\n\nFehler: {error}",
   "opencode_stop.still_running": "Der Server antwortet nach der Stop-Anfrage weiterhin.",
-  "opencode_stop.success": "✅ OpenCode-Server erfolgreich gestoppt",
+  "opencode_stop.success": "✅ Antigravity-Server erfolgreich gestoppt",
   "opencode_stop.error":
     "🔴 Beim Stoppen des Servers ist ein Fehler aufgetreten.\n\nSiehe Anwendungslogs für Details.",
 
@@ -324,12 +324,12 @@ export const de: I18nDictionary = {
   "model.menu.select": "Modell auswählen:",
   "model.menu.current": "Aktuelles Modell: {name}\n\nModell auswählen:",
   "model.menu.favorites_title":
-    "⭐ Favoriten (Füge Modelle in OpenCode CLI zu den Favoriten hinzu)",
+    "⭐ Favoriten (Füge Modelle in Antigravity CLI zu den Favoriten hinzu)",
   "model.menu.favorites_empty": "— Leer.",
   "model.menu.recent_title": "🕘 Zuletzt verwendet",
   "model.menu.recent_empty": "— Leer.",
   "model.menu.favorites_hint":
-    "ℹ️ Füge Modelle in OpenCode CLI zu den Favoriten hinzu, damit sie oben angezeigt werden.",
+    "ℹ️ Füge Modelle in Antigravity CLI zu den Favoriten hinzu, damit sie oben angezeigt werden.",
   "model.menu.error": "🔴 Modellliste konnte nicht geladen werden",
   "model.search.button": "🔍 Suche",
   "model.search.prompt": "🔍 Modellnamen zum Suchen eingeben:",
@@ -476,14 +476,14 @@ export const de: I18nDictionary = {
     "Gib deine Telegram User ID ein (du bekommst sie bei @userinfobot).\n> ",
   "runtime.wizard.user_id_invalid": "Gib eine positive ganze Zahl ein (> 0).\n",
   "runtime.wizard.ask_api_url":
-    "OpenCode API URL eingeben (optional).\nEnter drücken für Standard: {defaultUrl}\n> ",
+    "Antigravity API URL eingeben (optional).\nEnter drücken für Standard: {defaultUrl}\n> ",
   "runtime.wizard.ask_server_username":
-    "OpenCode-Server-Benutzername eingeben (optional).\nEnter drücken für Standard: {defaultUsername}\n> ",
+    "Antigravity-Server-Benutzername eingeben (optional).\nEnter drücken für Standard: {defaultUsername}\n> ",
   "runtime.wizard.ask_server_password":
-    "OpenCode-Server-Passwort eingeben (optional).\nEnter drücken, um es leer zu lassen.\n> ",
+    "Antigravity-Server-Passwort eingeben (optional).\nEnter drücken, um es leer zu lassen.\n> ",
   "runtime.wizard.api_url_invalid":
     "Gib eine gültige URL (http/https) ein oder drücke Enter für Standard.\n",
-  "runtime.wizard.start": "OpenCode Telegram Bot Einrichtung.\n",
+  "runtime.wizard.start": "Antigravity Telegram Bot Einrichtung.\n",
   "runtime.wizard.saved": "Konfiguration gespeichert:\n- {envPath}\n",
   "runtime.wizard.not_configured_starting":
     "Anwendung ist noch nicht konfiguriert. Starte Assistent...\n",
@@ -553,9 +553,9 @@ export const de: I18nDictionary = {
   "tasklist.inactive_callback": "Dieses Menü für geplante Aufgaben ist inaktiv",
   "tasklist.load_error": "🔴 Geplante Aufgaben konnten nicht geladen werden.",
 
-  "commands.select": "Wähle einen OpenCode-Befehl:",
-  "commands.empty": "📭 Für dieses Projekt sind keine OpenCode-Befehle verfügbar.",
-  "commands.fetch_error": "🔴 OpenCode-Befehle konnten nicht geladen werden.",
+  "commands.select": "Wähle einen Antigravity-Befehl:",
+  "commands.empty": "📭 Für dieses Projekt sind keine Antigravity-Befehle verfügbar.",
+  "commands.fetch_error": "🔴 Antigravity-Befehle konnten nicht geladen werden.",
   "commands.no_description": "Keine Beschreibung",
   "commands.button.execute": "✅ Ausführen",
   "commands.button.cancel": "❌ Abbrechen",
@@ -566,8 +566,8 @@ export const de: I18nDictionary = {
   "commands.executing_prefix": "⚡ Befehl wird ausgeführt:",
   "commands.arguments_empty":
     "⚠️ Argumente dürfen nicht leer sein. Sende Text oder tippe auf Ausführen.",
-  "commands.execute_error": "🔴 OpenCode-Befehl konnte nicht ausgeführt werden.",
-  "commands.select_page": "Wähle einen OpenCode-Befehl (Seite {page}):",
+  "commands.execute_error": "🔴 Antigravity-Befehl konnte nicht ausgeführt werden.",
+  "commands.select_page": "Wähle einen Antigravity-Befehl (Seite {page}):",
   "commands.button.prev_page": "⬅️ Zurück",
   "commands.button.next_page": "Weiter ➡️",
   "commands.page_empty_callback": "Keine Befehle auf dieser Seite",
@@ -582,9 +582,9 @@ export const de: I18nDictionary = {
   "commands.download.modified": "Geändert",
   "commands.download.error": "Datei konnte nicht heruntergeladen werden.",
 
-  "skills.select": "Wähle einen OpenCode-Skill:",
-  "skills.empty": "📭 Für dieses Projekt sind keine OpenCode-Skills verfügbar.",
-  "skills.fetch_error": "🔴 OpenCode-Skills konnten nicht geladen werden.",
+  "skills.select": "Wähle einen Antigravity-Skill:",
+  "skills.empty": "📭 Für dieses Projekt sind keine Antigravity-Skills verfügbar.",
+  "skills.fetch_error": "🔴 Antigravity-Skills konnten nicht geladen werden.",
   "skills.no_description": "Keine Beschreibung",
   "skills.button.execute": "✅ Ausführen",
   "skills.button.cancel": "❌ Abbrechen",
@@ -595,7 +595,7 @@ export const de: I18nDictionary = {
   "skills.executing_prefix": "⚡ Skill wird verwendet:",
   "skills.arguments_empty":
     "⚠️ Argumente dürfen nicht leer sein. Sende Text oder tippe auf Ausführen.",
-  "skills.select_page": "Wähle einen OpenCode-Skill (Seite {page}):",
+  "skills.select_page": "Wähle einen Antigravity-Skill (Seite {page}):",
   "skills.button.prev_page": "⬅️ Zurück",
   "skills.button.next_page": "Weiter ➡️",
   "skills.page_empty_callback": "Keine Skills auf dieser Seite",
@@ -625,7 +625,7 @@ export const de: I18nDictionary = {
 
   "legacy.models.fetch_error":
     "🔴 Modellliste konnte nicht geladen werden. Prüfe den Serverstatus mit /status.",
-  "legacy.models.empty": "📋 Keine verfügbaren Modelle. Konfiguriere Provider in OpenCode.",
+  "legacy.models.empty": "📋 Keine verfügbaren Modelle. Konfiguriere Provider in Antigravity.",
   "legacy.models.header": "📋 Verfügbare Modelle:\n\n",
   "legacy.models.no_provider_models": "  ⚠️ Keine verfügbaren Modelle\n",
   "legacy.models.env_hint": "💡 Um ein Modell in .env zu nutzen:\n",

@@ -34,6 +34,7 @@ vi.mock("../../../src/bot/messages/busy-blocked-renderer.js", () => ({
 }));
 
 vi.mock("../../../src/app/stores/settings-store.js", () => ({
+  __resetSettingsForTests: vi.fn(),
   getCurrentProject: mocked.getCurrentProjectMock,
 }));
 

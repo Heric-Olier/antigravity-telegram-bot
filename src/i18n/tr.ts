@@ -15,8 +15,8 @@ export const tr: I18nDictionary = {
   "cmd.description.commands": "Özel komutlar",
   "cmd.description.skills": "Yetenek kataloğu",
   "cmd.description.mcps": "MCP sunucuları",
-  "cmd.description.opencode_start": "OpenCode sunucusunu başlat",
-  "cmd.description.opencode_stop": "OpenCode sunucusunu durdur",
+  "cmd.description.opencode_start": "Antigravity sunucusunu başlat",
+  "cmd.description.opencode_stop": "Antigravity sunucusunu durdur",
   "cmd.description.ls": "Dizin içeriğini listele",
   "cmd.description.help": "Yardım",
 
@@ -56,7 +56,7 @@ export const tr: I18nDictionary = {
   "common.unknown_error": "bilinmeyen hata",
 
   "start.welcome":
-    "👋 OpenCode Telegram Bot'a hoş geldiniz!\n\nKomutları kullanın:\n/projects — proje seç\n/sessions — oturum listesi\n/new — yeni oturum\n/commands — özel komutlar\n/skills — yetenek kataloğu\n/task — zamanlanmış görev\n/tasklist — zamanlanmış görevler\n/status — durum\n/help — yardım\n\nAjanı, modeli ve varyantı seçmek için alttaki düğmeleri kullanın.",
+    "👋 Antigravity Telegram Bot'a hoş geldiniz!\n\nKomutları kullanın:\n/projects — proje seç\n/sessions — oturum listesi\n/new — yeni oturum\n/commands — özel komutlar\n/skills — yetenek kataloğu\n/task — zamanlanmış görev\n/tasklist — zamanlanmış görevler\n/status — durum\n/help — yardım\n\nAjanı, modeli ve varyantı seçmek için alttaki düğmeleri kullanın.",
   "help.keyboard_hint":
     "💡 Ajan, model, varyant ve bağlam işlemleri için alttaki klavye düğmelerini kullanın.",
   "help.text":
@@ -82,8 +82,8 @@ export const tr: I18nDictionary = {
     "⏳ Ajan zaten bir görev yürütüyor. Tamamlanmasını bekleyin veya geçerli çalışmayı kesmek için /abort kullanın.",
   "bot.session_reset_project_mismatch":
     "⚠️ Etkin oturum seçili projeyle eşleşmediği için sıfırlandı. Birini seçmek için /sessions veya yeni oturum oluşturmak için /new kullanın.",
-  "bot.prompt_send_error": "İstek OpenCode'a gönderilemedi.",
-  "bot.session_error": "🔴 OpenCode bir hata döndürdü: {message}",
+  "bot.prompt_send_error": "İstek Antigravity'a gönderilemedi.",
+  "bot.session_error": "🔴 Antigravity bir hata döndürdü: {message}",
   "bot.session_retry":
     "🔁 {message}\n\nSağlayıcı tekrarlanan denemelerde aynı hatayı döndürmeye devam ediyor. Durdurmak için /abort kullanın.",
   "bot.external_user_input": "Harici kullanıcı girdisi",
@@ -110,18 +110,18 @@ export const tr: I18nDictionary = {
   "bot.rich_message_media_skipped": "⚠️ Desteklenmeyen {count} medya parçası atlandı.",
   "bot.message_type_unsupported": "⚠️ Bu mesaj türü desteklenmiyor.",
   "bot.media_group_not_processed":
-    "⚠️ Bu albümdeki bir veya daha fazla dosya işlenemiyor. OpenCode'a hiçbir şey gönderilmedi.",
+    "⚠️ Bu albümdeki bir veya daha fazla dosya işlenemiyor. Antigravity'a hiçbir şey gönderilmedi.",
   "bot.media_group_download_error":
-    "🔴 Dosyalardan biri indirilemedi. OpenCode'a hiçbir şey gönderilmedi.",
+    "🔴 Dosyalardan biri indirilemedi. Antigravity'a hiçbir şey gönderilmedi.",
   "bot.model_no_pdf": "⚠️ Geçerli model PDF girdisini desteklemiyor. Yalnızca metin gönderiliyor.",
   "bot.document_extraction_error": "🔴 Belge metni çıkarılamadı.",
   "bot.text_file_too_large": "⚠️ Metin dosyası çok büyük (en fazla {maxSizeKb}KB)",
 
-  "status.header_running": "🟢 OpenCode Sunucusu çalışıyor",
+  "status.header_running": "🟢 Antigravity Sunucusu çalışıyor",
   "status.health.healthy": "Sağlıklı",
   "status.health.unhealthy": "Sağlıksız",
   "status.line.health": "Durum: {health}",
-  "status.line.version": "OpenCode sürümü: {version}",
+  "status.line.version": "Antigravity sürümü: {version}",
   "status.line.bot_version": "Bot sürümü: {version}",
   "status.line.managed_yes": "Bot tarafından başlatıldı: Evet",
   "status.line.managed_no": "Bot tarafından başlatıldı: Hayır",
@@ -141,7 +141,7 @@ export const tr: I18nDictionary = {
   "status.session_selected": "Geçerli oturum: {title}",
   "status.session_not_selected": "Geçerli oturum: seçilmedi",
   "status.session_hint": "Seçmek için /sessions veya oluşturmak için /new kullanın",
-  "status.header_unavailable": "🔴 OpenCode Sunucusu kullanılamıyor",
+  "status.header_unavailable": "🔴 Antigravity Sunucusu kullanılamıyor",
   "status.unavailable_hint": "Sunucuyu başlatmak için /opencode_start kullanın.",
 
   "tts.off": "🔇 Sesli yanıtlar kapatıldı.",
@@ -168,14 +168,14 @@ export const tr: I18nDictionary = {
   "settings.saved": "✅ Ayar kaydedildi.",
 
   "projects.empty":
-    "📭 Proje bulunamadı.\n\nOpenCode'da bir dizin açın ve en az bir oturum oluşturun, ardından burada görünecektir.",
+    "📭 Proje bulunamadı.\n\nAntigravity'da bir dizin açın ve en az bir oturum oluşturun, ardından burada görünecektir.",
   "projects.select": "Bir proje seçin:",
   "projects.select_with_current": "Bir proje seçin:\n\nGeçerli: 🏗 {project}",
   "projects.page_indicator": "Sayfa {current}/{total}",
   "projects.prev_page": "⬅️ Önceki",
   "projects.next_page": "Sonraki ➡️",
   "projects.fetch_error":
-    "🔴 OpenCode Sunucusu kullanılamıyor veya projeler yüklenirken bir hata oluştu.",
+    "🔴 Antigravity Sunucusu kullanılamıyor veya projeler yüklenirken bir hata oluştu.",
   "projects.page_load_error": "Bu sayfa yüklenemiyor. Lütfen tekrar deneyin.",
   "projects.selected":
     "✅ Proje seçildi: {project}\n\n📋 Oturum sıfırlandı. Bu proje için /sessions veya /new kullanın.",
@@ -186,7 +186,7 @@ export const tr: I18nDictionary = {
   "sessions.select": "Bir oturum seçin:",
   "sessions.select_page": "Bir oturum seçin (sayfa {page}):",
   "sessions.fetch_error":
-    "🔴 OpenCode Sunucusu kullanılamıyor veya oturumlar yüklenirken bir hata oluştu.",
+    "🔴 Antigravity Sunucusu kullanılamıyor veya oturumlar yüklenirken bir hata oluştu.",
   "sessions.select_project_first": "🔴 Proje seçilmedi. /projects kullanın.",
   "sessions.page_empty_callback": "Bu sayfada oturum yok",
   "sessions.page_load_error_callback": "Bu sayfa yüklenemiyor. Lütfen tekrar deneyin.",
@@ -209,7 +209,7 @@ export const tr: I18nDictionary = {
   "messages.select": "Bir mesaj seçin:",
   "messages.select_page": "Bir mesaj seçin (sayfa {page}):",
   "messages.fetch_error":
-    "🔴 OpenCode Sunucusu kullanılamıyor veya mesajlar yüklenirken bir hata oluştu.",
+    "🔴 Antigravity Sunucusu kullanılamıyor veya mesajlar yüklenirken bir hata oluştu.",
   "messages.inactive_callback": "Bu mesaj menüsü etkin değil",
   "messages.page_empty_callback": "Bu sayfada mesaj yok",
   "messages.button.prev_page": "⬅️ Önceki",
@@ -239,13 +239,13 @@ export const tr: I18nDictionary = {
   "detach.project_not_selected": "🏗 Proje seçilmedi.\n\nÖnce /projects ile bir proje seçin.",
   "detach.no_active_session": "ℹ️ Bot zaten hiçbir oturuma bağlı değil.",
   "detach.success":
-    "✅ Oturumdan ayrılındı: {title}\n\nOpenCode oturumu durdurulmadı. Hâlâ çalışıyorsa ayrı olarak devam edecek. Daha sonra kontrol etmek için /sessions ile yeniden seçin.",
+    "✅ Oturumdan ayrılındı: {title}\n\nAntigravity oturumu durdurulmadı. Hâlâ çalışıyorsa ayrı olarak devam edecek. Daha sonra kontrol etmek için /sessions ile yeniden seçin.",
   "detach.error": "🔴 Geçerli oturumdan ayrılınamadı.",
 
   "new.project_not_selected": "🏗 Proje seçilmedi.\n\nÖnce /projects ile bir proje seçin.",
   "new.created": "✅ Yeni oturum oluşturuldu: {title}",
   "new.create_error":
-    "🔴 OpenCode Sunucusu kullanılamıyor veya oturum oluşturulurken bir hata oluştu.",
+    "🔴 Antigravity Sunucusu kullanılamıyor veya oturum oluşturulurken bir hata oluştu.",
 
   "stop.no_active_session":
     "🛑 Ajan başlatılmadı\n\n/new ile bir oturum oluşturun veya /sessions ile birini seçin.",
@@ -264,32 +264,32 @@ export const tr: I18nDictionary = {
   "stop.error": "🔴 İşlem durdurulamadı.\n\nOlay akışı durduruldu, /abort komutunu tekrar deneyin.",
 
   "opencode_start.already_running_managed":
-    "⚠️ OpenCode Sunucusu zaten çalışıyor\n\nPID: {pid}\nÇalışma süresi: {seconds} saniye",
+    "⚠️ Antigravity Sunucusu zaten çalışıyor\n\nPID: {pid}\nÇalışma süresi: {seconds} saniye",
   "opencode_start.already_running_external":
-    "✅ OpenCode Sunucusu zaten harici bir süreç olarak çalışıyor\n\nSürüm: {version}\n\nBu sunucu bot tarafından başlatılmadı, bu yüzden /opencode-stop onu durduramaz.",
-  "opencode_start.already_running": "✅ OpenCode Sunucusu zaten çalışıyor\n\nSürüm: {version}",
+    "✅ Antigravity Sunucusu zaten harici bir süreç olarak çalışıyor\n\nSürüm: {version}\n\nBu sunucu bot tarafından başlatılmadı, bu yüzden /opencode-stop onu durduramaz.",
+  "opencode_start.already_running": "✅ Antigravity Sunucusu zaten çalışıyor\n\nSürüm: {version}",
   "opencode_start.remote_configured":
-    "⚠️ /opencode_start yalnızca yerel bir OpenCode Sunucusu ile çalışır.",
-  "opencode_start.starting": "🔄 OpenCode Sunucusu başlatılıyor...",
+    "⚠️ /opencode_start yalnızca yerel bir Antigravity Sunucusu ile çalışır.",
+  "opencode_start.starting": "🔄 Antigravity Sunucusu başlatılıyor...",
   "opencode_start.start_error":
-    "🔴 OpenCode Sunucusu başlatılamadı\n\nHata: {error}\n\nOpenCode CLI'nin kurulu ve PATH içinde erişilebilir olduğunu kontrol edin:\nopencode --version\nnpm install -g @opencode-ai/cli",
+    "🔴 Antigravity Sunucusu başlatılamadı\n\nHata: {error}\n\nAntigravity CLI'nin kurulu ve PATH içinde erişilebilir olduğunu kontrol edin:\nopencode --version\nnpm install -g @opencode-ai/cli",
   "opencode_start.started_not_ready":
-    "⚠️ OpenCode Sunucusu başlatıldı, ancak yanıt vermiyor\n\nPID: {pid}\n\nSunucu hâlâ başlıyor olabilir. Birkaç saniye içinde /status deneyin.",
+    "⚠️ Antigravity Sunucusu başlatıldı, ancak yanıt vermiyor\n\nPID: {pid}\n\nSunucu hâlâ başlıyor olabilir. Birkaç saniye içinde /status deneyin.",
   "opencode_start.success":
-    "✅ OpenCode Sunucusu başarıyla başlatıldı\n\nPID: {pid}\nSürüm: {version}",
+    "✅ Antigravity Sunucusu başarıyla başlatıldı\n\nPID: {pid}\nSürüm: {version}",
   "opencode_start.error":
     "🔴 Sunucu başlatılırken bir hata oluştu.\n\nAyrıntılar için uygulama günlüklerini kontrol edin.",
   "opencode_stop.external_running":
-    "⚠️ OpenCode Sunucusu harici bir süreç olarak çalışıyor\n\nBu sunucu /opencode-start ile başlatılmadı.\nElle durdurun veya durumu kontrol etmek için /status kullanın.",
+    "⚠️ Antigravity Sunucusu harici bir süreç olarak çalışıyor\n\nBu sunucu /opencode-start ile başlatılmadı.\nElle durdurun veya durumu kontrol etmek için /status kullanın.",
   "opencode_stop.remote_configured":
-    "⚠️ /opencode_stop yalnızca yerel bir OpenCode Sunucusu ile çalışır.",
-  "opencode_stop.not_running": "⚠️ OpenCode Sunucusu çalışmıyor",
+    "⚠️ /opencode_stop yalnızca yerel bir Antigravity Sunucusu ile çalışır.",
+  "opencode_stop.not_running": "⚠️ Antigravity Sunucusu çalışmıyor",
   "opencode_stop.pid_not_found":
-    "⚠️ OpenCode Sunucusu {port} bağlantı noktasında yanıt veriyor, ancak durdurulacak yerel bir süreç bulunamadı.",
-  "opencode_stop.stopping": "🛑 OpenCode Sunucusu durduruluyor...\n\nPID: {pid}",
-  "opencode_stop.stop_error": "🔴 OpenCode Sunucusu durdurulamadı\n\nHata: {error}",
+    "⚠️ Antigravity Sunucusu {port} bağlantı noktasında yanıt veriyor, ancak durdurulacak yerel bir süreç bulunamadı.",
+  "opencode_stop.stopping": "🛑 Antigravity Sunucusu durduruluyor...\n\nPID: {pid}",
+  "opencode_stop.stop_error": "🔴 Antigravity Sunucusu durdurulamadı\n\nHata: {error}",
   "opencode_stop.still_running": "Durdurma isteğinden sonra sunucu hâlâ yanıt veriyor.",
-  "opencode_stop.success": "✅ OpenCode Sunucusu başarıyla durduruldu",
+  "opencode_stop.success": "✅ Antigravity Sunucusu başarıyla durduruldu",
   "opencode_stop.error":
     "🔴 Sunucu durdurulurken bir hata oluştu.\n\nAyrıntılar için uygulama günlüklerini kontrol edin.",
 
@@ -305,12 +305,12 @@ export const tr: I18nDictionary = {
   "model.menu.empty": "⚠️ Kullanılabilir model yok",
   "model.menu.select": "Model seçin:",
   "model.menu.current": "Geçerli model: {name}\n\nModel seçin:",
-  "model.menu.favorites_title": "⭐ Favoriler (Modelleri OpenCode CLI'de favorilere ekleyin)",
+  "model.menu.favorites_title": "⭐ Favoriler (Modelleri Antigravity CLI'de favorilere ekleyin)",
   "model.menu.favorites_empty": "— Boş.",
   "model.menu.recent_title": "🕘 Son kullanılanlar",
   "model.menu.recent_empty": "— Boş.",
   "model.menu.favorites_hint":
-    "ℹ️ Modelleri en üstte tutmak için OpenCode CLI'de favorilere ekleyin.",
+    "ℹ️ Modelleri en üstte tutmak için Antigravity CLI'de favorilere ekleyin.",
   "model.menu.error": "🔴 Model listesi alınamadı",
   "model.search.button": "🔍 Ara",
   "model.search.prompt": "🔍 Aramak için model adını girin:",
@@ -457,14 +457,14 @@ export const tr: I18nDictionary = {
     "Telegram Kullanıcı ID'nizi girin (@userinfobot'tan alabilirsiniz).\n> ",
   "runtime.wizard.user_id_invalid": "Pozitif bir tam sayı girin (> 0).\n",
   "runtime.wizard.ask_api_url":
-    "OpenCode API URL'sini girin (isteğe bağlı).\nVarsayılanı kullanmak için Enter'a basın: {defaultUrl}\n> ",
+    "Antigravity API URL'sini girin (isteğe bağlı).\nVarsayılanı kullanmak için Enter'a basın: {defaultUrl}\n> ",
   "runtime.wizard.ask_server_username":
-    "OpenCode sunucu kullanıcı adını girin (isteğe bağlı).\nVarsayılanı kullanmak için Enter'a basın: {defaultUsername}\n> ",
+    "Antigravity sunucu kullanıcı adını girin (isteğe bağlı).\nVarsayılanı kullanmak için Enter'a basın: {defaultUsername}\n> ",
   "runtime.wizard.ask_server_password":
-    "OpenCode sunucu parolasını girin (isteğe bağlı).\nBoş bırakmak için Enter'a basın.\n> ",
+    "Antigravity sunucu parolasını girin (isteğe bağlı).\nBoş bırakmak için Enter'a basın.\n> ",
   "runtime.wizard.api_url_invalid":
     "Geçerli bir URL (http/https) girin veya varsayılan için Enter'a basın.\n",
-  "runtime.wizard.start": "OpenCode Telegram Bot kurulumu.\n",
+  "runtime.wizard.start": "Antigravity Telegram Bot kurulumu.\n",
   "runtime.wizard.saved": "Yapılandırma kaydedildi:\n- {envPath}\n",
   "runtime.wizard.not_configured_starting":
     "Uygulama henüz yapılandırılmadı. Sihirbaz başlatılıyor...\n",
@@ -534,9 +534,9 @@ export const tr: I18nDictionary = {
   "tasklist.inactive_callback": "Bu zamanlanmış görev menüsü etkin değil",
   "tasklist.load_error": "🔴 Zamanlanmış görevler yüklenemedi.",
 
-  "commands.select": "Bir OpenCode komutu seçin:",
-  "commands.empty": "📭 Bu proje için kullanılabilir OpenCode komutu yok.",
-  "commands.fetch_error": "🔴 OpenCode komutları yüklenemedi.",
+  "commands.select": "Bir Antigravity komutu seçin:",
+  "commands.empty": "📭 Bu proje için kullanılabilir Antigravity komutu yok.",
+  "commands.fetch_error": "🔴 Antigravity komutları yüklenemedi.",
   "commands.no_description": "Açıklama yok",
   "commands.button.execute": "✅ Çalıştır",
   "commands.button.cancel": "❌ İptal",
@@ -546,8 +546,8 @@ export const tr: I18nDictionary = {
   "commands.execute_callback": "Komut çalıştırılıyor...",
   "commands.executing_prefix": "⚡ Komut çalıştırılıyor:",
   "commands.arguments_empty": "⚠️ Argümanlar boş olamaz. Metin gönderin veya Çalıştır'a dokunun.",
-  "commands.execute_error": "🔴 OpenCode komutu çalıştırılamadı.",
-  "commands.select_page": "Bir OpenCode komutu seçin (sayfa {page}):",
+  "commands.execute_error": "🔴 Antigravity komutu çalıştırılamadı.",
+  "commands.select_page": "Bir Antigravity komutu seçin (sayfa {page}):",
   "commands.button.prev_page": "⬅️ Önceki",
   "commands.button.next_page": "Sonraki ➡️",
   "commands.page_empty_callback": "Bu sayfada komut yok",
@@ -561,9 +561,9 @@ export const tr: I18nDictionary = {
   "commands.download.modified": "Değiştirilme",
   "commands.download.error": "Dosya indirilemedi.",
 
-  "skills.select": "Bir OpenCode yeteneği seçin:",
-  "skills.empty": "📭 Bu proje için kullanılabilir OpenCode yeteneği yok.",
-  "skills.fetch_error": "🔴 OpenCode yetenekleri yüklenemedi.",
+  "skills.select": "Bir Antigravity yeteneği seçin:",
+  "skills.empty": "📭 Bu proje için kullanılabilir Antigravity yeteneği yok.",
+  "skills.fetch_error": "🔴 Antigravity yetenekleri yüklenemedi.",
   "skills.no_description": "Açıklama yok",
   "skills.button.execute": "✅ Çalıştır",
   "skills.button.cancel": "❌ İptal",
@@ -573,7 +573,7 @@ export const tr: I18nDictionary = {
   "skills.execute_callback": "Yetenek kullanılıyor...",
   "skills.executing_prefix": "⚡ Yetenek kullanılıyor:",
   "skills.arguments_empty": "⚠️ Argümanlar boş olamaz. Metin gönderin veya Çalıştır'a dokunun.",
-  "skills.select_page": "Bir OpenCode yeteneği seçin (sayfa {page}):",
+  "skills.select_page": "Bir Antigravity yeteneği seçin (sayfa {page}):",
   "skills.button.prev_page": "⬅️ Önceki",
   "skills.button.next_page": "Sonraki ➡️",
   "skills.page_empty_callback": "Bu sayfada yetenek yok",
@@ -602,7 +602,7 @@ export const tr: I18nDictionary = {
 
   "legacy.models.fetch_error":
     "🔴 Model listesi alınamadı. Sunucu durumunu /status ile kontrol edin.",
-  "legacy.models.empty": "📋 Kullanılabilir model yok. OpenCode'da sağlayıcıları yapılandırın.",
+  "legacy.models.empty": "📋 Kullanılabilir model yok. Antigravity'da sağlayıcıları yapılandırın.",
   "legacy.models.header": "📋 Kullanılabilir modeller:\n\n",
   "legacy.models.no_provider_models": "  ⚠️ Kullanılabilir model yok\n",
   "legacy.models.env_hint": "💡 Modeli .env içinde kullanmak için:\n",

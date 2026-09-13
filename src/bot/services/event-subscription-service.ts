@@ -33,17 +33,13 @@ import {
   type ResponseStreamingMode,
 } from "../../app/stores/settings-store.js";
 import { getCurrentSession } from "../../app/services/session-service.js";
+import { clearPromptResponseMode } from "../handlers/prompt.js";
 import { ingestSessionInfoForCache } from "../../app/services/session-cache-service.js";
 import { logger } from "../../utils/logger.js";
 import { safeBackgroundTask } from "../../utils/safe-background-task.js";
 import { pinnedMessageManager } from "../pinned/pinned-message-manager.js";
 import { keyboardManager } from "../keyboards/keyboard-manager.js";
-import { clearPromptResponseMode } from "../handlers/prompt.js";
-import {
-  reconcileBusyState,
-  setPromptResponseModeClearerForReconciliation,
-  setResponseStreamerForReconciliation,
-} from "../../app/services/busy-reconciliation-service.js";
+import { reconcileBusyState, setResponseStreamerForReconciliation, setPromptResponseModeClearerForReconciliation } from "../../app/services/busy-reconciliation-service.js";
 import { finalizeAssistantResponse } from "../streaming/finalize-assistant-response.js";
 import { sendTtsResponseForSession } from "../handlers/tts-response-handler.js";
 import { deliverThinkingMessage } from "../messages/thinking-message.js";
@@ -225,7 +221,6 @@ class EventSubscriptionService implements BotEventSubscriptionService {
       hasActiveStream: (sessionId) => this.hasActiveAssistantResponseStream(sessionId),
     });
     setPromptResponseModeClearerForReconciliation(clearPromptResponseMode);
-
     this.compactProgressStreamer = new CompactProgressStreamer({
       throttleMs: getSessionStreamThrottleMs,
       sendText: async (sessionId, text) => {

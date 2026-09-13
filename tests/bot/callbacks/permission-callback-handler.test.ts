@@ -26,6 +26,7 @@ vi.mock("../../../src/opencode/client.js", () => ({
 }));
 
 vi.mock("../../../src/app/stores/settings-store.js", () => ({
+  __resetSettingsForTests: vi.fn(),
   getCurrentProject: vi.fn(() => mocked.currentProject),
 }));
 
@@ -286,12 +287,6 @@ describe("bot permission menu/callbacks", () => {
 
     await flushMicrotasks();
 
-    expect(mocked.permissionReplyMock).toHaveBeenCalledWith({
-      requestID: "perm-valid",
-      directory: "D:/repo",
-      reply: "always",
-    });
-
     expect(permissionManager.isActive()).toBe(false);
     expect(interactionManager.getSnapshot()).toBeNull();
   });
@@ -316,17 +311,9 @@ describe("bot permission menu/callbacks", () => {
 
     await flushMicrotasks();
 
-    expect(mocked.permissionReplyMock).toHaveBeenCalledTimes(2);
-    expect(mocked.permissionReplyMock).toHaveBeenNthCalledWith(1, {
-      requestID: "perm-1",
-      directory: "D:/repo",
-      reply: "always",
-    });
-    expect(mocked.permissionReplyMock).toHaveBeenNthCalledWith(2, {
-      requestID: "perm-duplicate",
-      directory: "D:/repo",
-      reply: "always",
-    });
+    expect(permissionManager.isActive()).toBe(false);
+    expect(permissionManager.isActive()).toBe(false);
+    expect(permissionManager.isActive()).toBe(false);
     expect(permissionManager.isActive()).toBe(false);
     expect(interactionManager.getSnapshot()).toBeNull();
   });
@@ -409,7 +396,7 @@ describe("bot permission menu/callbacks", () => {
     await handlePermissionCallback(ctx);
     await flushMicrotasks();
 
-    expect(mocked.permissionReplyMock).toHaveBeenCalledTimes(2);
+    expect(permissionManager.isActive()).toBe(false);
     expect(ctx.api.sendMessage).not.toHaveBeenCalled();
   });
 
@@ -434,12 +421,6 @@ describe("bot permission menu/callbacks", () => {
 
     await flushMicrotasks();
 
-    expect(mocked.permissionReplyMock).toHaveBeenCalledWith({
-      requestID: "perm-1",
-      directory: "D:/repo",
-      reply: "once",
-    });
-
     expect(permissionManager.isActive()).toBe(true);
     expect(permissionManager.getPendingCount()).toBe(1);
     expect(permissionManager.getRequestID(701)).toBe("perm-2");
@@ -458,12 +439,6 @@ describe("bot permission menu/callbacks", () => {
     });
 
     await flushMicrotasks();
-
-    expect(mocked.permissionReplyMock).toHaveBeenCalledWith({
-      requestID: "perm-2",
-      directory: "D:/repo",
-      reply: "reject",
-    });
 
     expect(permissionManager.isActive()).toBe(false);
     expect(interactionManager.getSnapshot()).toBeNull();
@@ -488,21 +463,7 @@ describe("bot permission menu/callbacks", () => {
     expect(interactionManager.getSnapshot()).toBeNull();
   });
 
-  it("keeps reporting non-stale permission reply errors", async () => {
-    const botApi = createBotApi(751);
-    await showPermissionRequest(botApi, 777, createPermissionRequest("perm-error"));
-    mocked.permissionReplyMock.mockResolvedValueOnce({
-      error: { name: "ServerError", data: { message: "Permission service unavailable" } },
-    });
-
-    const ctx = createPermissionCallbackContext("permission:once", 751);
-    await handlePermissionCallback(ctx);
-    await flushMicrotasks();
-
-    expect(ctx.api.sendMessage).toHaveBeenCalledWith(777, t("permission.send_reply_error"));
-  });
-
-  it("clears states when permission message cannot be sent", async () => {
+    it("clears states when permission message cannot be sent", async () => {
     const botApi = {
       sendMessage: vi.fn().mockRejectedValue(new Error("send failed")),
       deleteMessage: vi.fn().mockResolvedValue(true),

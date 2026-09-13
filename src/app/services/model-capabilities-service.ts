@@ -1,70 +1,68 @@
-import { opencodeClient } from "../../opencode/client.js";
 import { logger } from "../../utils/logger.js";
-import type { Model } from "@opencode-ai/sdk/v2";
-
-interface ModelCapabilitiesCache {
-  [key: string]: Model["capabilities"] | null;
-}
-
-const capabilitiesCache: ModelCapabilitiesCache = {};
+import { getStoredModel } from "./model-selection-service.js";
 
 /**
- * Get model capabilities from OpenCode API
- * Results are cached in memory per model
+ * Model capabilities for agy.
+ *
+ * agy exposes no per-model capability metadata via the CLI in v1. All models
+ * with multimodal ids are assumed text-only unless agy lists them. Keep
+ * the shape the handlers expect (capabilities object like opencode).
+ */
+
+export interface AgyModelCapabilities {
+  input: {
+    image: boolean;
+    pdf: boolean;
+    audio: boolean;
+    video: boolean;
+  };
+  attachment: boolean;
+}
+
+const capabilitiesCache = new Map<string, AgyModelCapabilities | null>();
+
+const MODEL_INPUT_CAPABILITIES: Record<string, Partial<AgyModelCapabilities["input"]>> = {
+  "claude-sonnet-4-6": { image: true, pdf: true },
+  "claude-opus-4-6-thinking": { image: true, pdf: true },
+  "gemini-3.8-flash-high": { image: true, pdf: true },
+  "gemini-3.8-flash-medium": { image: true, pdf: true },
+  "gemini-3.8-flash-low": { image: true, pdf: true },
+};
+
+/**
+ * Get model capabilities — from the local agy capability table.
  */
 export async function getModelCapabilities(
-  providerID: string,
+  _providerID: string,
   modelID: string,
-): Promise<Model["capabilities"] | null> {
-  const cacheKey = `${providerID}/${modelID}`;
-
-  if (capabilitiesCache[cacheKey] !== undefined) {
-    logger.debug(`[ModelCapabilities] Cache hit for ${cacheKey}`);
-    return capabilitiesCache[cacheKey];
+): Promise<AgyModelCapabilities | null> {
+  if (capabilitiesCache.has(modelID)) {
+    return capabilitiesCache.get(modelID) ?? null;
   }
 
-  try {
-    logger.debug(`[ModelCapabilities] Fetching capabilities for ${cacheKey}`);
-    const response = await opencodeClient.config.providers();
+  const partial = MODEL_INPUT_CAPABILITIES[modelID];
+  const capabilities: AgyModelCapabilities = {
+    input: {
+      image: partial?.image === true,
+      pdf: partial?.pdf === true,
+      audio: false,
+      video: false,
+    },
+    attachment: partial?.image === true || partial?.pdf === true,
+  };
 
-    if (response.error || !response.data) {
-      logger.error("[ModelCapabilities] API returned error:", response.error);
-      capabilitiesCache[cacheKey] = null;
-      return null;
-    }
+  logger.debug(`[ModelCapabilities] Static capabilities for ${modelID}: ${JSON.stringify(capabilities)}`);
+  capabilitiesCache.set(modelID, capabilities);
 
-    const providers = response.data.providers;
-    const provider = providers.find((p) => p.id === providerID);
-
-    if (!provider) {
-      logger.warn(`[ModelCapabilities] Provider ${providerID} not found`);
-      capabilitiesCache[cacheKey] = null;
-      return null;
-    }
-
-    const model = provider.models[modelID];
-
-    if (!model) {
-      logger.warn(`[ModelCapabilities] Model ${cacheKey} not found in provider`);
-      capabilitiesCache[cacheKey] = null;
-      return null;
-    }
-
-    logger.debug(`[ModelCapabilities] Found capabilities for ${cacheKey}`);
-    capabilitiesCache[cacheKey] = model.capabilities;
-    return model.capabilities;
-  } catch (error) {
-    logger.error("[ModelCapabilities] Failed to fetch providers:", error);
-    capabilitiesCache[cacheKey] = null;
-    return null;
-  }
+  void getStoredModel();
+  return capabilities;
 }
 
 /**
- * Check if model supports a specific input type
+ * Check if model supports a specific input type.
  */
 export function supportsInput(
-  capabilities: Model["capabilities"] | null,
+  capabilities: AgyModelCapabilities | null,
   inputType: "image" | "pdf" | "audio" | "video",
 ): boolean {
   if (!capabilities) {
@@ -75,9 +73,9 @@ export function supportsInput(
 }
 
 /**
- * Check if model supports attachments in general
+ * Check if model supports attachments in general.
  */
-export function supportsAttachment(capabilities: Model["capabilities"] | null): boolean {
+export function supportsAttachment(capabilities: AgyModelCapabilities | null): boolean {
   if (!capabilities) {
     return false;
   }

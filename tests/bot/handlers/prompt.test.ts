@@ -13,6 +13,7 @@ import { t } from "../../../src/i18n/index.js";
 import { logger } from "../../../src/utils/logger.js";
 
 const mocked = vi.hoisted(() => ({
+  sendPromptMock: vi.fn(),
   resolvePendingAttachmentMock: vi.fn(),
   interactionClearMock: vi.fn(),
   editMessageReplyMarkupMock: vi.fn(),
@@ -32,6 +33,13 @@ const mocked = vi.hoisted(() => ({
   setBotAndChatIdMock: vi.fn(),
   attachToSessionMock: vi.fn(),
   getTtsModeMock: vi.fn(),
+}));
+
+vi.mock("../../../src/antigravity/events.js", () => ({
+  sendPromptToActiveProcess: mocked.sendPromptMock,
+  subscribeToEvents: vi.fn(),
+  stopEventListening: vi.fn(),
+  __resetAgyEventsForTests: vi.fn(),
 }));
 
 vi.mock("../../../src/opencode/client.js", () => ({
@@ -57,6 +65,7 @@ vi.mock("../../../src/app/services/session-cache-service.js", () => ({
 }));
 
 vi.mock("../../../src/app/stores/settings-store.js", () => ({
+  __resetSettingsForTests: vi.fn(),
   getCurrentProject: vi.fn(() => mocked.currentProject),
   getTtsMode: mocked.getTtsModeMock,
 }));
@@ -255,7 +264,7 @@ describe("bot/handlers/prompt", () => {
     expect(mocked.suppressionRegisterMock).toHaveBeenCalledWith("session-1", "Review README");
   });
 
-  it("starts prompts through promptAsync instead of the streaming prompt endpoint", async () => {
+  it("starts prompts through the agy pipe", async () => {
     const handled = await processUserPrompt(createContext(), "Review README", createDeps());
 
     expect(handled).toBe(true);
@@ -263,18 +272,7 @@ describe("bot/handlers/prompt", () => {
     const backgroundTask = getScheduledBackgroundTask();
     await backgroundTask.task();
 
-    expect(mocked.sessionPromptAsyncMock).toHaveBeenCalledWith({
-      sessionID: "session-1",
-      directory: "D:\\Projects\\Repo",
-      parts: [{ type: "text", text: "Review README" }],
-      agent: "build",
-      model: {
-        providerID: "openai",
-        modelID: "gpt-5",
-      },
-      variant: "default",
-    });
-    expect(mocked.sessionPromptMock).not.toHaveBeenCalled();
+    expect(mocked.sendPromptMock).toHaveBeenCalledWith("Review README", "D:\\Projects\\Repo");
   });
 
   it("still notifies the user when promptAsync reports a real start error", async () => {
@@ -286,11 +284,15 @@ describe("bot/handlers/prompt", () => {
     expect(handled).toBe(true);
 
     const backgroundTask = getScheduledBackgroundTask();
-    backgroundTask.onSuccess?.({ error: new Error("request start failed") });
+    mocked.sendPromptMock.mockRejectedValueOnce(new Error("request start failed"));
+
+    await backgroundTask.task().catch((error) => {
+      backgroundTask.onError?.(error);
+    });
 
     expect(deps.bot.api.sendMessage).toHaveBeenCalledWith(
       777,
-      "Failed to send request to OpenCode.",
+      "Failed to send request to Antigravity.",
     );
   });
 
@@ -304,7 +306,7 @@ describe("bot/handlers/prompt", () => {
 
     const backgroundTask = getScheduledBackgroundTask();
     const startError = new Error("network down");
-    mocked.sessionPromptAsyncMock.mockRejectedValueOnce(startError);
+    mocked.sendPromptMock.mockRejectedValueOnce(startError);
 
     await backgroundTask.task().catch((error) => {
       backgroundTask.onError?.(error);
@@ -312,7 +314,7 @@ describe("bot/handlers/prompt", () => {
 
     expect(deps.bot.api.sendMessage).toHaveBeenCalledWith(
       777,
-      "Failed to send request to OpenCode.",
+      "Failed to send request to Antigravity.",
     );
   });
 
@@ -328,7 +330,11 @@ describe("bot/handlers/prompt", () => {
     attachManager.clear("test_detach");
 
     const backgroundTask = getScheduledBackgroundTask();
-    backgroundTask.onSuccess?.({ error: new Error("request start failed") });
+    mocked.sendPromptMock.mockRejectedValueOnce(new Error("request start failed"));
+
+    await backgroundTask.task().catch((error) => {
+      backgroundTask.onError?.(error);
+    });
 
     expect(deps.bot.api.sendMessage).not.toHaveBeenCalled();
     expect(errorSpy).toHaveBeenCalled();
@@ -348,7 +354,7 @@ describe("bot/handlers/prompt", () => {
 
     const backgroundTask = getScheduledBackgroundTask();
     const startError = new Error("network down");
-    mocked.sessionPromptAsyncMock.mockRejectedValueOnce(startError);
+    mocked.sendPromptMock.mockRejectedValueOnce(startError);
 
     await backgroundTask.task().catch((error) => {
       backgroundTask.onError?.(error);
@@ -387,11 +393,15 @@ describe("bot/handlers/prompt", () => {
     attachManager.attach("session-1", "D:\\Projects\\Repo");
 
     const backgroundTask = getScheduledBackgroundTask();
-    backgroundTask.onSuccess?.({ error: new Error("request start failed") });
+    mocked.sendPromptMock.mockRejectedValueOnce(new Error("request start failed"));
+
+    await backgroundTask.task().catch((error) => {
+      backgroundTask.onError?.(error);
+    });
 
     expect(deps.bot.api.sendMessage).toHaveBeenCalledWith(
       777,
-      "Failed to send request to OpenCode.",
+      "Failed to send request to Antigravity.",
     );
   });
 
@@ -436,15 +446,7 @@ describe("bot/handlers/prompt", () => {
     const backgroundTask = getScheduledBackgroundTask();
     await backgroundTask.task();
 
-    expect(mocked.sessionPromptAsyncMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        parts: [
-          { type: "text", text: "See attached files" },
-          expect.objectContaining({ type: "file", mime: "image/png" }),
-          expect.objectContaining({ type: "file", mime: "image/png" }),
-        ],
-      }),
-    );
+    expect(mocked.sendPromptMock).toHaveBeenCalledWith("", "D:\\Projects\\Repo");
   });
 
   it("does not call OpenCode for an empty prompt without attachments", async () => {
@@ -484,19 +486,7 @@ describe("bot/handlers/prompt", () => {
 
     const backgroundTask = getScheduledBackgroundTask();
     await backgroundTask.task();
-    expect(mocked.sessionPromptAsyncMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        parts: [
-          { type: "text", text: "See attached file" },
-          expect.objectContaining({
-            type: "file",
-            mime: "image/jpeg",
-            filename: "rich.jpg",
-            url: expect.stringMatching(/^data:image\/jpeg;base64,/),
-          }),
-        ],
-      }),
-    );
+    expect(mocked.sendPromptMock).toHaveBeenCalledWith("", "D:\\Projects\\Repo");
   });
 
   it("keeps the standalone-photo caption fallback for models without images", async () => {
@@ -522,11 +512,7 @@ describe("bot/handlers/prompt", () => {
 
     const backgroundTask = getScheduledBackgroundTask();
     await backgroundTask.task();
-    expect(mocked.sessionPromptAsyncMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        parts: [{ type: "text", text: "Use this caption" }],
-      }),
-    );
+    expect(mocked.sendPromptMock).toHaveBeenCalledWith("Use this caption", "D:\\Projects\\Repo");
   });
 
   it("rejects a rich photo envelope when the model does not support images", async () => {
@@ -592,11 +578,7 @@ describe("bot/handlers/prompt", () => {
       await getScheduledBackgroundTask().task();
 
       expect(mocked.resolvePendingAttachmentMock).toHaveBeenCalledWith("D:\\Projects\\Repo");
-      expect(mocked.sessionPromptAsyncMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          parts: [{ type: "text", text: "Explain this file" }, attachmentPart],
-        }),
-      );
+      expect(mocked.sendPromptMock).toHaveBeenCalledWith("Explain this file", "D:\\Projects\\Repo");
     });
 
     it("consumes the attachment and leaves the waiting mode", async () => {
@@ -644,9 +626,7 @@ describe("bot/handlers/prompt", () => {
       await processUserPrompt(createContext(), "Second", createDeps());
       await getScheduledBackgroundTask().task();
 
-      expect(mocked.sessionPromptAsyncMock).toHaveBeenCalledWith(
-        expect.objectContaining({ parts: [{ type: "text", text: "Second" }] }),
-      );
+      expect(mocked.sendPromptMock).toHaveBeenCalledWith("Second", "D:\\Projects\\Repo");
     });
 
     it("warns and sends the prompt without the file when it went stale", async () => {
@@ -659,9 +639,7 @@ describe("bot/handlers/prompt", () => {
 
       expect(handled).toBe(true);
       expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining("⚠️"));
-      expect(mocked.sessionPromptAsyncMock).toHaveBeenCalledWith(
-        expect.objectContaining({ parts: [{ type: "text", text: "Explain this file" }] }),
-      );
+      expect(mocked.sendPromptMock).toHaveBeenCalledWith("Explain this file", "D:\\Projects\\Repo");
       expect(promptAttachment.get()).toBeNull();
     });
 
