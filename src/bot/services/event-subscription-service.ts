@@ -137,6 +137,15 @@ class EventSubscriptionService implements BotEventSubscriptionService {
   private readonly thinkingResponseStreamer: ResponseStreamer;
   private readonly assistantResponseStreamModes = new Map<string, ResponseStreamingMode>();
   private readonly toolCallStreamer: ToolCallStreamer;
+  private readonly typingHeartbeats = new Map<string, ReturnType<typeof setInterval>>();
+
+  private stopTypingIndicator(sessionId: string): void {
+    const interval = this.typingHeartbeats.get(sessionId);
+    if (interval !== undefined) {
+      clearInterval(interval);
+      this.typingHeartbeats.delete(sessionId);
+    }
+  }
   private readonly toolMessageBatcher: ToolMessageBatcher;
   private readonly compactProgressStreamer: CompactProgressStreamer;
   private readonly runningToolTracker: RunningToolTracker;
@@ -561,6 +570,19 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         return;
       }
 
+      if (typeof this.botInstance.api.sendChatAction === "function") {
+        const heartbeat = this.typingHeartbeats.get(sessionId);
+        if (heartbeat !== undefined) {
+          clearInterval(heartbeat);
+        }
+        const chatId = this.chatIdInstance;
+        const timer = setInterval(() => {
+          void this.botInstance?.api.sendChatAction(chatId, "typing").catch(() => undefined);
+        }, 4_500);
+        void this.botInstance.api.sendChatAction(chatId, "typing").catch(() => undefined);
+        this.typingHeartbeats.set(sessionId, timer);
+      }
+
       const currentSession = getCurrentSession();
       if (!currentSession || currentSession.id !== sessionId) {
         return;
@@ -592,6 +614,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
           this.compactProgressStreamer.clearSession(sessionId, "bot_context_missing");
           this.clearToolElapsedState(sessionId, "bot_context_missing");
           assistantRunState.clearRun(sessionId, "bot_context_missing");
+          this.stopTypingIndicator(sessionId);
           foregroundSessionState.markIdle(sessionId);
           return;
         }
@@ -605,6 +628,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
           this.compactProgressStreamer.clearSession(sessionId, "session_mismatch");
           this.clearToolElapsedState(sessionId, "session_mismatch");
           assistantRunState.clearRun(sessionId, "session_mismatch");
+          this.stopTypingIndicator(sessionId);
           foregroundSessionState.markIdle(sessionId);
           await scheduledTaskRuntime.flushDeferredDeliveries();
           return;
@@ -674,6 +698,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
           logger.error("Failed to send message to Telegram:", err);
           logger.error(`[Bot] Dropped the assistant response for session ${sessionId}`);
           summaryAggregator.clear();
+          this.stopTypingIndicator(sessionId);
           foregroundSessionState.markIdle(sessionId);
         } finally {
           await scheduledTaskRuntime.flushDeferredDeliveries();
@@ -1161,14 +1186,16 @@ class EventSubscriptionService implements BotEventSubscriptionService {
 
       if (!this.botInstance || !this.chatIdInstance) {
         this.compactProgressStreamer.clearSession(sessionId, "session_idle");
-        foregroundSessionState.markIdle(sessionId);
+        this.stopTypingIndicator(sessionId);
+          foregroundSessionState.markIdle(sessionId);
         return;
       }
 
       const currentSession = getCurrentSession();
       if (!currentSession || currentSession.id !== sessionId) {
         this.compactProgressStreamer.clearSession(sessionId, "session_idle");
-        foregroundSessionState.markIdle(sessionId);
+        this.stopTypingIndicator(sessionId);
+          foregroundSessionState.markIdle(sessionId);
         await scheduledTaskRuntime.flushDeferredDeliveries();
         return;
       }
@@ -1205,7 +1232,8 @@ class EventSubscriptionService implements BotEventSubscriptionService {
       } catch (err) {
         logger.error("[Bot] Failed to send session idle footer:", err);
       } finally {
-        foregroundSessionState.markIdle(sessionId);
+        this.stopTypingIndicator(sessionId);
+          foregroundSessionState.markIdle(sessionId);
         await scheduledTaskRuntime.flushDeferredDeliveries();
         void dispatchNextQueuedPrompt();
       }
@@ -1219,7 +1247,8 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         clearPromptResponseMode(sessionId);
         this.compactProgressStreamer.clearSession(sessionId, "session_error_no_bot_context");
         assistantRunState.clearRun(sessionId, "session_error_no_bot_context");
-        foregroundSessionState.markIdle(sessionId);
+        this.stopTypingIndicator(sessionId);
+          foregroundSessionState.markIdle(sessionId);
         return;
       }
 
@@ -1230,7 +1259,8 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         this.toolCallStreamer.clearSession(sessionId, "session_error_not_current");
         this.compactProgressStreamer.clearSession(sessionId, "session_error_not_current");
         assistantRunState.clearRun(sessionId, "session_error_not_current");
-        foregroundSessionState.markIdle(sessionId);
+        this.stopTypingIndicator(sessionId);
+          foregroundSessionState.markIdle(sessionId);
         await scheduledTaskRuntime.flushDeferredDeliveries();
         return;
       }
@@ -1247,7 +1277,8 @@ class EventSubscriptionService implements BotEventSubscriptionService {
       const normalizedMessage = message.trim() || t("common.unknown_error");
       if (shouldSuppressUserAbortSessionError(sessionId, normalizedMessage)) {
         logger.debug(`[Bot] Suppressed user-initiated abort error: session=${sessionId}`);
-        foregroundSessionState.markIdle(sessionId);
+        this.stopTypingIndicator(sessionId);
+          foregroundSessionState.markIdle(sessionId);
         await scheduledTaskRuntime.flushDeferredDeliveries();
         return;
       }
@@ -1263,7 +1294,8 @@ class EventSubscriptionService implements BotEventSubscriptionService {
           logger.error("[Bot] Failed to send session.error message:", err);
         });
 
-      foregroundSessionState.markIdle(sessionId);
+      this.stopTypingIndicator(sessionId);
+          foregroundSessionState.markIdle(sessionId);
       await scheduledTaskRuntime.flushDeferredDeliveries();
       void dispatchNextQueuedPrompt();
     });
