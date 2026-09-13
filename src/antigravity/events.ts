@@ -9,6 +9,7 @@ import {
   type AntigravityProcessOptions,
 } from "./agent-process.js";
 import { config } from "../config.js";
+import { promotePlaceholderSession } from "../app/services/session-service.js";
 import { logger } from "../utils/logger.js";
 import { isRecord } from "../utils/type-guards.js";
 
@@ -63,6 +64,12 @@ function emitBotEvent(type: string, properties: Record<string, unknown>): void {
 
 function handleInit(event: AgyInitEvent): void {
   currentSessionId = shortId("session", event.conversationId || String(Date.now()));
+  // Promote the /new placeholder to the real agy conversation id so
+  // foreground event matching works from the first turn.
+  promotePlaceholderSession(
+    currentSessionId,
+    event.conversationId ? `Conversación ${event.conversationId.slice(0, 8)}` : undefined,
+  );
 
   emitBotEvent("session.created", {
     sessionID: currentSessionId,

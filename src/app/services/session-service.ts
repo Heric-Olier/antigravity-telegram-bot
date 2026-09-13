@@ -29,3 +29,20 @@ export function clearSession(): void {
   promptAttachment.clear("session_cleared");
   clearSettingsSession();
 }
+
+/**
+ * Replace a placeholder session id (`new-<ts>` created by /new) with the real
+ * agy conversation id once the runtime reports it, so foreground event
+ * matching (summaryAggregator / attach state) works from the first turn.
+ */
+export function promotePlaceholderSession(realId: string, title?: string): void {
+  const current = getSettingsSession();
+  if (!current || !current.id.startsWith("new-")) {
+    return;
+  }
+  setSettingsSession({
+    ...current,
+    id: realId,
+    title: title && title.trim().length > 0 ? title : current.title,
+  });
+}
