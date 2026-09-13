@@ -86,13 +86,31 @@ export function parseBackgroundSessionCallback(
   }
 
   const marker = payload.slice(0, markerSeparatorIndex);
-  const sessionId = payload.slice(markerSeparatorIndex + 1);
+  const rawSessionId = payload.slice(markerSeparatorIndex + 1);
+  // Buttons store the bare agy uuid (see toCallbackSessionId); rebuild the
+  // prefixed id only when the payload is a plain uuid stripped by the button.
+  const looksLikeBareUuid =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawSessionId);
+  const sessionId = looksLikeBareUuid ? `agy-session-${rawSessionId}` : rawSessionId;
   const kind = BACKGROUND_SESSION_KIND_BY_CALLBACK_MARKER[marker];
   if (!kind || sessionId.length === 0) {
     return null;
   }
 
   return { sessionId, kind };
+}
+
+const AGY_SESSION_ID_PREFIX = "agy-session-";
+
+/**
+ * Telegram callback_data is limited to 64 bytes; `agy-session-<uuid>` is 48
+ * chars, so prefix + marker + id overflows. Store the bare uuid on the button
+ * and rebuild the full id when the callback is parsed.
+ */
+function toCallbackSessionId(sessionId: string): string {
+  return sessionId.startsWith(AGY_SESSION_ID_PREFIX)
+    ? sessionId.slice(AGY_SESSION_ID_PREFIX.length)
+    : sessionId;
 }
 
 export function buildBackgroundSessionOpenKeyboard(
@@ -102,7 +120,7 @@ export function buildBackgroundSessionOpenKeyboard(
   const marker = BACKGROUND_SESSION_KIND_CALLBACK_MARKERS[kind];
   return new InlineKeyboard().text(
     t("background.open_session_button"),
-    `${BACKGROUND_SESSION_CALLBACK_PREFIX}${marker}:${sessionId}`,
+    `${BACKGROUND_SESSION_CALLBACK_PREFIX}${marker}:${toCallbackSessionId(sessionId)}`,
   );
 }
 

@@ -289,6 +289,25 @@ export function stopEventListening(): void {
   nextPartCounter = 0;
 }
 
+/**
+ * Interrupt the current agy turn (SIGINT the running process) while KEEPING
+ * the event subscription alive — the next prompt can reuse the same pipeline
+ * without re-attaching. This is what /abort uses: it should stop the agent,
+ * not tear down the bot's ability to send the next prompt.
+ */
+export async function interruptActiveTurn(): Promise<void> {
+  const proc = activeProcess;
+  if (proc) {
+    activeProcess = null;
+    await proc.kill().catch(() => undefined);
+    if (currentSessionId && eventCallback) {
+      // Surface the turn end so foreground/attached busy states flip.
+      emitBotEvent("session.idle", { sessionID: currentSessionId });
+    }
+    nextPartCounter = 0;
+  }
+}
+
 export function __resetAgyEventsForTests(): void {
   stopEventListening();
 }

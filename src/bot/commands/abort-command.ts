@@ -10,7 +10,7 @@ import { clearPromptResponseMode } from "../handlers/prompt.js";
 import { markUserAbortRequested } from "../../app/managers/abort-suppression-manager.js";
 import { promptQueue } from "../../app/managers/prompt-queue-manager.js";
 import { promptAttachment } from "../../app/managers/prompt-attachment-manager.js";
-import { stopEventListening } from "../../antigravity/events.js";
+import { interruptActiveTurn } from "../../antigravity/events.js";
 
 interface AbortCurrentOperationOptions {
   notifyUser?: boolean;
@@ -45,9 +45,10 @@ export async function abortCurrentOperation(
 
     markUserAbortRequested(currentSession.id);
 
-    // Abort for agy = SIGINT the running agy process; the events adapter then
-    // emits session.idle by itself. There is no remote API call to confirm.
-    await stopEventListening();
+    // Abort for agy = SIGINT the running agy process and keep the pipeline:
+    // the events adapter emits session.idle and the subscription stays active
+    // so the next prompt can be sent without re-attaching.
+    await interruptActiveTurn();
 
     await releaseAbortBusyState(currentSession.id, "abort_confirmed");
 

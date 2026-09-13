@@ -38,6 +38,7 @@ vi.mock("../../../src/app/managers/abort-suppression-manager.js", () => ({
 
 vi.mock("../../../src/antigravity/events.js", () => ({
   stopEventListening: mocked.stopEventListeningMock,
+  interruptActiveTurn: mocked.stopEventListeningMock,
 }));
 
 vi.mock("../../../src/app/managers/foreground-session-state-manager.js", () => ({
@@ -95,7 +96,7 @@ describe("bot/commands/abort (agy)", () => {
     expect(mocked.promptQueueClearMock).toHaveBeenCalledWith("abort_command");
     expect(mocked.promptAttachmentClearMock).toHaveBeenCalledWith("abort_command");
     expect(mocked.markUserAbortRequestedMock).toHaveBeenCalledWith("session-1");
-    expect(mocked.stopEventListeningMock).toHaveBeenCalled();
+    expect(mocked.stopEventListeningMock).toHaveBeenCalled(); // interruptActiveTurn aliased in mock
     expect(mocked.markIdleMock).toHaveBeenCalledWith("session-1");
     expect(mocked.clearRunMock).toHaveBeenCalledWith("session-1", "abort_confirmed");
     expect(mocked.markAttachedSessionIdleMock).toHaveBeenCalledWith("session-1");
@@ -108,7 +109,7 @@ describe("bot/commands/abort (agy)", () => {
 
     await abortCurrentOperation(ctx, { notifyUser: false });
 
-    expect(mocked.stopEventListeningMock).toHaveBeenCalled();
+    expect(mocked.stopEventListeningMock).toHaveBeenCalled(); // interruptActiveTurn aliased in mock
     expect(ctx.reply).not.toHaveBeenCalled();
   });
 
