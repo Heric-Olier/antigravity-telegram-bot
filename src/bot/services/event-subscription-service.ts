@@ -573,23 +573,21 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         return;
       }
 
-      if (typeof this.botInstance.api.sendChatAction !== "function") {
-        return;
-      }
-      const chatId = this.chatIdInstance;
       // Keep a SINGLE heartbeat per session: restarting the interval on every
       // throttled partial triggered Telegram 429 floods that starved getUpdates.
-      const existing = this.typingHeartbeats.get(sessionId);
-      if (existing !== undefined) {
-        return;
+      if (
+        typeof this.botInstance.api.sendChatAction === "function" &&
+        !this.typingHeartbeats.has(sessionId)
+      ) {
+        const chatId = this.chatIdInstance;
+        this.typingHeartbeats.set(
+          sessionId,
+          setInterval(() => {
+            void this.botInstance?.api.sendChatAction(chatId, "typing").catch(() => undefined);
+          }, 5_000),
+        );
+        void this.botInstance.api.sendChatAction(chatId, "typing").catch(() => undefined);
       }
-      this.typingHeartbeats.set(
-        sessionId,
-        setInterval(() => {
-          void this.botInstance?.api.sendChatAction(chatId, "typing").catch(() => undefined);
-        }, 5_000),
-      );
-      void this.botInstance.api.sendChatAction(chatId, "typing").catch(() => undefined);
 
       const currentSession = getCurrentSession();
       if (!currentSession || currentSession.id !== sessionId) {
