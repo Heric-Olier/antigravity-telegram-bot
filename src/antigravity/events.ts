@@ -9,7 +9,7 @@ import {
   type AntigravityProcessOptions,
 } from "./agent-process.js";
 import { config } from "../config.js";
-import { promotePlaceholderSession } from "../app/services/session-service.js";
+import { getCurrentSession, promotePlaceholderSession } from "../app/services/session-service.js";
 import { logger } from "../utils/logger.js";
 import { isRecord } from "../utils/type-guards.js";
 
@@ -335,7 +335,15 @@ export async function sendPromptToActiveProcess(text: string, directory: string)
     throw new Error("Cannot send a prompt without an active event subscription");
   }
 
-  const proc = spawnProcessForDirectory(directory);
+  // Resume the current conversation when the foreground session is a real
+  // agy conversation (`agy-session-<uuid>`); a fresh spawn would otherwise
+  // start a new conversation every turn.
+  const spawnOptions: AntigravityProcessOptions = {};
+  const current = getCurrentSession();
+  if (current?.id.startsWith("agy-session-")) {
+    spawnOptions.conversationId = current.id.slice("agy-session-".length);
+  }
+  const proc = spawnProcessForDirectory(directory, spawnOptions);
   await proc.sendPrompt(text);
 }
 
