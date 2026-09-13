@@ -311,6 +311,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
 
         const sentMessage = await this.botInstance.api.sendMessage(this.chatIdInstance, text, {
           disable_notification: true,
+          parse_mode: "HTML",
         });
 
         return sentMessage.message_id;
@@ -326,7 +327,9 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         }
 
         try {
-          await this.botInstance.api.editMessageText(this.chatIdInstance, messageId, text);
+          await this.botInstance.api.editMessageText(this.chatIdInstance, messageId, text, {
+          parse_mode: "HTML",
+          });
         } catch (error) {
           const errorMessage =
             error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
