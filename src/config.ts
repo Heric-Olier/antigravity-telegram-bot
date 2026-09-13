@@ -2,7 +2,12 @@
  * Runtime configuration for the Antigravity CLI bot.
  */
 
+import dotenv from "dotenv";
+import { getRuntimePaths } from "./runtime/paths.js";
 import { normalizeLocale, type Locale } from "./i18n/index.js";
+
+const configRuntimePaths = getRuntimePaths();
+dotenv.config({ path: configRuntimePaths.envFilePath, quiet: true });
 
 export type MessageFormatMode = "raw" | "markdown";
 export type TtsProvider = "openai" | "google" | "elevenlabs" | "edge";
