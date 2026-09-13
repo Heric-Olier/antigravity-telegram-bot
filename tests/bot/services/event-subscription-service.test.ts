@@ -13,7 +13,7 @@ const mocked = vi.hoisted(() => ({
   stopEventListening: vi.fn(),
 }));
 
-vi.mock("../../../src/opencode/events.js", () => ({
+vi.mock("../../../src/antigravity/events.js", () => ({
   subscribeToEvents: mocked.subscribeToEvents,
   stopEventListening: mocked.stopEventListening,
 }));

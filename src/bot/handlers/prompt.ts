@@ -16,7 +16,7 @@ import { createMainKeyboard } from "../keyboards/main-reply-keyboard.js";
 import { keyboardManager } from "../keyboards/keyboard-manager.js";
 import { pinnedMessageManager } from "../pinned/pinned-message-manager.js";
 import { summaryAggregator } from "../../app/managers/summary-aggregation-manager.js";
-import { stopEventListening } from "../../opencode/events.js";
+import { stopEventListening } from "../../antigravity/events.js";
 import { interactionManager } from "../../app/managers/interaction-manager.js";
 import { clearAllInteractionState } from "../../app/managers/interaction-manager.js";
 import { safeBackgroundTask } from "../../utils/safe-background-task.js";

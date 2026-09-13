@@ -11,7 +11,7 @@ import { setCurrentProject } from "../stores/settings-store.js";
 import { clearSession } from "./session-service.js";
 import { summaryAggregator } from "../managers/summary-aggregation-manager.js";
 import { detachAttachedSession } from "./attach-service.js";
-import { stopEventListening } from "../../opencode/events.js";
+import { stopEventListening } from "../../antigravity/events.js";
 import { backgroundSessionTracker } from "../managers/background-session-manager.js";
 import { getStoredAgent, resolveProjectAgent } from "./agent-selection-service.js";
 import { getStoredModel } from "./model-selection-service.js";

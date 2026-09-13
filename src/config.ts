@@ -214,6 +214,17 @@ export const config = {
       modelId: getEnvVar("OPENCODE_MODEL_ID", true), // Required
     },
   },
+  antigravity: {
+    // Binary path for the Antigravity CLI (agy). Supports `~` expansion.
+    bin: getEnvVar("AGY_BIN", false) || "~/.local/bin/agy",
+    // Base workspace directory: each agy subprocess runs with cwd inside it
+    // (the active project directory). Supports `~` expansion.
+    workspaceDir: getEnvVar("AGY_WORKSPACE_DIR", false) || "~/Documentos/PROYECTOS",
+    // YOLO mode: run agy with --dangerously-skip-permissions.
+    yolo: getOptionalBooleanEnvVar("AGY_YOLO", true),
+    // Value passed as --print-timeout=<value> (agy expects e.g. `600s`).
+    printTimeout: getEnvVar("AGY_PRINT_TIMEOUT", false) || "600s",
+  },
   server: {
     logLevel: getEnvVar("LOG_LEVEL", false) || "info",
   },

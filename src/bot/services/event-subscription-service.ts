@@ -98,7 +98,7 @@ import {
   clearAllInteractionState,
   interactionManager,
 } from "../../app/managers/interaction-manager.js";
-import { stopEventListening, subscribeToEvents } from "../../opencode/events.js";
+import { stopEventListening, subscribeToEvents } from "../../antigravity/events.js";
 
 const TELEGRAM_DOCUMENT_CAPTION_MAX_LENGTH = 1024;
 const SESSION_RETRY_PREFIX = "🔁";

@@ -68,7 +68,7 @@ vi.mock("../../../src/opencode/client.js", () => ({
   },
 }));
 
-vi.mock("../../../src/opencode/events.js", () => ({
+vi.mock("../../../src/antigravity/events.js", () => ({
   stopEventListening: mocked.stopEventListeningMock,
 }));
 
