@@ -10,6 +10,7 @@ import {
 } from "./agent-process.js";
 import { config } from "../config.js";
 import { getCurrentSession, promotePlaceholderSession, syncSessionToRuntimeId } from "../app/services/session-service.js";
+import { getConversationTitle } from "./session-store.js";
 import { logger } from "../utils/logger.js";
 import { isRecord } from "../utils/type-guards.js";
 
@@ -67,14 +68,11 @@ function handleInit(event: AgyInitEvent): void {
   // Follow the runtime: promote the /new placeholder AND realign a stale
   // stored id whenever the spawned conversation differs, so foreground
   // event matching works and /sessions lists the live thread.
-  promotePlaceholderSession(
-    currentSessionId,
-    event.conversationId ? `Conversación ${event.conversationId.slice(0, 8)}` : undefined,
-  );
-  syncSessionToRuntimeId(
-    currentSessionId,
-    event.conversationId ? `Conversación ${event.conversationId.slice(0, 8)}` : undefined,
-  );
+  const realTitle = event.conversationId
+    ? getConversationTitle(event.conversationId)
+    : undefined;
+  promotePlaceholderSession(currentSessionId, realTitle);
+  syncSessionToRuntimeId(currentSessionId, realTitle);
 
   emitBotEvent("session.created", {
     sessionID: currentSessionId,

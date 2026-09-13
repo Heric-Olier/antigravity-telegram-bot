@@ -189,3 +189,12 @@ export function getConversation(id: string): AntigravityConversation | null {
 export function conversationExists(id: string): boolean {
   return fs.existsSync(path.join(conversationsDir(), `${id}.db`));
 }
+
+/**
+ * Real conversation title from the agy summaries DB (falls back to the
+ * short-id label). Cached index is rebuilt when the summaries file changes.
+ */
+export function getConversationTitle(conversationId: string): string {
+  const summaries = loadSummaryIndex();
+  return conversationTitleFromSummaries(summaries, conversationId);
+}
