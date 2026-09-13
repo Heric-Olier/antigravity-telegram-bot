@@ -69,8 +69,10 @@ function getToolDetails(tool: string, input?: { [key: string]: unknown }): strin
     case "glob":
       if (typeof input.pattern === "string") return input.pattern;
       break;
-    // Antigravity CLI tool names and their parameter keys:
+    // Antigravity CLI tool names and their real parameter keys (verified live
+    // from stream tool_info payloads):
     case "view_file":
+      if (typeof input.AbsolutePath === "string") return normalizePathForDisplay(input.AbsolutePath);
       if (typeof input.TargetFile === "string") return normalizePathForDisplay(input.TargetFile);
       break;
     case "write_to_file":
@@ -78,12 +80,12 @@ function getToolDetails(tool: string, input?: { [key: string]: unknown }): strin
         const lines = typeof input.Content === "string" ? ` (+${countLines(input.Content)})` : "";
         return `${normalizePathForDisplay(input.TargetFile)}${lines}`;
       }
+      if (typeof input.AbsolutePath === "string") return normalizePathForDisplay(input.AbsolutePath);
       break;
     case "replace_file_content":
-      if (typeof input.TargetFile === "string") return normalizePathForDisplay(input.TargetFile);
-      break;
     case "multi_replace_file_content":
       if (typeof input.TargetFile === "string") return normalizePathForDisplay(input.TargetFile);
+      if (typeof input.AbsolutePath === "string") return normalizePathForDisplay(input.AbsolutePath);
       break;
     case "run_command":
       if (typeof input.CommandLine === "string") return input.CommandLine;
@@ -95,12 +97,12 @@ function getToolDetails(tool: string, input?: { [key: string]: unknown }): strin
       if (typeof input.stdin === "string") return input.stdin;
       break;
     case "list_dir":
-      if (typeof input.Path === "string" || typeof input.target_directory === "string") {
-        const dir = (input.Path ?? input.target_directory) as string;
-        return normalizePathForDisplay(dir);
-      }
+      if (typeof input.DirectoryPath === "string") return normalizePathForDisplay(input.DirectoryPath);
+      if (typeof input.Path === "string") return normalizePathForDisplay(input.Path);
       break;
     case "find_by_name":
+      if (typeof input.Pattern === "string") return input.Pattern;
+      break;
     case "sed_file":
       if (typeof input.Path === "string") return normalizePathForDisplay(input.Path);
       break;
