@@ -1,0 +1,44 @@
+# Node
+node_modules/
+dist/
+coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Local AI tooling
+.claude/
+.codex/
+.kilocode/
+.opencode/
+opencode.json
+.pi/
+.omp/
+
+# Project specific
+logs/
+run/
+settings.json
+settings.json.bak
+settings.json.tmp
+.tmp/
+e2e/output/
+
+# Packaging artifacts
+*.tgz
+
+.boardown/
+manager/
