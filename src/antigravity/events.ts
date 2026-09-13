@@ -174,6 +174,15 @@ function handleResult(event: AgyResultEvent): void {
   logger.info(
     `[AgyEvents] result: status=${event.status} turns=${event.numTurns ?? "?"} respLen=${(event.response ?? "").length}`,
   );
+  // agy writes the human-readable title into conversation_summaries.db after a
+  // turn; refresh the stored session title so the pinned dashboard shows the
+  // real name instead of the short-id fallback on the next render.
+  if (currentSessionId && event.status === "SUCCESS") {
+    const title = getConversationTitle(currentSessionId.slice("agy-session-".length));
+    if (title && !title.startsWith("Conversación ")) {
+      syncSessionToRuntimeId(currentSessionId, title);
+    }
+  }
   const finalText = typeof event.response === "string" ? event.response : "";
   const messageId = shortId("msg", 0);
   const now = Date.now();
