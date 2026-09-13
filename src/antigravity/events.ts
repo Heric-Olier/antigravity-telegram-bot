@@ -9,7 +9,7 @@ import {
   type AntigravityProcessOptions,
 } from "./agent-process.js";
 import { config } from "../config.js";
-import { getCurrentSession, promotePlaceholderSession } from "../app/services/session-service.js";
+import { getCurrentSession, promotePlaceholderSession, syncSessionToRuntimeId } from "../app/services/session-service.js";
 import { logger } from "../utils/logger.js";
 import { isRecord } from "../utils/type-guards.js";
 
@@ -64,9 +64,14 @@ function emitBotEvent(type: string, properties: Record<string, unknown>): void {
 
 function handleInit(event: AgyInitEvent): void {
   currentSessionId = shortId("session", event.conversationId || String(Date.now()));
-  // Promote the /new placeholder to the real agy conversation id so
-  // foreground event matching works from the first turn.
+  // Follow the runtime: promote the /new placeholder AND realign a stale
+  // stored id whenever the spawned conversation differs, so foreground
+  // event matching works and /sessions lists the live thread.
   promotePlaceholderSession(
+    currentSessionId,
+    event.conversationId ? `Conversación ${event.conversationId.slice(0, 8)}` : undefined,
+  );
+  syncSessionToRuntimeId(
     currentSessionId,
     event.conversationId ? `Conversación ${event.conversationId.slice(0, 8)}` : undefined,
   );
