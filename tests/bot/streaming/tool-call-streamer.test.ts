@@ -6,7 +6,13 @@ import { defined } from "../../helpers/defined.js";
 function wrapped(text: string, count = 1): string {
   const esc = (s: string) =>
     s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  return `🛠️ ${count} llamada${count === 1 ? "" : "s"} a herramientas\n<blockquote expandable>${esc(text)}</blockquote>`;
+  const lines = text.split("\n");
+  const last = lines[lines.length - 1] ?? "";
+  const lastShort = last.length > 60 ? `${last.slice(0, 57)}…` : last;
+  const header =
+    `💭 Trabajando… · ${count} llamada${count === 1 ? "" : "s"}` +
+    (last ? `\n↳ ${esc(lastShort)}` : "");
+  return `${header}\n<blockquote expandable>${esc(text)}</blockquote>`;
 }
 
 describe("bot/streaming/tool-call-streamer", () => {
@@ -95,7 +101,7 @@ describe("bot/streaming/tool-call-streamer", () => {
 
     expect(sendText).toHaveBeenNthCalledWith(1, "s1", wrapped("regular tool"));
     expect(sendText).toHaveBeenNthCalledWith(2, "s1", wrapped("todo tool"));
-    expect(editText).toHaveBeenCalledWith("s1", 10, "🛠️ 2 llamadas a herramientas\n<blockquote expandable>regular tool\nregular tool update</blockquote>");
+    expect(editText).toHaveBeenCalledWith("s1", 10, wrapped(["regular tool", "regular tool update"].join("\n"), 2));
   });
 
   it("keeps each subagent in an independently editable stream", async () => {

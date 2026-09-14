@@ -125,7 +125,9 @@ function buildParts(entries: StreamEntry[]): string[] {
 
   const escaped = escapeHtml(lines.join("\n"));
   const body = `<blockquote expandable>${escaped}</blockquote>`;
-  const header = `🛠️ ${lines.length} llamada${lines.length === 1 ? "" : "s"} a herramientas`;
+  const last = lines[lines.length - 1] ?? "";
+  const lastShort = last.length > 60 ? `${last.slice(0, 57)}…` : last;
+  const header = `💭 Trabajando… · ${lines.length} llamada${lines.length === 1 ? "" : "s"}\n↳ ${escapeHtml(lastShort)}`;
   const full = `${header}\n${body}`;
 
   return splitLongText(full, TELEGRAM_MESSAGE_SAFE_LENGTH).filter(Boolean);
