@@ -415,7 +415,7 @@ export const ko: I18nDictionary = {
 
   "keyboard.agent_mode": "{emoji} {name} 에이전트",
   "keyboard.context": "📊 {used} / {limit} ({percent}%)",
-  "keyboard.context_empty": "📊 0",
+  "keyboard.context_empty": "📊 —",
   "keyboard.variant": "💭 {name}",
   "keyboard.variant_default": "💡 기본값",
   "keyboard.queued_prompt": "❌ {index}. {text}",

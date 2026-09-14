@@ -426,7 +426,7 @@ export const fr: I18nDictionary = {
 
   "keyboard.agent_mode": "{emoji} {name} Agent",
   "keyboard.context": "📊 {used} / {limit} ({percent}%)",
-  "keyboard.context_empty": "📊 0",
+  "keyboard.context_empty": "📊 —",
   "keyboard.variant": "💭 {name}",
   "keyboard.variant_default": "💡 Par défaut",
   "keyboard.queued_prompt": "❌ {index}. {text}",
