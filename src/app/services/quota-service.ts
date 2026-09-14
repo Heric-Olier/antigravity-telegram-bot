@@ -53,14 +53,15 @@ export function parseUsage(stdout: string): QuotaBucket[] {
 
 /** Compact one-line badge for menus: "🟢5h 82% · 🟡semana 41%" (worst first). */
 export function quotaBadgeLine(buckets: QuotaBucket[]): string {
-  if (buckets.length === 0) return "";
-  return buckets
+  const gemini = buckets.filter((b) => b.bucket.startsWith("Gemini"));
+  if (gemini.length === 0) return "";
+  return gemini
     .map((b) => {
-      const label = b.kind.includes("Five Hour") ? "5h" : "semana";
+      const label = b.kind.includes("Five Hour") ? "5h" : "sem";
       const icon = b.pct >= 80 ? "🟢" : b.pct >= 40 ? "🟡" : "🔴";
       return `${icon}${label} ${b.pct}%`;
     })
-    .join(" · ");
+    .join(" ");
 }
 
 /** Sync read of the last cached badge ("" if never fetched). The keyboard

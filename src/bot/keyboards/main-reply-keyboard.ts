@@ -58,8 +58,13 @@ export function createMainKeyboard(
     contextText = `${quotaBadge ? `${quotaBadge} · ` : ""}${formatContextForButton(contextInfo)}`;
   }
 
-  // Variant text - default to "💭 Default" if not provided
-  const variantText = variantName || t("keyboard.variant_default");
+  // Variant text - default to "💭 Default"; when real context usage is known,
+  // ride it on this button so both window slots carry live info.
+  const variantBase = variantName || t("keyboard.variant_default");
+  const variantText =
+    contextInfo && contextInfo.tokensUsed > 0
+      ? `${variantBase} · 📊 ${Math.round((contextInfo.tokensUsed / contextInfo.tokensLimit) * 100)}%`
+      : variantBase;
 
   // Queued prompts sit above the fixed grid, one per row
   for (const label of queuedPromptLabels) {

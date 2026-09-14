@@ -39,15 +39,18 @@ class KeyboardManager {
         void fetchQuotaSnapshot().then(() => {
           const before = this.lastBadge;
           this.lastBadge = getCachedQuotaBadge();
+          let changed = this.lastBadge !== before;
           if (this.state && this.state.contextInfo) {
+            const prevUsed = this.state.contextInfo.tokensUsed;
             this.state.contextInfo.tokensUsed = getContextUsed();
             this.state.contextInfo.tokensLimit = getContextLimit();
+            if (this.state.contextInfo.tokensUsed !== prevUsed) changed = true;
           }
-          if (this.lastBadge && this.lastBadge !== before && this.chatId) {
+          if (changed && this.chatId) {
             void this.sendKeyboardUpdate();
           }
         }).catch(() => {});
-      }, 60_000);
+      }, 30_000);
       void fetchQuotaSnapshot().catch(() => {});
     }
 
