@@ -319,7 +319,18 @@ export async function subscribeToEvents(
   stopEventListening();
   activeDirectory = directory;
   eventCallback = callback;
-  spawnProcessForDirectory(directory, spawnOptions);
+  // A boot-time subscribe without an explicit conversation would make agy
+  // open a brand-new (empty) conversation — the source of the "phantom new
+  // session" pins and the stray conversation DBs. When the bot has a saved
+  // agy session, attach to it instead of starting fresh.
+  const savedId =
+    spawnOptions.conversationId ??
+    getCurrentSession()?.id.replace(/^agy-session-/, "") ??
+    undefined;
+  const merged: AntigravityProcessOptions = savedId
+    ? { ...spawnOptions, conversationId: savedId }
+    : spawnOptions;
+  spawnProcessForDirectory(directory, merged);
 }
 
 export function stopEventListening(): void {
