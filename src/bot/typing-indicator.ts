@@ -10,6 +10,7 @@ import type { Api } from "grammy";
 const heartbeats = new Map<string, ReturnType<typeof setInterval>>();
 
 export function startTypingIndicator(api: Api, chatId: number, sessionId: string): void {
+  if (typeof api.sendChatAction !== "function") return;
   if (heartbeats.has(sessionId)) return;
   heartbeats.set(
     sessionId,
