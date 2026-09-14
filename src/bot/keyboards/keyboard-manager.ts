@@ -15,6 +15,7 @@ import type { ContextInfo, KeyboardState } from "./keyboard-types.js";
  * Singleton pattern
  */
 class KeyboardManager {
+  private lastKeyboardText: string | null = null;
   private lastBadge: string = "";
   private state: KeyboardState | null = null;
 
@@ -201,22 +202,25 @@ class KeyboardManager {
 
     try {
       const keyboard = this.buildKeyboard();
+      const kbText = JSON.stringify(keyboard.keyboard);
+      // Skip re-sends when nothing visibly changed (avoids carrier spam).
+      if (kbText === this.lastKeyboardText) {
+        logger.debug("[KeyboardManager] Keyboard unchanged, skipping send");
+        return;
+      }
+      this.lastKeyboardText = kbText;
 
-      // Send a dummy message with updated keyboard
-      // This is needed because Reply Keyboard updates require a message
-      // Telegram requires a message to attach a reply keyboard; send it and
-      // delete it right away so the chat isn't spammed with "keyboard updated"
-      // notices — only the keyboard itself changes.
+      // Telegram requires a message to attach a reply keyboard. Send it muted,
+      // give Telegram time to apply the keyboard, then delete the carrier.
       const probe = await this.api.sendMessage(targetChatId, ".", {
         reply_markup: keyboard,
         link_preview_options: { is_disabled: true } as never,
+        disable_notification: true,
       } as never);
-      // Give Telegram a beat to apply the reply keyboard BEFORE removing the
-      // carrier message; deleting instantly can drop the keyboard client-side.
       const api = this.api;
       setTimeout(() => {
         void api.deleteMessage(targetChatId, probe.message_id).catch(() => {});
-      }, 500);
+      }, 1500);
 
       logger.debug("[KeyboardManager] Keyboard update sent");
     } catch (err) {
