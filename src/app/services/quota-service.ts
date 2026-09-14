@@ -72,7 +72,9 @@ export function quotaBadgeLine(buckets: QuotaBucket[]): string {
       const icon = b.pct >= 80 ? "🟢" : b.pct >= 40 ? "🟡" : "🔴";
       // "falta": compact relative time (e.g. "1h05" / "3d04h"), wrapped in
       // parentheses so both pct AND remaining time fit the button.
-      const left = shortLeft(b.minutesLeft);
+      const left = b.resetIso
+        ? shortLeft(Math.max(0, Math.floor((Date.parse(b.resetIso) - Date.now()) / 60_000)))
+        : shortLeft(b.minutesLeft);
       return `${icon}${label} ${b.pct}%${left ? ` (${left})` : ""}`;
     })
     .join(" ");
@@ -89,7 +91,7 @@ function shortLeft(minutes?: number | undefined): string {
   if (minutes === undefined) return "";
   if (minutes >= 48 * 60) {
     const d = Math.floor(minutes / (24 * 60));
-    const h = Math.round((minutes % (24 * 60)) / 60);
+    const h = Math.floor((minutes % (24 * 60)) / 60);
     return `${d}d${h ? `${h}h` : ""}`;
   }
   const h = Math.floor(minutes / 60);
