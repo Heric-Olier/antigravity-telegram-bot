@@ -211,11 +211,12 @@ class KeyboardManager {
         reply_markup: keyboard,
         link_preview_options: { is_disabled: true } as never,
       } as never);
-      try {
-        await this.api.deleteMessage(targetChatId, probe.message_id);
-      } catch {
-        // ignore cleanup failures
-      }
+      // Give Telegram a beat to apply the reply keyboard BEFORE removing the
+      // carrier message; deleting instantly can drop the keyboard client-side.
+      const api = this.api;
+      setTimeout(() => {
+        void api.deleteMessage(targetChatId, probe.message_id).catch(() => {});
+      }, 500);
 
       logger.debug("[KeyboardManager] Keyboard update sent");
     } catch (err) {
