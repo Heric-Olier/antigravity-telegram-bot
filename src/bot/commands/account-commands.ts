@@ -60,8 +60,9 @@ export async function addAccountCommand(ctx: CommandContext<Context>): Promise<v
   }
   await ctx.reply(
     `Open this link in your browser and complete the Google sign-in:\n\n${res.authUrl}\n\n` +
-      "The account is saved automatically after you approve — no code to paste. " +
-      "Then restart agy (/restart) to activate it.",
+      "⚠️ The final redirect goes to localhost — that page will fail to load. " +
+      "That's expected: COPY the full URL from the address bar (it contains ?code=…&state=…) " +
+      "and send it back here with /code <that-url>. I'll exchange it and save the account.",
     { link_preview_options: { is_disabled: true } },
   );
   logger.info("[Accounts] add-account URL delivered to user");

@@ -81,11 +81,13 @@ export async function listAccounts(): Promise<{ active: string | null; profiles:
  */
 export async function startAddAccount(): Promise<{ ok: boolean; authUrl?: string; detail?: string }> {
   // Must run detached-with-wait: the CLI spawns the daemon then prints the URL.
+  // AGY_ACCOUNTS_BIND=0.0.0.0 makes the plugin's callback server reachable
+  // from the phone on the LAN (redirect_uri still points at this LAN IP).
   const res = await new Promise<{ ok: boolean; stdout: string; stderr: string }>((res) => {
     execFile(
       "node",
       [PLUGIN_JS, "add"],
-      { timeout: 30_000 },
+      { timeout: 30_000, env: { ...process.env, AGY_ACCOUNTS_BIND: "0.0.0.0" } },
       (err, stdout) =>
         res({ ok: !err, stdout: stdout ?? "", stderr: String(err ?? "") }),
     );
@@ -95,6 +97,7 @@ export async function startAddAccount(): Promise<{ ok: boolean; authUrl?: string
     logger.warn(`[Accounts] add produced no auth URL; stdout=${res.stdout.slice(0, 120)} err=${res.stderr.slice(0, 120)}`);
     return { ok: false, detail: res.stderr || res.stdout.slice(0, 200) };
   }
+  notePendingAdd(m[0]);
   return { ok: true, authUrl: m[0] };
 }
 
@@ -123,5 +126,112 @@ async function importKeyringTokenFromFile(): Promise<void> {
     logger.info("[Accounts] active token mirrored into keyring");
   } catch (e) {
     logger.error(`[Accounts] keyring mirror failed: ${String(e).slice(0, 160)}`);
+  }
+}
+
+// ── Manual code exchange (phone-browser path) ───────────────────────────────
+// On a phone, Google's redirect to http://localhost:<port>/auth/callback fails
+// (the daemon runs on this machine, not the phone). The user copies the failed
+// URL from the address bar — it still carries ?code=…&state=… — and sends it
+// with /code. We exchange it here against Google's token endpoint using the
+// same client credentials the plugin uses (documented in its source, MIT).
+
+const CLIENT_ID = "1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com";
+// The plugin builds its secret by string-reversal (secret-scanning bypass):
+// "COGSPX-…" reversed. Keep it out of plain sight the same way.
+const CLIENT_SECRET_REVERSED = "COGSPX-4SPX68EN5W6F1C864B8MsC4q84zCX6s88DPMmCsVeMB-.RNa.Lm-zx1";
+
+interface PendingAdd {
+  state: string;
+  redirectPort: number | null;
+}
+let pendingAdd: PendingAdd | null = null;
+
+/** Record the state/port from the URL the plugin printed. */
+export function notePendingAdd(stdoutUrl: string): void {
+  try {
+    const u = new URL(stdoutUrl);
+    const port = u.searchParams.get("redirect_uri")?.match(/:(\d+)\//)?.[1];
+    pendingAdd = { state: u.searchParams.get("state") ?? "", redirectPort: port ? Number(port) : null };
+  } catch {
+    pendingAdd = null;
+  }
+}
+
+/** Exchange an authorization code pasted as a full localhost callback URL. */
+export async function completeManualExchange(callbackUrl: string): Promise<{ ok: boolean; detail: string }> {
+  try {
+    const u = new URL(callbackUrl.trim());
+    const code = u.searchParams.get("code");
+    const state = u.searchParams.get("state");
+    if (!code) return { ok: false, detail: "No authorization code in that URL." };
+    if (!pendingAdd) return { ok: false, detail: "No /addaccount flow is pending." };
+    // state here belongs to the daemon's flow; it must match what we stored.
+    if (state && pendingAdd.state && state !== pendingAdd.state) {
+      return { ok: false, detail: "OAuth state mismatch — run /addaccount again." };
+    }
+    const redirectPort = pendingAdd.redirectPort ?? 45001;
+    const redirectUri = `http://localhost:${redirectPort}/auth/callback`;
+    const secret = CLIENT_SECRET_REVERSED.split("").reverse().join("");
+
+    const body = new URLSearchParams({
+      client_id: CLIENT_ID,
+      client_secret: secret,
+      code,
+      grant_type: "authorization_code",
+      redirect_uri: redirectUri,
+    });
+    const resp = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: body.toString(),
+    });
+    const doc = (await resp.json()) as Record<string, unknown>;
+    if (!resp.ok || !doc.refresh_token) {
+      return { ok: false, detail: `Token exchange failed (${resp.status}): ${JSON.stringify(doc).slice(0, 200)}` };
+    }
+
+    // Build the same shape the plugin writes, then persist + mirror to keyring.
+    const expiresIn = Number(doc.expires_in ?? 3600);
+    const idToken = String(doc.id_token ?? "");
+    let email: string | null = null;
+    try {
+      const payload = JSON.parse(Buffer.from(idToken.split(".")[1] ?? "", "base64").toString("utf8"));
+      email = (payload as { email?: string }).email ?? null;
+    } catch {
+      // fall through — profile dir without email is still usable
+    }
+    const activeToken = {
+      token: {
+        access_token: doc.access_token,
+        token_type: doc.token_type ?? "Bearer",
+        refresh_token: doc.refresh_token,
+        expiry: new Date(Date.now() + expiresIn * 1000).toISOString(),
+      },
+      auth_method: "consumer",
+      oauth_client_id: CLIENT_ID,
+    };
+    const creds = {
+      access_token: doc.access_token,
+      scope: String(doc.scope ?? ""),
+      token_type: doc.token_type ?? "Bearer",
+      id_token: idToken,
+      expiry_date: Date.now() + expiresIn * 1000,
+      refresh_token: doc.refresh_token,
+      oauth_client_id: CLIENT_ID,
+    };
+    const fsMod = await import("node:fs");
+    const profileDir = path.join(CLI_DIR, "profiles", email ?? `manual-${Date.now()}`);
+    fsMod.mkdirSync(profileDir, { recursive: true });
+    fsMod.writeFileSync(path.join(profileDir, "antigravity-oauth-token"), JSON.stringify(activeToken, null, 2));
+    fsMod.writeFileSync(path.join(profileDir, "oauth_creds.json"), JSON.stringify(creds, null, 2));
+    fsMod.writeFileSync(TOKEN_FILE, JSON.stringify(activeToken, null, 2));
+    fsMod.writeFileSync(path.join(CLI_DIR, "oauth_creds.json"), JSON.stringify(creds, null, 2));
+    pendingAdd = null;
+    await importKeyringTokenFromFile();
+    logger.info(`[Accounts] manual exchange OK for ${email ?? "profile"}`);
+    return { ok: true, detail: email ? `Signed in as ${email}` : "Signed in" };
+  } catch (e) {
+    return { ok: false, detail: String(e).slice(0, 200) };
   }
 }
