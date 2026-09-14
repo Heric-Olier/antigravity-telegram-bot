@@ -104,7 +104,9 @@ function shortLeft(minutes?: number | undefined): string {
   return m ? `${h}h${String(m).padStart(2, "0")}` : `${h}h`;
 }
 
-/** Active Google account email, taken from the freshest agy CLI log. */
+/** Active Google account email, taken from the freshest agy CLI log
+ * that contains one. Short probe runs (e.g. `agy -p /usage`) rotate the log
+ * without an auth line, so scan backwards through recent logs. */
 export function activeAccountEmail(): string | null {
   try {
     const readdir = (fsMod.readdirSync || fsMod.readdirSync) as (p: string) => string[];
@@ -112,15 +114,17 @@ export function activeAccountEmail(): string | null {
     const logDir = `${(process.env.HOME ?? "~")}/.gemini/antigravity-cli/log`;
     const files = readdir(logDir).filter((f: string) => f.startsWith("cli-"));
     files.sort();
-    const newest = files[files.length - 1];
-    if (!newest) return null;
-    const full = read(`${logDir}/${newest}`, "utf8");
-    // The auth line lands mid-file — take the LAST email in the log.
-    let email: string | null = null;
-    for (const m of full.matchAll(/[\w.+-]+@[\w-]+\.[\w.\-]+/g)) {
-      email = m[0];
+    // Scan the newest logs backwards; fall back to older ones until an email
+    // is found (the auth line lands mid-file — take the LAST email there).
+    for (let i = files.length - 1; i >= 0; i--) {
+      const full = read(`${logDir}/${files[i]}`, "utf8");
+      let email: string | null = null;
+      for (const m of full.matchAll(/[\w.+-]+@[\w-]+\.[\w.\-]+/g)) {
+        email = m[0];
+      }
+      if (email) return email;
     }
-    return email;
+    return null;
   } catch {
     return null;
   }
