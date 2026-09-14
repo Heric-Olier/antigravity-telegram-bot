@@ -6,6 +6,7 @@ import {
 } from "../../app/services/model-selection-service.js";
 import type { FavoriteModel, ModelInfo } from "../../app/types/model.js";
 import { logger } from "../../utils/logger.js";
+import { fetchQuotaSnapshot, quotaBadgeLine } from "../../app/services/quota-service.js";
 import { t } from "../../i18n/index.js";
 import { replyWithInlineMenu } from "./inline-menu.js";
 
@@ -40,12 +41,15 @@ export function parseModelSearchCallback(data: string): number | null {
   return parseIndex(data.slice(MODEL_SEARCH_CALLBACK.length));
 }
 
-export function buildModelSelectionMenuText(currentModel: ModelInfo | undefined): string {
-  if (currentModel && typeof currentModel.modelID === "string" && currentModel.modelID.length > 0) {
-    return t("model.menu.current", { name: currentModel.modelID });
-  }
-
-  return t("model.menu.select");
+export function buildModelSelectionMenuText(
+  currentModel: ModelInfo | undefined,
+  quotaBadge = "",
+): string {
+  const base =
+    currentModel && typeof currentModel.modelID === "string" && currentModel.modelID.length > 0
+      ? t("model.menu.current", { name: currentModel.modelID })
+      : t("model.menu.select");
+  return quotaBadge ? `${base}\n${quotaBadge}` : base;
 }
 
 /**
@@ -79,8 +83,16 @@ export async function buildModelSelectionMenu(
 export async function buildModelRootMenuView(
   currentModel: ModelInfo | undefined,
 ): Promise<{ text: string; keyboard: InlineKeyboard }> {
+  // Live Google-quota badge on the menu header (cheapest signal of "who's about
+  // to run out"); 60s-cached, zero model usage.
+  let badge = "";
+  try {
+    badge = quotaBadgeLine(await fetchQuotaSnapshot());
+  } catch {
+    // Quota is decorative here; never block the menu on it.
+  }
   return {
-    text: buildModelSelectionMenuText(currentModel),
+    text: buildModelSelectionMenuText(currentModel, badge),
     keyboard: await buildModelSelectionMenu(currentModel),
   };
 }
