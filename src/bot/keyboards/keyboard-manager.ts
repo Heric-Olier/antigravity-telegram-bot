@@ -16,6 +16,7 @@ import type { ContextInfo, KeyboardState } from "./keyboard-types.js";
  */
 class KeyboardManager {
   private lastKeyboardText: string | null = null;
+  private carrierMessageId: number | null = null;
   private lastBadge: string = "";
   private state: KeyboardState | null = null;
 
@@ -212,15 +213,23 @@ class KeyboardManager {
 
       // Telegram requires a message to attach a reply keyboard. Send it muted,
       // give Telegram time to apply the keyboard, then delete the carrier.
-      const probe = await this.api.sendMessage(targetChatId, ".", {
+      // The carrier message stays (zero-width text, muted): deleting it makes
+      // some clients drop the reply keyboard ("buttons keep hiding"). Keep ONE
+      // invisible carrier: delete the previous carrier only AFTER the new
+      // keyboard is applied — the keyboard never goes away.
+      const api = this.api;
+      const prevCarrier = this.carrierMessageId;
+      const probe = await this.api.sendMessage(targetChatId, "\u200B", {
         reply_markup: keyboard,
         link_preview_options: { is_disabled: true } as never,
         disable_notification: true,
       } as never);
-      const api = this.api;
-      setTimeout(() => {
-        void api.deleteMessage(targetChatId, probe.message_id).catch(() => {});
-      }, 1500);
+      this.carrierMessageId = probe.message_id;
+      if (prevCarrier) {
+        setTimeout(() => {
+          void api.deleteMessage(targetChatId, prevCarrier).catch(() => {});
+        }, 1200);
+      }
 
       logger.debug("[KeyboardManager] Keyboard update sent");
     } catch (err) {
