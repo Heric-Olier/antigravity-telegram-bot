@@ -19,6 +19,30 @@ export const en = {
   "cmd.description.ls": "List directory contents",
   "cmd.restart.ack":
     "🔄 Restarting the bot with pending changes... wait ~5 seconds.",
+  "cmd.description.switch":
+    "switch",
+  "cmd.description.code":
+    "code",
+  "switch.no_pending":
+    "No account switch in progress. Use /switch first.",
+  "switch.code_needed":
+    "Missing code: use /code <code> with the code Google gave you.",
+  "switch.already_pending":
+    "A /switch is already in progress. Paste the code with /code <code> or wait.",
+  "switch.working":
+    "🔄 Preparing account switch (backing up current token + cleanup)... waiting for the URL.",
+  "switch.no_url_yet":
+    "⏳ agy is still loading; run /switch again shortly or wait for the URL message.",
+  "switch.url_intro":
+    "🌐 Open this link in your (phone) browser with the DESTINATION account:",
+  "switch.paste_code_hint":
+    "🔑 Then paste the code here with: /code <code>",
+  "switch.submitting":
+    "⏳ Submitting the code to agy…",
+  "switch.done":
+    "✅ Account switched! New token stored. Run /usage to see the new account's quota.",
+  "switch.failed":
+    "❌ Switch failed:",
   "cmd.description.help": "Help",
 
   "callback.unknown_command": "Unknown command",

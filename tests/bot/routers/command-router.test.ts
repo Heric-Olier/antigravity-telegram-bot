@@ -42,6 +42,8 @@ describe("bot/routers/command-router", () => {
       "new",
       "abort",
       "restart",
+      "switch",
+      "code",
       "detach",
       "task",
       "tasklist",

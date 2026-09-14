@@ -9,7 +9,6 @@ import { formatVariantForButton } from "../../app/services/variant-selection-ser
 import type { ModelInfo } from "../../app/types/model.js";
 import { logger } from "../../utils/logger.js";
 import type { ContextInfo, KeyboardState } from "./keyboard-types.js";
-import { t } from "../../i18n/index.js";
 
 /**
  * Keyboard Manager - manages Reply Keyboard state and updates
@@ -205,9 +204,18 @@ class KeyboardManager {
 
       // Send a dummy message with updated keyboard
       // This is needed because Reply Keyboard updates require a message
-      await this.api.sendMessage(targetChatId, t("keyboard.updated"), {
+      // Telegram requires a message to attach a reply keyboard; send it and
+      // delete it right away so the chat isn't spammed with "keyboard updated"
+      // notices — only the keyboard itself changes.
+      const probe = await this.api.sendMessage(targetChatId, ".", {
         reply_markup: keyboard,
-      });
+        link_preview_options: { is_disabled: true } as never,
+      } as never);
+      try {
+        await this.api.deleteMessage(targetChatId, probe.message_id);
+      } catch {
+        // ignore cleanup failures
+      }
 
       logger.debug("[KeyboardManager] Keyboard update sent");
     } catch (err) {
