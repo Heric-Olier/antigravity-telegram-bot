@@ -16,6 +16,21 @@ import { getStoredModel } from "../app/services/model-selection-service.js";
 import { logger } from "../utils/logger.js";
 import { isRecord } from "../utils/type-guards.js";
 
+/** Maximum transparent retries for transient provider-side failures. */
+const CAPACITY_RETRY_MAX = 3;
+/** How many capacity-503 retries have been consumed for the current prompt. */
+let retryAttempt = 0;
+/** Last user prompt + directory, kept so transient failures can resend. */
+let lastPromptText: string | null = null;
+let lastPromptDirectory: string | null = null;
+
+/** Transient provider errors worth a transparent resend (not user faults). */
+function isTransientCapacityError(message: string): boolean {
+  return /UNAVAILABLE|RESOURCE_EXHAUSTED|No capacity available|Deadline|deadline exceeded|internal error|Internal/i.test(
+    message,
+  );
+}
+
 // Adapter: drives an AntigravityProcess and translates the raw agy stream-json
 // protocol into the opencode-shaped Event stream the bot already consumes
 // (`src/bot/services/event-subscription-service.ts` switch + summary aggregator).
@@ -222,6 +237,31 @@ function handleResult(event: AgyResultEvent): void {
       `[AgyEvents] turn failed: ${errorMessage}` +
         (stderrTail ? `\nstderr tail:\n${stderrTail.slice(-800)}` : ""),
     );
+    // Transient provider-side failures (capacity 503, RESOURCE_EXHAUSTED,
+    // deadline) are retried transparently with backoff rather than surfacing
+    // an error the user can't act on. agy keeps the conversation state, so a
+    // fresh process re-attaches via --conversation and can continue.
+    if (isTransientCapacityError(errorMessage) && lastPromptText) {
+      const attempt = (retryAttempt = retryAttempt + 1);
+      if (attempt <= CAPACITY_RETRY_MAX) {
+        const delayMs = Math.min(50_000, 5_000 * 2 ** (attempt - 1));
+        logger.warn(
+          `[AgyEvents] transient server error (attempt ${attempt}/${CAPACITY_RETRY_MAX}); resending prompt in ${delayMs}ms`,
+        );
+        setTimeout(() => {
+          activeProcess = null;
+          if (lastPromptDirectory) {
+            const proc = spawnProcessForDirectory(lastPromptDirectory, {});
+            void proc;
+          }
+          void sendPromptToActiveProcess(lastPromptText as string, lastPromptDirectory as string);
+        }, delayMs);
+        return;
+      }
+      retryAttempt = 0;
+    } else {
+      retryAttempt = 0;
+    }
     emitBotEvent("session.error", {
       sessionID: currentSessionId,
       error: { name: "AntigravityError", message: errorMessage },
@@ -380,6 +420,8 @@ export function __resetAgyEventsForTests(): void {
  * /new or app start" path.
  */
 export async function sendPromptToActiveProcess(text: string, directory: string): Promise<void> {
+  lastPromptText = text;
+  lastPromptDirectory = directory;
   if (activeProcess && activeProcess.isRunning()) {
     await activeProcess.sendPrompt(text);
     return;
