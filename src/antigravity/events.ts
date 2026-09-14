@@ -331,6 +331,11 @@ export async function subscribeToEvents(
   const merged: AntigravityProcessOptions = savedId
     ? { ...spawnOptions, conversationId: savedId }
     : spawnOptions;
+  // Boot-time respawn must also honor the selected model.
+  if (!merged.model) {
+    const stored = getStoredModel();
+    if (stored?.modelID) merged.model = stored.modelID;
+  }
   spawnProcessForDirectory(directory, merged);
 }
 
