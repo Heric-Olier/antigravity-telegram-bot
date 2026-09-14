@@ -95,6 +95,7 @@ import {
   interactionManager,
 } from "../../app/managers/interaction-manager.js";
 import { stopEventListening, subscribeToEvents } from "../../antigravity/events.js";
+import { stopTypingIndicator as idleClearTyping } from "../typing-indicator.js";
 
 const TELEGRAM_DOCUMENT_CAPTION_MAX_LENGTH = 1024;
 const SESSION_RETRY_PREFIX = "🔁";
@@ -140,6 +141,8 @@ class EventSubscriptionService implements BotEventSubscriptionService {
   private readonly typingHeartbeats = new Map<string, ReturnType<typeof setInterval>>();
 
   private stopTypingIndicator(sessionId: string): void {
+    // Shared prompt-side heartbeat must also die with the turn.
+    idleClearTyping(sessionId);
     const interval = this.typingHeartbeats.get(sessionId);
     if (interval !== undefined) {
       clearInterval(interval);

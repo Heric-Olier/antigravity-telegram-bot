@@ -1,4 +1,5 @@
 import { Bot, Context } from "grammy";
+import { startTypingIndicator } from "../typing-indicator.js";
 import {
   clearSession,
   getCurrentSession,
@@ -325,6 +326,13 @@ export async function processUserPrompt(
     // agy: the prompt goes into the stream-json pipe. The assistant reply
     // arrives through the agy events subscription (message.part.updated /
     // session.idle), never through this call's return value.
+    // Light up "typing…" immediately (Hermes/opencode UX): the indicator must
+    // show from message receipt, not only once agy starts streaming text —
+    // reasoning/tool phases emit no text_delta.
+    if (ctx.chat) {
+      startTypingIndicator(ctx.api, ctx.chat.id, currentSession.id);
+    }
+
     safeBackgroundTask({
       taskName: "agy.sendPrompt",
       task: () => sendPromptToActiveProcess(promptText, currentSession.directory),
