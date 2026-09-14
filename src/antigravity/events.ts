@@ -20,6 +20,9 @@ import { isRecord } from "../utils/type-guards.js";
 const CAPACITY_RETRY_MAX = 3;
 /** How many capacity-503 retries have been consumed for the current prompt. */
 let retryAttempt = 0;
+/** Set when a turn is intentionally killed (/restart); swallows the stale
+ * ERROR result that surfaces afterward. */
+let suppressNextTurnError = false;
 /** Last user prompt + directory, kept so transient failures can resend. */
 let lastPromptText: string | null = null;
 let lastPromptDirectory: string | null = null;
@@ -241,7 +244,15 @@ function handleResult(event: AgyResultEvent): void {
     // deadline) are retried transparently with backoff rather than surfacing
     // an error the user can't act on. agy keeps the conversation state, so a
     // fresh process re-attaches via --conversation and can continue.
-    if (isTransientCapacityError(errorMessage) && lastPromptText) {
+    const suppressed = suppressNextTurnError;
+    suppressNextTurnError = false;
+    if (suppressed) {
+      // Intentional interrupt (e.g. /restart): the error is an artifact of
+      // the kill, not a real turn failure — stay silent.
+      logger.warn("[AgyEvents] suppressing turn error after intentional interrupt");
+      return;
+    }
+    if (!suppressNextTurnError && isTransientCapacityError(errorMessage) && lastPromptText) {
       const attempt = (retryAttempt = retryAttempt + 1);
       if (attempt <= CAPACITY_RETRY_MAX) {
         const delayMs = Math.min(50_000, 5_000 * 2 ** (attempt - 1));
@@ -400,6 +411,10 @@ export async function interruptActiveTurn(): Promise<void> {
   const proc = activeProcess;
   if (proc) {
     activeProcess = null;
+    // The interrupted turn's eventual ERROR result (e.g. a stale 503
+    // envelope) is an artifact of the intentional kill — swallow it instead
+    // of surfacing it to the user right after a /restart.
+    suppressNextTurnError = true;
     await proc.kill().catch(() => undefined);
     if (currentSessionId && eventCallback) {
       // Surface the turn end so foreground/attached busy states flip.
