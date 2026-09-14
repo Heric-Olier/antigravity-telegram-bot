@@ -1,6 +1,7 @@
 import type { Api } from "grammy";
 import { createMainKeyboard } from "./main-reply-keyboard.js";
 import { fetchQuotaSnapshot, getCachedQuotaBadge } from "../../app/services/quota-service.js";
+import { getContextUsed, getContextLimit } from "../../app/services/context-usage-tracker.js";
 import { getQueuedPromptButtonLabels } from "./queued-prompt-button.js";
 import { getStoredAgent } from "../../app/services/agent-selection-service.js";
 import { getStoredModel } from "../../app/services/model-selection-service.js";
@@ -38,6 +39,10 @@ class KeyboardManager {
         void fetchQuotaSnapshot().then(() => {
           const before = this.lastBadge;
           this.lastBadge = getCachedQuotaBadge();
+          if (this.state && this.state.contextInfo) {
+            this.state.contextInfo.tokensUsed = getContextUsed();
+            this.state.contextInfo.tokensLimit = getContextLimit();
+          }
           if (this.lastBadge && this.lastBadge !== before && this.chatId) {
             void this.sendKeyboardUpdate();
           }
@@ -110,8 +115,15 @@ class KeyboardManager {
       logger.warn("[KeyboardManager] Cannot update context: not initialized");
       return;
     }
-    this.state.contextInfo = { tokensUsed, tokensLimit };
-    logger.debug(`[KeyboardManager] Context updated: ${tokensUsed}/${tokensLimit}`);
+    // agy's step-usage tracker is the context source of truth; legacy callers
+    // (sessions/agents handlers) only refresh the limit. Never lower the
+    // tracked usage.
+    const real = getContextUsed();
+    this.state.contextInfo = {
+      tokensUsed: Math.max(tokensUsed, real),
+      tokensLimit: tokensLimit,
+    };
+    logger.debug(`[KeyboardManager] Context updated: ${real || tokensUsed}/${tokensLimit}`);
   }
 
   /**

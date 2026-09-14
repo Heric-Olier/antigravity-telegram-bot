@@ -1,6 +1,7 @@
 import os from "node:os";
 import path from "node:path";
 import type { Event, ToolPart, ToolState } from "@opencode-ai/sdk/v2";
+import { noteStepUsage } from "../app/services/context-usage-tracker.js";
 import {
   AntigravityProcess,
   type AgyInitEvent,
@@ -151,6 +152,9 @@ function handleStep(event: AgyStepEvent): void {
   if (event.stepType === "user_input") {
     return;
   }
+
+  // Track real context size for the keyboard's context button (agy usage).
+  noteStepUsage(event.usage as Parameters<typeof noteStepUsage>[0]);
 
   if (event.stepType === "agent_response" && typeof event.textDelta === "string") {
     const { part } = textPartUpdated(event.textDelta);

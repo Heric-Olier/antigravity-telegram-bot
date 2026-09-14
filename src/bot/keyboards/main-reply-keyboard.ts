@@ -51,12 +51,12 @@ export function createMainKeyboard(
   // Format model with compact provider/model text and icon
   const modelText = formatModelForButton(currentModel.providerID, currentModel.modelID);
 
-  // Context button: session context + live Google account quota badge
-  // (5h + weekly %, CLI /usage internals → zero model usage, 60s cached).
-  const ctxText = contextInfo
-    ? formatContextForButton(contextInfo)
-    : t("keyboard.context_empty");
-  const contextText = quotaBadge ? `${ctxText} · ${quotaBadge}` : ctxText;
+  // Context button shows the live Google account QUOTA (5h + weekly %) —
+  // agy's real context usage when available, else quota alone.
+  let contextText = quotaBadge || t("keyboard.context_empty");
+  if (contextInfo && contextInfo.tokensUsed > 0) {
+    contextText = `${quotaBadge ? `${quotaBadge} · ` : ""}${formatContextForButton(contextInfo)}`;
+  }
 
   // Variant text - default to "💭 Default" if not provided
   const variantText = variantName || t("keyboard.variant_default");

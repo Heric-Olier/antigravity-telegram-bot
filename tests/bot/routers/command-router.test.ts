@@ -41,6 +41,7 @@ describe("bot/routers/command-router", () => {
       "messages",
       "new",
       "abort",
+      "restart",
       "detach",
       "task",
       "tasklist",
