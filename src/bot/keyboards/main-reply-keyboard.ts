@@ -4,6 +4,7 @@ import { formatModelForButton } from "../../app/types/model.js";
 import type { ModelInfo } from "../../app/types/model.js";
 import type { ContextInfo } from "./keyboard-types.js";
 import { t } from "../../i18n/index.js";
+import { activeAccountEmail } from "../../app/services/quota-service.js";
 
 /**
  * Format token count for display (e.g., 150000 -> "150K", 1500000 -> "1.5M")
@@ -47,31 +48,33 @@ export function createMainKeyboard(
 ): Keyboard {
   const keyboard = new Keyboard();
   void variantName;
-  const agentText = getAgentButtonLabel(currentAgent);
+    void currentAgent;
 
   // Format model with compact provider/model text and icon
   const modelText = formatModelForButton(currentModel.providerID, currentModel.modelID);
 
-  // Context button: back to pure context-usage, now with REAL agy numbers
-  // (they used to be hardwired to 0 in the opencode layer).
+  // Context button: REAL agy usage numbers (context-usage tracker).
   const contextText = contextInfo && contextInfo.tokensUsed > 0
     ? formatContextForButton(contextInfo)
     : t("keyboard.context_empty");
 
-  // The 💡 slot (was "Default") is now the quota/usage button — it opens the
-  // /usage report (see message-router: VARIANT pattern routes to usageCommand).
-  const quotaText = quotaBadge ? `💡 ${quotaBadge}` : t("keyboard.variant_default");
+  // Quota slot: NO bulb icon — the badge (with remaining times) IS the label.
+  // Tapping routes to /usage (message-router variant/quota pattern).
+  const quotaText = quotaBadge || t("keyboard.variant_default");
+
+  // Account slot (was Build Agent): active Google account email, owning the
+  // /switch flow. Email may be long -> Telegram wraps it on the button.
+  const email = activeAccountEmail();
+  const accountText = email ? `🔁 ${email}` : "🔁 Cambiar cuenta";
 
   // Queued prompts sit above the fixed grid, one per row
   for (const label of queuedPromptLabels) {
     keyboard.text(label).row();
   }
 
-  // Row 1: agent and context buttons (the clean 2x2 the user wants)
-  keyboard.text(agentText).text(contextText).row();
-
-  // Row 2: model and quota (💡 prefix routes button taps to /usage)
-  keyboard.text(modelText).text(quotaText).row();
+  // Row 1: account switch + quota · Row 2: model + context
+  keyboard.text(accountText).text(quotaText).row();
+  keyboard.text(modelText).text(contextText).row();
 
   return keyboard.resized().persistent();
 }
