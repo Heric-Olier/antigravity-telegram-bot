@@ -42,8 +42,11 @@ export function noteStepUsage(
     | undefined,
 ): void {
   if (!u) return;
+  // Context size = LATEST prompt footprint (input + cache read), not the
+  // historic max: agy auto-compaction LOWERS it — freezing at the max made
+  // the button stick at one value forever.
   const total = (u.input_tokens ?? 0) + (u.cache_read_tokens ?? 0);
-  if (total > used) {
+  if (total > 0) {
     used = total;
     persist();
   }
