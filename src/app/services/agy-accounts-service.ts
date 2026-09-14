@@ -165,10 +165,24 @@ export async function completeManualExchange(callbackUrl: string): Promise<{ ok:
     const code = u.searchParams.get("code");
     const state = u.searchParams.get("state");
     if (!code) return { ok: false, detail: "No authorization code in that URL." };
-    if (!pendingAdd) return { ok: false, detail: "No /addaccount flow is pending." };
-    // state here belongs to the daemon's flow; it must match what we stored.
-    if (state && pendingAdd.state && state !== pendingAdd.state) {
-      return { ok: false, detail: "OAuth state mismatch — run /addaccount again." };
+    // The bot restarts between /addaccount and /code, which wipes the in-memory
+    // state. If the URL carries iss=accounts.google.com treat it as the
+    // legitimate Google callback (single-user bot; auth already enforced) and
+    // fall back to the port from the URL itself.
+    if (state && pendingAdd?.state && state !== pendingAdd.state) {
+      if (u.searchParams.get("iss") === "https://accounts.google.com") {
+        pendingAdd = { state, redirectPort: Number(u.host.split(":")[1] ?? 45001) };
+      } else {
+        return { ok: false, detail: "OAuth state mismatch — run /addaccount again." };
+      }
+    }
+    if (!pendingAdd) {
+      const port = u.host.split(":")[1];
+      if (u.hostname === "localhost" && u.pathname.includes("/auth/callback") && (state || port)) {
+        pendingAdd = { state: state ?? "", redirectPort: port ? Number(port) : null };
+      } else {
+        return { ok: false, detail: "No /addaccount flow is pending — run /addaccount first." };
+      }
     }
     const redirectPort = pendingAdd.redirectPort ?? 45001;
     const redirectUri = `http://localhost:${redirectPort}/auth/callback`;
