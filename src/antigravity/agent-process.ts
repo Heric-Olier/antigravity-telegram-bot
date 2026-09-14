@@ -108,6 +108,9 @@ export function createAgySpawnCommand(options: AntigravityProcessOptions = {}): 
   }
   if (config.antigravity.yolo) {
     args.push("--dangerously-skip-permissions");
+  } else if (config.antigravity.mode) {
+    // Launch in the configured approval mode (default | accept-edits | plan)
+    args.push(`--mode=${config.antigravity.mode}`);
   }
 
   return { command: bin, args };

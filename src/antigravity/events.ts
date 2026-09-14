@@ -12,6 +12,7 @@ import {
 import { config } from "../config.js";
 import { getCurrentSession, promotePlaceholderSession, syncSessionToRuntimeId } from "../app/services/session-service.js";
 import { getConversationTitle } from "./session-store.js";
+import { getStoredModel } from "../app/services/model-selection-service.js";
 import { logger } from "../utils/logger.js";
 import { isRecord } from "../utils/type-guards.js";
 
@@ -390,6 +391,12 @@ export async function sendPromptToActiveProcess(text: string, directory: string)
   const current = getCurrentSession();
   if (current?.id.startsWith("agy-session-")) {
     spawnOptions.conversationId = current.id.slice("agy-session-".length);
+  }
+  // Pass the user-selected model so agy runs with it (otherwise agy falls
+  // back to its own stored model, which may mismatch the bot’s footer).
+  const stored = getStoredModel();
+  if (stored?.modelID) {
+    spawnOptions.model = stored.modelID;
   }
   const proc = spawnProcessForDirectory(directory, spawnOptions);
   await proc.sendPrompt(text);

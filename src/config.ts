@@ -187,6 +187,8 @@ export const config = {
     workspaceDir: getEnvVar("AGY_WORKSPACE_DIR", false) || "~/Documentos/PROYECTOS",
     // YOLO mode: run agy with --dangerously-skip-permissions.
     yolo: getOptionalBooleanEnvVar("AGY_YOLO", true),
+    // Optional agy launch approval mode when YOLO is off ("default" | "accept-edits" | "plan").
+    mode: getEnvVar("AGY_MODE", false) || "",
     // Value passed as --print-timeout=<value> (agy expects e.g. `600s`).
     printTimeout: getEnvVar("AGY_PRINT_TIMEOUT", false) || "600s",
     // Default model id when no model is selected via the /model menu.
