@@ -1,4 +1,5 @@
 import { spawn, execFile } from "node:child_process";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { config } from "../../config.js";
@@ -31,7 +32,12 @@ export interface SwitchHandle {
 export function startAccountSwitch(): Promise<SwitchHandle> {
   return new Promise((resolve) => {
     killLiveAgy(() => {
-      void execHelper("backup");
+      // backup is async by design: it needs the outfile path and must run
+      // BEFORE delete wipes the items (the switch flow never restores the
+      // old token anyway — it just snapshots it for safety).
+      const backupDir = path.join(os.homedir(), ".config", "antigravity-telegram-bot", "account-backups");
+      const backupFile = path.join(backupDir, `agy-backup-${Date.now()}.json`);
+      void execHelper("backup", backupFile);
       void execHelper("delete");
 
       const child = spawn("script", ["-qec", config.antigravity.bin, "/dev/null"], {
