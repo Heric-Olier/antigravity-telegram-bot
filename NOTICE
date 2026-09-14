@@ -1,0 +1,10 @@
+NOTICE
+
+This project is a fork of opencode-telegram-bot by Ruslan Grinev:
+https://github.com/grinev/opencode-telegram-bot
+
+The original OpenCode server/SDK integration (src/opencode) has been replaced
+with a driver for the Google Antigravity CLI (agy) stream-json wire protocol
+(src/antigravity). The Telegram layer (grammY setup, session/permission/
+question flows, scheduled tasks) derives from the original work by grinev,
+licensed under the MIT License. See the LICENSE file for both copyright lines.
