@@ -219,7 +219,9 @@ class KeyboardManager {
       // keyboard is applied — the keyboard never goes away.
       const api = this.api;
       const prevCarrier = this.carrierMessageId;
-      const probe = await this.api.sendMessage(targetChatId, "\u200B", {
+      // Braille blank char — Telegram rejects ZWSP-only messages as
+      // "text must be non-empty" (400), but accepts U+2800.
+      const probe = await this.api.sendMessage(targetChatId, "\u2800", {
         reply_markup: keyboard,
         link_preview_options: { is_disabled: true } as never,
         disable_notification: true,
