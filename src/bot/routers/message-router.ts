@@ -109,8 +109,8 @@ export function registerMessageRouter(bot: Bot<Context>, deps: MessageRouterDeps
 
   bot.hears(ACCOUNT_BUTTON_TEXT_PATTERN, async (ctx) => {
     logger.debug(`[Bot] Account button pressed`);
-    const switchMod = await import("../commands/switch-command.js");
-    await switchMod.switchCommand(ctx as never);
+    const { showAccountMenu } = await import("../menus/account-menu.js");
+    await showAccountMenu(ctx);
   });
 
   bot.hears(CONTEXT_BUTTON_TEXT_PATTERN, async (ctx) => {

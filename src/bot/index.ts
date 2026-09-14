@@ -71,7 +71,15 @@ function isTelegramApiErrorResponse(response: unknown): response is TelegramApiE
   );
 }
 
+import { registerAccountMenuHandlers } from "./menus/account-menu.js";
+
 export function createBot(localCommandRegistry = LocalCommandRegistry.empty()): Bot<Context> {
+  const bot = createBotSync(localCommandRegistry);
+  registerAccountMenuHandlers(bot);
+  return bot;
+}
+
+function createBotSync(localCommandRegistry = LocalCommandRegistry.empty()): Bot<Context> {
   clearAllInteractionState("bot_startup");
   attachManager.clear("bot_startup");
   eventSubscriptionService.clearRuntimeState("bot_startup");
@@ -192,6 +200,7 @@ export function createBot(localCommandRegistry = LocalCommandRegistry.empty()): 
     clearRuntimeState: (reason) => eventSubscriptionService.clearRuntimeState(reason),
     localCommandRegistry,
   });
+  registerAccountMenuHandlers(bot);
   registerCallbackRouter(bot, {
     ensureEventSubscription: eventSubscriptionService.ensureEventSubscription,
     setTelegramContext: eventSubscriptionService.setTelegramContext,
