@@ -158,10 +158,17 @@ class KeyboardManager {
       return createMainKeyboard("build", { providerID: "", modelID: "" }, undefined);
     }
     void fetchQuotaSnapshot().catch(() => {});
+    // If no session-level context exists yet, use the live agy-usage tracker
+    // so the button keeps its real number (never a dead "—").
+    let ctx = this.state.contextInfo ?? undefined;
+    if (!ctx) {
+      const tracked = getContextUsed();
+      ctx = { tokensUsed: tracked, tokensLimit: getContextLimit() };
+    }
     return createMainKeyboard(
       this.state.currentAgent,
       this.state.currentModel,
-      this.state.contextInfo ?? undefined,
+      ctx,
       this.state.variantName,
       getQueuedPromptButtonLabels(),
       getCachedQuotaBadge(),
