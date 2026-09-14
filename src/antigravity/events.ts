@@ -166,11 +166,63 @@ function textPartUpdated(text: string): { part: Record<string, unknown> } {
   };
 }
 
+// ── Step-stall watchdog ──────────────────────────────────────────────────────
+// Google's backend sometimes dribbles or parks a model step for many minutes
+// (same saturation that produces 503s). The user can't distinguish "working"
+// from "hung", so track the last step timestamp and surface an explicit idle
+// notice once the pause exceeds a threshold. Cleared on the next step and on
+// turn end. Purely informational — it never kills the process.
+const STEP_STALL_THRESHOLD_MS = 8 * 60_000;
+let lastStepAt = 0;
+let stallNotified = false;
+let stallTimer: NodeJS.Timeout | null = null;
+
+function noteStepActivity(_event: AgyStepEvent): void {
+  lastStepAt = Date.now();
+  if (stallNotified) {
+    stallNotified = false;
+    emitBotEvent("message.updated", {
+      info: {
+        id: shortId("msg", 0),
+        sessionID: currentSessionId,
+        role: "assistant",
+        time: { updated: Date.now() },
+      },
+    });
+  }
+}
+
+function startStallWatchdog(): void {
+  if (stallTimer) {
+    return;
+  }
+  stallTimer = setInterval(() => {
+    if (stallNotified || !lastStepAt) {
+      return;
+    }
+    if (Date.now() - lastStepAt >= STEP_STALL_THRESHOLD_MS) {
+      stallNotified = true;
+      const minutes = Math.round((Date.now() - lastStepAt) / 60_000);
+      logger.warn(`[AgyEvents] turn stalled: no step activity for ${minutes}m`);
+      emitBotEvent("message.updated", {
+        info: {
+          id: shortId("msg", 0),
+          sessionID: currentSessionId,
+          role: "assistant",
+          stallMinutes: minutes,
+          time: { updated: Date.now() },
+        },
+      });
+    }
+  }, 60_000);
+}
+
 // One step_update maps to one bot event. The user_input echo is ignored.
 function handleStep(event: AgyStepEvent): void {
   if (event.stepType === "user_input") {
     return;
   }
+  noteStepActivity(event);
 
   // Track real context size for the keyboard's context button (agy usage).
   noteStepUsage(event.usage as Parameters<typeof noteStepUsage>[0]);
@@ -306,6 +358,7 @@ let lastProcess: AntigravityProcess | null = null;
 
 function wireProcess(proc: AntigravityProcess): void {
   lastProcess = proc;
+  startStallWatchdog();
   proc.on("init", (event: AgyInitEvent) => {
     handleInit(event);
   });
