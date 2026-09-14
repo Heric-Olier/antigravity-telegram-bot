@@ -51,7 +51,7 @@ def do_restore(svc, infile):
                                    {"service": Secret.SchemaAttributeType.STRING, "username": Secret.SchemaAttributeType.STRING})
         Secret.password_store_sync(schema, rec.get("attrs", ATTRS), Secret.COLLECTION_DEFAULT,
                                    rec.get("label", "Password for 'antigravity' on 'gemini'"),
-                                   raw.decode("utf-8", "ignore"), None, None)
+                                   raw.decode("utf-8", "ignore"), None)
         n += 1
     print(json.dumps({"ok": True, "restored": n}))
 
