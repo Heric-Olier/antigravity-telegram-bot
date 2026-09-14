@@ -48,9 +48,7 @@ export function createMainKeyboard(
 ): Keyboard {
   const keyboard = new Keyboard();
   void variantName;
-    void currentAgent;
-
-  // Format model with compact provider/model text and icon
+    // Format model with compact provider/model text and icon
   const modelText = formatModelForButton(currentModel.providerID, currentModel.modelID);
 
   // Context button: REAL agy usage numbers (context-usage tracker).
@@ -58,23 +56,25 @@ export function createMainKeyboard(
     ? formatContextForButton(contextInfo)
     : t("keyboard.context_empty");
 
-  // Quota slot: NO bulb icon — the badge (with remaining times) IS the label.
-  // Tapping routes to /usage (message-router variant/quota pattern).
+  // Quota slot: NO bulb icon — badge (con tiempos) IS the label → /usage.
   const quotaText = quotaBadge || t("keyboard.variant_default");
 
-  // Account slot (was Build Agent): active Google account email, owning the
-  // /switch flow. Email may be long -> Telegram wraps it on the button.
+  // Agent selection comes back to its own button (menu opens the agent list).
+  const agentText = getAgentButtonLabel(currentAgent);
+
+  // Long bottom button: FULL active account (icon + complete email) → /switch.
   const email = activeAccountEmail();
-  const accountText = email ? `🔁 ${email}` : "🔁 Cambiar cuenta";
+  const accountText = email ? `🔁 Cambiar de cuenta · ${email}` : "🔁 Cambiar de cuenta";
 
   // Queued prompts sit above the fixed grid, one per row
   for (const label of queuedPromptLabels) {
     keyboard.text(label).row();
   }
 
-  // Row 1: account switch + quota · Row 2: model + context
-  keyboard.text(accountText).text(quotaText).row();
-  keyboard.text(modelText).text(contextText).row();
+  // Rows: [model, quota] / [agent, context] / LONG: account (full email)
+  keyboard.text(modelText).text(quotaText).row();
+  keyboard.text(agentText).text(contextText).row();
+  keyboard.text(accountText).row();
 
   return keyboard.resized().persistent();
 }

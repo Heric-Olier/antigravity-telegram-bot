@@ -26,10 +26,11 @@ describe("bot/keyboards/main-reply-keyboard", () => {
       modelID: "openai/gpt-4o",
     });
 
-    expect(buttonTextAt(keyboard, 0, 0)).toMatch(/^🔁 /);
+    expect(buttonTextAt(keyboard, 0, 0)).toBe("🧠 openrouter\nopenai/gpt-4o");
     expect(buttonTextAt(keyboard, 0, 1)).toBe(t("keyboard.variant_default"));
-    expect(buttonTextAt(keyboard, 1, 0)).toBe("🧠 openrouter\nopenai/gpt-4o");
+    expect(buttonTextAt(keyboard, 1, 0)).toBe("🛠️ Build Agent");
     expect(buttonTextAt(keyboard, 1, 1)).toBe(t("keyboard.context_empty"));
+    expect(buttonTextAt(keyboard, 2, 0)).toMatch(/^🔁 Cambiar de cuenta/);
     expect(keyboard.resize_keyboard).toBe(true);
     expect(keyboard.is_persistent).toBe(true);
   });
@@ -37,23 +38,16 @@ describe("bot/keyboards/main-reply-keyboard", () => {
   it("creates main keyboard with context info and custom variant", () => {
     const keyboard = createMainKeyboard(
       "plan",
-      {
-        providerID: "provider",
-        modelID: "model",
-      },
-      {
-        tokensUsed: 150000,
-        tokensLimit: 1500000,
-      },
+      { providerID: "provider", modelID: "model" },
+      { tokensUsed: 150000, tokensLimit: 1500000 },
       "⚡ Fast",
     );
 
-    // Row1: [account, quota] · Row2: [model, context]
+    expect(buttonTextAt(keyboard, 0, 0)).toBe("🧠 provider\nmodel");
+    expect(buttonTextAt(keyboard, 1, 0)).toBe("📋 Plan Agent");
     expect(buttonTextAt(keyboard, 1, 1)).toBe("📊 150K / 1.5M (10%)");
-    expect(buttonTextAt(keyboard, 1, 0)).toBe("🧠 provider\nmodel");
-    expect(keyboard.keyboard[0]).toHaveLength(2);
-  });
-  it("keeps the fixed 2x2 grid when no prompt is queued", () => {
+    expect(buttonTextAt(keyboard, 2, 0)).toMatch(/^🔁 Cambiar de cuenta/);
+  });  it("keeps the fixed 2x2 grid when no prompt is queued", () => {
     const keyboard = createMainKeyboard(
       "build",
       { providerID: "openrouter", modelID: "openai/gpt-4o" },
@@ -62,7 +56,7 @@ describe("bot/keyboards/main-reply-keyboard", () => {
       [],
     );
 
-    expect(keyboard.keyboard.filter((row) => row.length > 0)).toHaveLength(2);
+    expect(keyboard.keyboard.filter((row) => row.length > 0)).toHaveLength(3);
   });
 
   it("puts queued prompt rows above the fixed grid", () => {
@@ -76,9 +70,10 @@ describe("bot/keyboards/main-reply-keyboard", () => {
 
     expect(buttonTextAt(keyboard, 0, 0)).toBe("❌ 1. first");
     expect(buttonTextAt(keyboard, 1, 0)).toBe("❌ 2. second");
-    expect(buttonTextAt(keyboard, 2, 0)).toMatch(/^🔁 /);
-    expect(buttonTextAt(keyboard, 3, 0)).toBe("🧠 openrouter\nopenai/gpt-4o");
+    expect(buttonTextAt(keyboard, 2, 0)).toBe("🧠 openrouter\nopenai/gpt-4o");
+    expect(buttonTextAt(keyboard, 3, 0)).toBe("🛠️ Build Agent");
     expect(buttonTextAt(keyboard, 3, 1)).toBe(t("keyboard.context_empty"));
+    expect(buttonTextAt(keyboard, 4, 0)).toMatch(/🔁 Cambiar de cuenta/);
   });
   it("creates custom agent keyboard and remove payload", () => {
     const keyboard = createAgentKeyboard("custom");
