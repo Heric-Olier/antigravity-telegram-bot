@@ -79,6 +79,8 @@ export const en = {
   "bot.create_session_error":
     "🔴 Failed to create session. Try /new or check server status with /status.",
   "bot.session_created": "✅ Session created: {title}",
+  "bot.prompt_taken_in_flight":
+    "⚡ Your message was taken in-flight into the running turn; you'll see its answer in the same conversation, nothing interrupted.",
   "bot.interrupted_for_new_prompt":
     "⚡ Interrupted the previous task. Your message goes first; the other one stays in its conversation — resume with /sessions.",
   "bot.session_busy":

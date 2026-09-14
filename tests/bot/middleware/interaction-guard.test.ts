@@ -19,6 +19,11 @@ const mocked = vi.hoisted(() => ({
 }));
 
 const abortCurrentOperationMock = vi.hoisted(() => vi.fn());
+const sendPromptMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+vi.mock("../../../src/antigravity/events.js", async (importOriginal) => {
+  const actual = await importOriginal();
+  return { ...actual, sendPromptToActiveProcess: sendPromptMock };
+});
 beforeEach(() => { abortCurrentOperationMock.mockResolvedValue(undefined); });
 vi.mock("../../../src/bot/commands/abort-command.js", () => ({ abortCurrentOperation: abortCurrentOperationMock }));
 vi.mock("../../../src/app/services/run-control-service.js", async (importOriginal) => {
@@ -537,7 +542,7 @@ describe("interactionGuardMiddleware", () => {
 
     await interactionGuardMiddleware(ctx, next);
 
-    expect(abortCurrentOperationMock).toHaveBeenCalledWith(ctx);
-    expect(next).toHaveBeenCalledTimes(1);
-    expect(ctx.reply).toHaveBeenCalledWith(t("bot.interrupted_for_new_prompt"));
+    expect(sendPromptMock).toHaveBeenCalled();
+    expect(next).not.toHaveBeenCalled();
+    expect(ctx.reply).toHaveBeenCalledWith(t("bot.prompt_taken_in_flight"));
   });});

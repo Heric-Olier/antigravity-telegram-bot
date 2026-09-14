@@ -88,6 +88,8 @@ export const ko: I18nDictionary = {
   "bot.create_session_error":
     "🔴 세션 생성에 실패했습니다. /new를 다시 시도하거나 /status로 서버 상태를 확인해 주세요.",
   "bot.session_created": "✅ 세션이 생성되었습니다: {title}",
+  "bot.prompt_taken_in_flight":
+    "⚡ Tu mensaje entró en caliente al turno en curso; verás su respuesta en la misma conversación sin interrumpir nada.",
   "bot.interrupted_for_new_prompt":
     "⚡ Interrumpí la tarea anterior. Tu mensaje va primero; lo otro queda en la conversación y lo retomas con /sessions.",
   "bot.session_busy":

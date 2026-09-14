@@ -1,5 +1,6 @@
 import type { Context, NextFunction } from "grammy";
-import { abortCurrentOperation } from "../commands/abort-command.js";
+import { config } from "../../config.js";
+import { sendPromptToActiveProcess } from "../../antigravity/events.js";
 import { resolveInteractionGuardDecision } from "./interaction-guard-decision.js";
 import type { BlockReason, InteractionKind } from "../../app/types/interaction.js";
 import { getPromptQueueEnabled } from "../../app/stores/settings-store.js";
@@ -148,10 +149,12 @@ export async function interactionGuardMiddleware(
     getPromptQueueEnabled()
   ) {
     try {
-      await abortCurrentOperation(ctx);
-      await ctx.reply(t("bot.interrupted_for_new_prompt"));
-      await next();
-      return;
+      const text = incomingPrompt.text.trim();
+      if (text) {
+        await sendPromptToActiveProcess(text, config.antigravity.workspaceDir);
+        await ctx.reply(t("bot.prompt_taken_in_flight"));
+        return; // processed: do not hit the normal prompt flow again
+      }
     } catch {
       // Could not interrupt (no active agy turn in tests): fall through to
       // the normal queueing/blocked paths below.

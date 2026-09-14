@@ -78,6 +78,8 @@ export const ru: I18nDictionary = {
   "bot.create_session_error":
     "🔴 Не удалось создать сессию. Попробуйте команду /new или проверьте статус сервера /status.",
   "bot.session_created": "✅ Сессия создана: {title}",
+  "bot.prompt_taken_in_flight":
+    "⚡ Tu mensaje entró en caliente al turno en curso; verás su respuesta en la misma conversación sin interrumpir nada.",
   "bot.interrupted_for_new_prompt":
     "⚡ Interrumpí la tarea anterior. Tu mensaje va primero; lo otro queda en la conversación y lo retomas con /sessions.",
   "bot.session_busy":

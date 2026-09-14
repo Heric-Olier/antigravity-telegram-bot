@@ -72,6 +72,8 @@ export const zh: I18nDictionary = {
   "bot.creating_session": "🔄 正在创建新会话...",
   "bot.create_session_error": "🔴 创建会话失败。请重试 /new，或使用 /status 检查服务器状态。",
   "bot.session_created": "✅ 会话已创建：{title}",
+  "bot.prompt_taken_in_flight":
+    "⚡ Tu mensaje entró en caliente al turno en curso; verás su respuesta en la misma conversación sin interrumpir nada.",
   "bot.interrupted_for_new_prompt":
     "⚡ Interrumpí la tarea anterior. Tu mensaje va primero; lo otro queda en la conversación y lo retomas con /sessions.",
   "bot.session_busy": "⏳ 代理正在执行任务。请等待完成，或使用 /abort 中断当前运行。",

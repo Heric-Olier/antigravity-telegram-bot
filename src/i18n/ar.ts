@@ -82,6 +82,8 @@ export const ar: I18nDictionary = {
   "bot.create_session_error":
     "🔴 تعذر بدء جلسة جديدة. جرّب /new أو افحص حالة الخادم باستخدام /status.",
   "bot.session_created": "✅ تم إنشاء الجلسة: {title}",
+  "bot.prompt_taken_in_flight":
+    "⚡ Tu mensaje entró en caliente al turno en curso; verás su respuesta en la misma conversación sin interrumpir nada.",
   "bot.interrupted_for_new_prompt":
     "⚡ Interrumpí la tarea anterior. Tu mensaje va primero; lo otro queda en la conversación y lo retomas con /sessions.",
   "bot.session_busy":

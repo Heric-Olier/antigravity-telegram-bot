@@ -48,8 +48,9 @@ export async function usageCommand(ctx: CommandContext<Context>): Promise<void> 
                 ? "▮".repeat(Math.round(pct / 10)) + "▯".repeat(10 - Math.round(pct / 10))
                 : pctRaw;
             const icon = pct >= 80 ? "🟢" : pct >= 40 ? "🟡" : "🔴";
-            const reset = parts[3] ? `\n   ⏱ reset: ${parts[3]}` : "";
-            return `${icon} ${bucket} — ${kind}: ${pctRaw}\n   ${bar}${reset}`;
+            const reset = parts[3] ? `\n   ⏱ reset: ${humanizeReset(parts[3], pct)}` : "";
+            const empty = pct === 0 ? " ⛔ AGOTADO" : "";
+            return `${icon} ${bucket} — ${kind}: ${pctRaw}${empty}\n   ${bar}${reset}`;
           })
           .filter(Boolean)
           .join("\n\n");
@@ -62,4 +63,20 @@ export async function usageCommand(ctx: CommandContext<Context>): Promise<void> 
 
 function stderrText(localStdout: string): string {
   return localStdout || t("usage.error");
+}
+
+/** ISO timestamp → "en 1 h 45 min"; cuando la cuota está agotada, resalta la hora local. */
+function humanizeReset(iso: string, pct: number): string {
+  const target = Date.parse(iso);
+  if (!Number.isFinite(target)) return iso;
+  const mins = Math.max(0, Math.round((target - Date.now()) / 60_000));
+  const h = Math.floor(mins / 60);
+  const rest = mins % 60;
+  const rel = h > 0 ? `en ${h} h ${rest} min` : `en ${rest} min`;
+  if (pct > 0) return `${rel} (${iso.replace("T", " ").replace("Z", " UTC")})`;
+  const local = new Date(target).toLocaleTimeString("es-CO", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  return `${rel} → listo a las ${local} (hora Colombia)`;
 }
