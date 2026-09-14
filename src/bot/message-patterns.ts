@@ -4,7 +4,7 @@ export const MODEL_BUTTON_TEXT_PATTERN = /^🧠\s(?!.*\s(?:Mode|Agent)$)[\s\S]+$
 
 // Keep support for both legacy "💭" and current "💡" prefix.
 // Quota badge button (🟢/🟡/🔴 + "5h"/"sem") — routes to /usage.
-export const VARIANT_BUTTON_TEXT_PATTERN = /^(?:💡|💭|[🟢🟡🔴])\s?.+$/;
+export const VARIANT_BUTTON_TEXT_PATTERN = /^(?:💡|💭|[🟢🟡🔴])\s?[\s\S]+$/;
 export const ACCOUNT_BUTTON_TEXT_PATTERN = /^🔁\s([\s\S]+)$/;
 
 export const CONTEXT_BUTTON_TEXT_PATTERN = /^(?:📊|[🟢🟡🔴]sem )(?:(?:.|\n)*)$/;
