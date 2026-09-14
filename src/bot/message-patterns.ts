@@ -5,7 +5,7 @@ export const MODEL_BUTTON_TEXT_PATTERN = /^🧠\s(?!.*\s(?:Mode|Agent)$)[\s\S]+$
 // Keep support for both legacy "💭" and current "💡" prefix.
 export const VARIANT_BUTTON_TEXT_PATTERN = /^(💡|💭)\s.+$/;
 
-export const CONTEXT_BUTTON_TEXT_PATTERN = /^📊(?:\s|$)/;
+export const CONTEXT_BUTTON_TEXT_PATTERN = /^(?:📊|[🟢🟡🔴]sem )(?:(?:.|\n)*)$/;
 
 export const QUEUED_PROMPT_BUTTON_TEXT_PATTERN = /^❌\s\d+\.\s/;
 

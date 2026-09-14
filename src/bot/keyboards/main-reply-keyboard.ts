@@ -58,24 +58,20 @@ export function createMainKeyboard(
     contextText = `${quotaBadge ? `${quotaBadge} · ` : ""}${formatContextForButton(contextInfo)}`;
   }
 
-  // Variant text - default to "💭 Default"; when real context usage is known,
-  // ride it on this button so both window slots carry live info.
-  const variantBase = variantName || t("keyboard.variant_default");
-  const variantText =
-    contextInfo && contextInfo.tokensUsed > 0
-      ? `${variantBase} · 📊 ${Math.round((contextInfo.tokensUsed / contextInfo.tokensLimit) * 100)}%`
-      : variantBase;
+  // Variant is gone from the footer (user request); the slot shows the real
+  // context usage instead. Variant stays reachable via /settings.
+  void variantName;
 
   // Queued prompts sit above the fixed grid, one per row
   for (const label of queuedPromptLabels) {
     keyboard.text(label).row();
   }
 
-  // Row 1: agent and context buttons
-  keyboard.text(agentText).text(contextText).row();
+  // Row 1: agent and quota/context buttons
+  keyboard.text(agentText).text(contextText || t("keyboard.context_empty")).row();
 
-  // Row 2: model and variant buttons
-  keyboard.text(modelText).text(variantText).row();
+  // Row 2: model alone (footer variant button removed per user request)
+  keyboard.text(modelText).row();
 
   return keyboard.resized().persistent();
 }

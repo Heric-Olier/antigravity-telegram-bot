@@ -39,8 +39,8 @@ describe("bot/message-patterns", () => {
       modelID: "openai/gpt-4o",
     });
 
-    const variantButtonText = getButtonText(defined(keyboard.keyboard[1]?.[1]));
-    expect(variantButtonText).toMatch(VARIANT_BUTTON_TEXT_PATTERN);
+    // The footer variant button is gone; the pattern only carries legacy text.
+    expect("💡 Default").toMatch(VARIANT_BUTTON_TEXT_PATTERN);
     expect("💭 Default").toMatch(VARIANT_BUTTON_TEXT_PATTERN);
   });
 
@@ -84,7 +84,6 @@ describe("bot/message-patterns", () => {
     expect(isReplyKeyboardButtonText(getButtonText(defined(keyboard.keyboard[0]?.[0])))).toBe(true);
     expect(isReplyKeyboardButtonText(getButtonText(defined(keyboard.keyboard[0]?.[1])))).toBe(true);
     expect(isReplyKeyboardButtonText(getButtonText(defined(keyboard.keyboard[1]?.[0])))).toBe(true);
-    expect(isReplyKeyboardButtonText(getButtonText(defined(keyboard.keyboard[1]?.[1])))).toBe(true);
     expect(isReplyKeyboardButtonText(formatQueuedPromptButtonLabel(1, "queued"))).toBe(true);
     expect(isReplyKeyboardButtonText("Create a migration plan")).toBe(false);
   });

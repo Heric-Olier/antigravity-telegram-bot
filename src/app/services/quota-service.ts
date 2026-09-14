@@ -55,7 +55,10 @@ export function parseUsage(stdout: string): QuotaBucket[] {
 export function quotaBadgeLine(buckets: QuotaBucket[]): string {
   const gemini = buckets.filter((b) => b.bucket.startsWith("Gemini"));
   if (gemini.length === 0) return "";
-  return gemini
+  const five = gemini.find((b) => b.kind.includes("Five Hour"));
+  const weekly = gemini.find((b) => b.kind.includes("Weekly"));
+  const ordered = [five, weekly].filter(Boolean) as typeof gemini;
+  return ordered
     .map((b) => {
       const label = b.kind.includes("Five Hour") ? "5h" : "sem";
       const icon = b.pct >= 80 ? "🟢" : b.pct >= 40 ? "🟡" : "🔴";

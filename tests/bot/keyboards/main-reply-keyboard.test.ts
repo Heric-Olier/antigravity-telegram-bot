@@ -1,3 +1,4 @@
+import { t } from "../../../src/i18n/index.js";
 import { describe, expect, it } from "vitest";
 import {
   createAgentKeyboard,
@@ -26,9 +27,8 @@ describe("bot/keyboards/main-reply-keyboard", () => {
     });
 
     expect(buttonTextAt(keyboard, 0, 0)).toBe("🛠️ Build Agent");
-    expect(buttonTextAt(keyboard, 0, 1)).toBe("📊 0");
+    expect(buttonTextAt(keyboard, 0, 1)).toBe(t("keyboard.context_empty"));
     expect(buttonTextAt(keyboard, 1, 0)).toBe("🧠 openrouter\nopenai/gpt-4o");
-    expect(buttonTextAt(keyboard, 1, 1)).toBe("💡 Default");
     expect(keyboard.resize_keyboard).toBe(true);
     expect(keyboard.is_persistent).toBe(true);
   });
@@ -49,7 +49,7 @@ describe("bot/keyboards/main-reply-keyboard", () => {
 
     expect(buttonTextAt(keyboard, 0, 0)).toBe("📋 Plan Agent");
     expect(buttonTextAt(keyboard, 0, 1)).toBe("📊 150K / 1.5M (10%)");
-    expect(buttonTextAt(keyboard, 1, 1)).toBe("⚡ Fast · 📊 10%");
+    expect(keyboard.keyboard[1]).toHaveLength(1);
   });
 
   it("keeps the fixed 2x2 grid when no prompt is queued", () => {
@@ -76,9 +76,8 @@ describe("bot/keyboards/main-reply-keyboard", () => {
     expect(buttonTextAt(keyboard, 0, 0)).toBe("❌ 1. first");
     expect(buttonTextAt(keyboard, 1, 0)).toBe("❌ 2. second");
     expect(buttonTextAt(keyboard, 2, 0)).toBe("🛠️ Build Agent");
-    expect(buttonTextAt(keyboard, 2, 1)).toBe("📊 0");
+    expect(buttonTextAt(keyboard, 2, 1)).toBe(t("keyboard.context_empty"));
     expect(buttonTextAt(keyboard, 3, 0)).toBe("🧠 openrouter\nopenai/gpt-4o");
-    expect(buttonTextAt(keyboard, 3, 1)).toBe("💡 Default");
   });
 
   it("creates custom agent keyboard and remove payload", () => {
