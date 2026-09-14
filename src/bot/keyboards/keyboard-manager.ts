@@ -1,5 +1,6 @@
 import type { Api } from "grammy";
 import { createMainKeyboard } from "./main-reply-keyboard.js";
+import { fetchQuotaSnapshot, getCachedQuotaBadge } from "../../app/services/quota-service.js";
 import { getQueuedPromptButtonLabels } from "./queued-prompt-button.js";
 import { getStoredAgent } from "../../app/services/agent-selection-service.js";
 import { getStoredModel } from "../../app/services/model-selection-service.js";
@@ -14,6 +15,7 @@ import { t } from "../../i18n/index.js";
  * Singleton pattern
  */
 class KeyboardManager {
+  private lastBadge: string = "";
   private state: KeyboardState | null = null;
 
   private api: Api | null = null;
@@ -25,9 +27,24 @@ class KeyboardManager {
    * Initialize the keyboard manager with Telegram API and chat ID
    * Loads initial state from settings/config
    */
+  private quotaRefreshTimer: ReturnType<typeof setInterval> | null = null;
+
   public initialize(api: Api, chatId: number): void {
     this.api = api;
     this.chatId = chatId;
+    if (!this.quotaRefreshTimer) {
+      // Refresh the quota badge on the persistent keyboard once per minute.
+      this.quotaRefreshTimer = setInterval(() => {
+        void fetchQuotaSnapshot().then(() => {
+          const before = this.lastBadge;
+          this.lastBadge = getCachedQuotaBadge();
+          if (this.lastBadge && this.lastBadge !== before && this.chatId) {
+            void this.sendKeyboardUpdate();
+          }
+        }).catch(() => {});
+      }, 60_000);
+      void fetchQuotaSnapshot().catch(() => {});
+    }
 
     // Initialize state from settings/config on first call
     if (!this.state) {
@@ -125,12 +142,14 @@ class KeyboardManager {
       // Return a minimal keyboard as fallback
       return createMainKeyboard("build", { providerID: "", modelID: "" }, undefined);
     }
+    void fetchQuotaSnapshot().catch(() => {});
     return createMainKeyboard(
       this.state.currentAgent,
       this.state.currentModel,
       this.state.contextInfo ?? undefined,
       this.state.variantName,
       getQueuedPromptButtonLabels(),
+      getCachedQuotaBadge(),
     );
   }
 

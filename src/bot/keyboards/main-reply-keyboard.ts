@@ -43,6 +43,7 @@ export function createMainKeyboard(
   contextInfo?: ContextInfo,
   variantName?: string,
   queuedPromptLabels: string[] = [],
+  quotaBadge = "",
 ): Keyboard {
   const keyboard = new Keyboard();
   const agentText = getAgentButtonLabel(currentAgent);
@@ -50,10 +51,12 @@ export function createMainKeyboard(
   // Format model with compact provider/model text and icon
   const modelText = formatModelForButton(currentModel.providerID, currentModel.modelID);
 
-  // Context text - show "0" if no data available
-  const contextText = contextInfo
+  // Context button: session context + live Google account quota badge
+  // (5h + weekly %, CLI /usage internals → zero model usage, 60s cached).
+  const ctxText = contextInfo
     ? formatContextForButton(contextInfo)
     : t("keyboard.context_empty");
+  const contextText = quotaBadge ? `${ctxText} · ${quotaBadge}` : ctxText;
 
   // Variant text - default to "💭 Default" if not provided
   const variantText = variantName || t("keyboard.variant_default");

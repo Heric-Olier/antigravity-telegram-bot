@@ -62,3 +62,9 @@ export function quotaBadgeLine(buckets: QuotaBucket[]): string {
     })
     .join(" · ");
 }
+
+/** Sync read of the last cached badge ("" if never fetched). The keyboard
+ * manager calls this — a 60s-stale badge is fine for a footer button. */
+export function getCachedQuotaBadge(): string {
+  return cache ? quotaBadgeLine(cache.buckets) : "";
+}
