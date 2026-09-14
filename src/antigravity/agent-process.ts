@@ -237,9 +237,9 @@ export class AntigravityProcess extends EventEmitter {
           reject(error);
           return;
         }
-        // agy treats one stream-json user event per prompt turn; closing stdin
-        // after writing was verified working in the spike (agent.py).
-        child.stdin!.end();
+        // Keep the pipe OPEN: agy runs one turn per stream-json user event,
+        // and a follow-up prompt (hot takeover) must be writable into the
+        // SAME process. Closing stdin here kills follow-ups.
         resolve();
       });
     });
