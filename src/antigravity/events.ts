@@ -91,7 +91,15 @@ function handleInit(event: AgyInitEvent): void {
 function toolPartFromStep(step: AgyStepEvent): ToolPart {
   const input = (step.toolInfo?.parameters ?? {}) as Record<string, unknown>;
   const now = Date.now();
-  const toolName = step.toolName ?? step.toolInfo?.name ?? "tool";
+  const subagents = step.subagentInfo?.subagents ?? [];
+  const subagentSuffix =
+    subagents.length > 0
+      ? ` (${subagents.length} subagente${subagents.length === 1 ? "" : "s"}: ${subagents
+          .map((s) => s.role || s.type_name || "?")
+          .slice(0, 4)
+          .join(", ")}${subagents.length > 4 ? ", …" : ""})`
+      : "";
+  const toolName = `${step.toolName ?? step.toolInfo?.name ?? "tool"}${subagentSuffix}`;
   const messageId = shortId("msg", 0);
 
   let state: ToolState;
@@ -201,7 +209,14 @@ function handleResult(event: AgyResultEvent): void {
   });
 
   if (event.status === "ERROR") {
-    const errorMessage = finalText || "Unknown agy error";
+    // Prefer the real error text from the envelope's `error` field; the
+    // `response` may still carry the nicety text agy emitted before failing.
+    const errorMessage = event.error || finalText || "Unknown agy error";
+    const stderrTail = lastProcess?.getStderrTail() ?? "";
+    logger.error(
+      `[AgyEvents] turn failed: ${errorMessage}` +
+        (stderrTail ? `\nstderr tail:\n${stderrTail.slice(-800)}` : ""),
+    );
     emitBotEvent("session.error", {
       sessionID: currentSessionId,
       error: { name: "AntigravityError", message: errorMessage },
@@ -231,7 +246,10 @@ function handleResult(event: AgyResultEvent): void {
   emitBotEvent("session.idle", { sessionID: currentSessionId });
 }
 
+let lastProcess: AntigravityProcess | null = null;
+
 function wireProcess(proc: AntigravityProcess): void {
+  lastProcess = proc;
   proc.on("init", (event: AgyInitEvent) => {
     handleInit(event);
   });

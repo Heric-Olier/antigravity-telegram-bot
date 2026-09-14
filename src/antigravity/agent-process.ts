@@ -31,6 +31,16 @@ export interface AgyStepEvent {
   stepType?: "user_input" | "agent_response" | "tool" | undefined;
   textDelta?: string | undefined;
   toolName?: string | undefined;
+  subagentInfo?:
+    | {
+        subagents?: Array<{
+          type_name?: string | undefined;
+          role?: string | undefined;
+          conversation_id?: string | undefined;
+          status?: string | undefined;
+        }>;
+      }
+    | undefined;
   toolInfo?:
     | {
         name?: string;
@@ -46,6 +56,7 @@ export interface AgyResultEvent {
   kind: "result";
   status: "SUCCESS" | "ERROR";
   response?: string;
+  error?: string;
   durationSeconds?: number;
   numTurns?: number;
   usage?: AgyUsage;
@@ -322,6 +333,7 @@ export function mapRawMessage(message: unknown): AgyEvent | null {
       text_delta?: unknown;
       tool_name?: unknown;
       tool_info?: unknown;
+      subagent_info?: unknown;
       usage?: unknown;
     };
     if (step.state !== "ACTIVE" && step.state !== "DONE" && step.state !== "ERROR") {
@@ -339,6 +351,9 @@ export function mapRawMessage(message: unknown): AgyEvent | null {
       ...(typeof step.text_delta === "string" ? { textDelta: step.text_delta } : {}),
       ...(typeof step.tool_name === "string" ? { toolName: step.tool_name } : {}),
       ...(isRecord(step.tool_info) ? { toolInfo: step.tool_info as AgyStepEvent["toolInfo"] } : {}),
+      ...(isRecord(step.subagent_info)
+        ? { subagentInfo: step.subagent_info as AgyStepEvent["subagentInfo"] }
+        : {}),
       ...(isRecord(step.usage) ? { usage: step.usage as AgyUsage } : {}),
     };
     return stepEvent;
@@ -348,6 +363,7 @@ export function mapRawMessage(message: unknown): AgyEvent | null {
     const result = raw.result as {
       status?: unknown;
       response?: unknown;
+      error?: unknown;
       duration_seconds?: unknown;
       num_turns?: unknown;
       usage?: unknown;
@@ -360,6 +376,7 @@ export function mapRawMessage(message: unknown): AgyEvent | null {
       kind: "result",
       status: result.status,
       ...(typeof result.response === "string" ? { response: result.response } : {}),
+      ...(typeof result.error === "string" && result.error ? { error: result.error } : {}),
       ...(typeof result.duration_seconds === "number" ? { durationSeconds: result.duration_seconds } : {}),
       ...(typeof result.num_turns === "number" ? { numTurns: result.num_turns } : {}),
       ...(isRecord(result.usage) ? { usage: result.usage as AgyUsage } : {}),
