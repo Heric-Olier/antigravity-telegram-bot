@@ -59,7 +59,9 @@ export function parseUsage(stdout: string): QuotaBucket[] {
     .filter((b) => Boolean(b.bucket) && Boolean(b.kind));
 }
 
-/** Compact one-line badge for menus: "🟢5h 82% · 🟡semana 41%" (worst first). */
+/** Badge for the quota keyboard button: "5h" line on top, "weekly" below
+ * (Telegram reply-keyboard buttons render "\n" as a line break):
+ * "🟢 5h 82% (1h05)\n🟡 Weekly 41% (3d4h)". */
 export function quotaBadgeLine(buckets: QuotaBucket[]): string {
   const gemini = buckets.filter((b) => b.bucket.startsWith("Gemini"));
   if (gemini.length === 0) return "";
@@ -67,17 +69,19 @@ export function quotaBadgeLine(buckets: QuotaBucket[]): string {
   const weekly = gemini.find((b) => b.kind.includes("Weekly"));
   const ordered = [five, weekly].filter(Boolean) as typeof gemini;
   return ordered
-    .map((b) => {
-      const label = b.kind.includes("Five Hour") ? "5h" : "sem";
+    .map((b, index) => {
+      const label = b.kind.includes("Five Hour") ? "5h" : "Weekly";
       const icon = b.pct >= 80 ? "🟢" : b.pct >= 40 ? "🟡" : "🔴";
-      // "falta": compact relative time (e.g. "1h05" / "3d04h"), wrapped in
-      // parentheses so both pct AND remaining time fit the button.
+      // Compact relative time (e.g. "1h05" / "3d04h") so both pct AND
+      // remaining time fit the button.
       const left = b.resetIso
         ? shortLeft(Math.max(0, Math.floor((Date.parse(b.resetIso) - Date.now()) / 60_000)))
         : shortLeft(b.minutesLeft);
-      return `${icon}${label} ${b.pct}%${left ? ` (${left})` : ""}`;
+      const line = `${icon} ${label} ${b.pct}%${left ? ` (${left})` : ""}`;
+      // Weekly rides the second line of the button.
+      return index === 1 ? `\n${line}` : line;
     })
-    .join(" ");
+    .join("");
 }
 
 /** Sync read of the last cached badge ("" if never fetched). The keyboard

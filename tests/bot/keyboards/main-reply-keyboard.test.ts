@@ -26,11 +26,11 @@ describe("bot/keyboards/main-reply-keyboard", () => {
       modelID: "openai/gpt-4o",
     });
 
-    expect(buttonTextAt(keyboard, 0, 0)).toBe("🧠 openrouter\nopenai/gpt-4o");
+    expect(buttonTextAt(keyboard, 0, 0)).toBe("🧠 openai/gpt-4o · openrouter");
     expect(buttonTextAt(keyboard, 0, 1)).toBe(t("keyboard.variant_default"));
     expect(buttonTextAt(keyboard, 1, 0)).toBe("🛠️ Build Agent");
     expect(buttonTextAt(keyboard, 1, 1)).toBe(t("keyboard.context_empty"));
-    expect(buttonTextAt(keyboard, 2, 0)).toMatch(/^🔁 Cambiar de cuenta/);
+    expect(buttonTextAt(keyboard, 2, 0)).toMatch(/^🔁 Switch account/);
     expect(keyboard.resize_keyboard).toBe(true);
     expect(keyboard.is_persistent).toBe(true);
   });
@@ -43,10 +43,10 @@ describe("bot/keyboards/main-reply-keyboard", () => {
       "⚡ Fast",
     );
 
-    expect(buttonTextAt(keyboard, 0, 0)).toBe("🧠 provider\nmodel");
+    expect(buttonTextAt(keyboard, 0, 0)).toBe("🧠 model · provider");
     expect(buttonTextAt(keyboard, 1, 0)).toBe("📋 Plan Agent");
     expect(buttonTextAt(keyboard, 1, 1)).toBe("📊 150K / 1.5M (10%)");
-    expect(buttonTextAt(keyboard, 2, 0)).toMatch(/^🔁 Cambiar de cuenta/);
+    expect(buttonTextAt(keyboard, 2, 0)).toMatch(/^🔁 Switch account/);
   });  it("keeps the fixed 2x2 grid when no prompt is queued", () => {
     const keyboard = createMainKeyboard(
       "build",
@@ -70,10 +70,10 @@ describe("bot/keyboards/main-reply-keyboard", () => {
 
     expect(buttonTextAt(keyboard, 0, 0)).toBe("❌ 1. first");
     expect(buttonTextAt(keyboard, 1, 0)).toBe("❌ 2. second");
-    expect(buttonTextAt(keyboard, 2, 0)).toBe("🧠 openrouter\nopenai/gpt-4o");
+    expect(buttonTextAt(keyboard, 2, 0)).toBe("🧠 openai/gpt-4o · openrouter");
     expect(buttonTextAt(keyboard, 3, 0)).toBe("🛠️ Build Agent");
     expect(buttonTextAt(keyboard, 3, 1)).toBe(t("keyboard.context_empty"));
-    expect(buttonTextAt(keyboard, 4, 0)).toMatch(/🔁 Cambiar de cuenta/);
+    expect(buttonTextAt(keyboard, 4, 0)).toMatch(/🔁 Switch account/);
   });
   it("creates custom agent keyboard and remove payload", () => {
     const keyboard = createAgentKeyboard("custom");

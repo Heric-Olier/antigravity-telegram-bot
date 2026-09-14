@@ -6,6 +6,8 @@
 
 A Telegram bot that acts as a mobile client for the [Google Antigravity CLI](https://antigravity.google) (`agy`) over its stream-json wire protocol. Run coding tasks on your own machine, watch the agent work tool-by-tool, and steer it mid-flight — all from a Telegram chat.
 
+![Screenshot](docs/screenshot.png)
+
 ## What it is
 
 This is a hardened fork of the [opencode telegram bot by grinev](https://github.com/grinev/opencode-telegram-bot): the OpenCode SDK layer has been replaced with a native driver for Antigravity's `stream-json` NDJSON protocol, keeping grinev's battle-tested Telegram plumbing (sessions, settings, question/permission flows, scheduled tasks).

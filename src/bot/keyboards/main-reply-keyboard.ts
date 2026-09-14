@@ -56,7 +56,7 @@ export function createMainKeyboard(
     ? formatContextForButton(contextInfo)
     : t("keyboard.context_empty");
 
-  // Quota slot: NO bulb icon — badge (con tiempos) IS the label → /usage.
+  // Quota slot: NO bulb icon — badge (with reset times) IS the label → /usage.
   const quotaText = quotaBadge || t("keyboard.variant_default");
 
   // Agent selection comes back to its own button (menu opens the agent list).
@@ -64,7 +64,7 @@ export function createMainKeyboard(
 
   // Long bottom button: FULL active account (icon + complete email) → /switch.
   const email = activeAccountEmail();
-  const accountText = email ? `🔁 Cambiar de cuenta · ${email}` : "🔁 Cambiar de cuenta";
+  const accountText = email ? `🔁 Switch account · ${email}` : "🔁 Switch account";
 
   // Queued prompts sit above the fixed grid, one per row
   for (const label of queuedPromptLabels) {

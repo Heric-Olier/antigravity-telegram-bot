@@ -191,7 +191,7 @@ function handleResult(event: AgyResultEvent): void {
   // real name instead of the short-id fallback on the next render.
   if (currentSessionId && event.status === "SUCCESS") {
     const title = getConversationTitle(currentSessionId.slice("agy-session-".length));
-    if (title && !title.startsWith("Conversación ")) {
+    if (title && !title.startsWith("Conversation ")) {
       syncSessionToRuntimeId(currentSessionId, title);
     }
   }

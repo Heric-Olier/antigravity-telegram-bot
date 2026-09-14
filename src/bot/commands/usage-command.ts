@@ -11,7 +11,7 @@ import { t } from "../../i18n/index.js";
  * checking the quota from the phone costs zero usage.
  */
 export async function usageCommand(ctx: CommandContext<Context>): Promise<void> {
-  const thinking = await ctx.reply("⏳consultando cuota...");
+  const thinking = await ctx.reply("⏳ checking quota...");
 
   execFile(
     config.antigravity.bin,
@@ -49,7 +49,7 @@ export async function usageCommand(ctx: CommandContext<Context>): Promise<void> 
                 : pctRaw;
             const icon = pct >= 80 ? "🟢" : pct >= 40 ? "🟡" : "🔴";
             const reset = parts[3] ? `\n   ⏱ reset: ${humanizeReset(parts[3], pct)}` : "";
-            const empty = pct === 0 ? " ⛔ AGOTADO" : "";
+            const empty = pct === 0 ? " ⛔ DEPLETED" : "";
             return `${icon} ${bucket} — ${kind}: ${pctRaw}${empty}\n   ${bar}${reset}`;
           })
           .filter(Boolean)
@@ -65,18 +65,19 @@ function stderrText(localStdout: string): string {
   return localStdout || t("usage.error");
 }
 
-/** ISO timestamp → "en 1 h 45 min"; cuando la cuota está agotada, resalta la hora local. */
+/** ISO timestamp → "in 1h 45m"; when the quota bucket is depleted, highlight
+ * the local wall-clock time instead. */
 function humanizeReset(iso: string, pct: number): string {
   const target = Date.parse(iso);
   if (!Number.isFinite(target)) return iso;
   const mins = Math.max(0, Math.round((target - Date.now()) / 60_000));
   const h = Math.floor(mins / 60);
   const rest = mins % 60;
-  const rel = h > 0 ? `en ${h} h ${rest} min` : `en ${rest} min`;
+  const rel = h > 0 ? `in ${h}h ${rest}m` : `in ${rest}m`;
   if (pct > 0) return `${rel} (${iso.replace("T", " ").replace("Z", " UTC")})`;
-  const local = new Date(target).toLocaleTimeString("es-CO", {
+  const local = new Date(target).toLocaleTimeString(undefined, {
     hour: "2-digit",
     minute: "2-digit",
   });
-  return `${rel} → listo a las ${local} (hora Colombia)`;
+  return `${rel} → ready at ${local} (local time)`;
 }

@@ -45,7 +45,7 @@ interface SummaryRow {
 // starts writing one, prefer it over the central summary DB — verify first.
 
 function conversationTitleFallback(conversationId: string): string {
-  return `Conversación ${conversationId.slice(0, 8)}`;
+  return `Conversation ${conversationId.slice(0, 8)}`;
 }
 
 function conversationTitleFromSummaries(
@@ -158,10 +158,10 @@ function buildConversationList(): AntigravityConversation[] {
 }
 
 /**
- * Build a preview: title + last-modified date + last messages labelled "Tú"/"Agente".
+ * Build a preview: title + last-modified date + last messages labelled "You"/"Agent".
  *
  * The per-conversation .db steps table stores protobuf payloads, not JSON — the
- * Tú/Agente message content could not be reliably extracted from real DBs, so v1
+ * You/Agent message content could not be reliably extracted from real DBs, so v1
  * shows only the reliable metadata (title/date) as a resumable notice.
  */
 export function formatConversationPreview(conversation: AntigravityConversation): string {
@@ -170,10 +170,10 @@ export function formatConversationPreview(conversation: AntigravityConversation)
 
   if (conversation.preview) {
     lines.push("");
-    lines.push(`Tú ${conversation.preview}`);
-    lines.push("... conversación existente reanudable");
+    lines.push(`You ${conversation.preview}`);
+    lines.push("... resumable existing conversation");
   } else {
-    lines.push("conversación existente reanudable");
+    lines.push("resumable existing conversation");
   }
 
   return lines.join("\n");

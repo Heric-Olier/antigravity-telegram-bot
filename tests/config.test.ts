@@ -171,7 +171,7 @@ describe("config boolean env parsing", () => {
 
     const config = await loadConfig();
 
-    expect(config.bot.locale).toBe("es");
+    expect(config.bot.locale).toBe("en");
   });
 
   it("uses default task limit when TASK_LIMIT is missing", async () => {

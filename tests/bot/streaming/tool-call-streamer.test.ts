@@ -10,7 +10,7 @@ function wrapped(text: string, count = 1): string {
   const last = lines[lines.length - 1] ?? "";
   const lastShort = last.length > 60 ? `${last.slice(0, 57)}…` : last;
   const header =
-    `💭 Trabajando… · ${count} llamada${count === 1 ? "" : "s"}` +
+    `💭 Working… · ${count} tool call${count === 1 ? "" : "s"}` +
     (last ? `\n↳ ${esc(lastShort)}` : "");
   return `${header}\n<blockquote expandable>${esc(text)}</blockquote>`;
 }
