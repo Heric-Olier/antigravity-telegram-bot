@@ -129,6 +129,13 @@ export function registerMessageRouter(bot: Bot<Context>, deps: MessageRouterDeps
         return;
       }
 
+      // The footer 💡 button now carries the quota badge → open /usage.
+      // (Variant menu stays available through /settings.)
+      if (ctx.message?.text?.includes("%")) {
+        const usageMod = await import("../commands/usage-command.js");
+        await usageMod.usageCommand(ctx as never);
+        return;
+      }
       await showVariantSelectionMenu(ctx);
     } catch (err) {
       logger.error("[Bot] Error showing variant menu:", err);

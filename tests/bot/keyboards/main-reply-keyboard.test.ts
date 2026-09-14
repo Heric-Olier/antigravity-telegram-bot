@@ -49,7 +49,7 @@ describe("bot/keyboards/main-reply-keyboard", () => {
 
     expect(buttonTextAt(keyboard, 0, 0)).toBe("📋 Plan Agent");
     expect(buttonTextAt(keyboard, 0, 1)).toBe("📊 150K / 1.5M (10%)");
-    expect(keyboard.keyboard[1]).toHaveLength(1);
+    expect(buttonTextAt(keyboard, 1, 1)).toBe("💡 Default");
   });
 
   it("keeps the fixed 2x2 grid when no prompt is queued", () => {

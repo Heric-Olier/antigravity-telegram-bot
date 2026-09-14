@@ -41,37 +41,37 @@ export function createMainKeyboard(
   currentAgent: string,
   currentModel: ModelInfo,
   contextInfo?: ContextInfo,
-  variantName?: string,
+  variantName?: string | undefined,
   queuedPromptLabels: string[] = [],
   quotaBadge = "",
 ): Keyboard {
   const keyboard = new Keyboard();
+  void variantName;
   const agentText = getAgentButtonLabel(currentAgent);
 
   // Format model with compact provider/model text and icon
   const modelText = formatModelForButton(currentModel.providerID, currentModel.modelID);
 
-  // Context button shows the live Google account QUOTA (5h + weekly %) —
-  // agy's real context usage when available, else quota alone.
-  let contextText = quotaBadge || t("keyboard.context_empty");
-  if (contextInfo && contextInfo.tokensUsed > 0) {
-    contextText = `${quotaBadge ? `${quotaBadge} · ` : ""}${formatContextForButton(contextInfo)}`;
-  }
+  // Context button: back to pure context-usage, now with REAL agy numbers
+  // (they used to be hardwired to 0 in the opencode layer).
+  const contextText = contextInfo && contextInfo.tokensUsed > 0
+    ? formatContextForButton(contextInfo)
+    : t("keyboard.context_empty");
 
-  // Variant is gone from the footer (user request); the slot shows the real
-  // context usage instead. Variant stays reachable via /settings.
-  void variantName;
+  // The 💡 slot (was "Default") is now the quota/usage button — it opens the
+  // /usage report (see message-router: VARIANT pattern routes to usageCommand).
+  const quotaText = quotaBadge ? `💡 ${quotaBadge}` : t("keyboard.variant_default");
 
   // Queued prompts sit above the fixed grid, one per row
   for (const label of queuedPromptLabels) {
     keyboard.text(label).row();
   }
 
-  // Row 1: agent and quota/context buttons
-  keyboard.text(agentText).text(contextText || t("keyboard.context_empty")).row();
+  // Row 1: agent and context buttons (the clean 2x2 the user wants)
+  keyboard.text(agentText).text(contextText).row();
 
-  // Row 2: model alone (footer variant button removed per user request)
-  keyboard.text(modelText).row();
+  // Row 2: model and quota (💡 prefix routes button taps to /usage)
+  keyboard.text(modelText).text(quotaText).row();
 
   return keyboard.resized().persistent();
 }
