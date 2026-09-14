@@ -46,6 +46,7 @@ describe("bot/routers/command-router", () => {
       "accounts",
       "switchprofile",
       "addaccount",
+      "quotaall",
       "code",
       "detach",
       "task",

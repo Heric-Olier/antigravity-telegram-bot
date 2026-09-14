@@ -9,6 +9,7 @@ const CB = {
   SWITCH: "acct:sw:", // acct:sw:<email>
   ADD: "acct:add",
   REFRESH: "acct:refresh",
+  QUOTA: "acct:quota",
 };
 
 /** Entry point for the 🔁 bottom keyboard button: show saved-account menu. */
@@ -34,6 +35,7 @@ export async function showAccountMenu(ctx: Context): Promise<void> {
     }
   }
   kb.text("➕ Add account", CB.ADD).row();
+  kb.text("📊 Quotas of all accounts", CB.QUOTA).row();
   kb.text("🔄 Refresh", CB.REFRESH).row();
 
   await ctx.reply(
@@ -79,5 +81,11 @@ export function registerAccountMenuHandlers(bot: Bot): void {
   bot.callbackQuery(CB.REFRESH, async (ctx) => {
     await ctx.answerCallbackQuery().catch(() => {});
     await showAccountMenu(ctx);
+  });
+
+  bot.callbackQuery(CB.QUOTA, async (ctx) => {
+    await ctx.answerCallbackQuery().catch(() => {});
+    const { quotaAllCommand } = await import("../commands/quota-all-command.js");
+    await quotaAllCommand(ctx);
   });
 }

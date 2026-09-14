@@ -16,6 +16,7 @@ import {
   switchProfileCommand,
   addAccountCommand,
 } from "../commands/account-commands.js";
+import { quotaAllCommand } from "../commands/quota-all-command.js";
 import { detachCommand } from "../commands/detach-command.js";
 import { taskCommand } from "../commands/task-command.js";
 import { taskListCommand } from "../commands/tasklist-command.js";
@@ -104,6 +105,7 @@ export function registerCommandRouter(bot: Bot<Context>, deps: CommandRouterDeps
   bot.command("accounts", accountsCommand);
   bot.command("switchprofile", switchProfileCommand);
   bot.command("addaccount", addAccountCommand);
+  bot.command("quotaall", quotaAllCommand);
   bot.command("code", handleSwitchCode);
   bot.command("detach", detachCommand);
   bot.command("task", taskCommand);
