@@ -82,6 +82,8 @@ export const pt: I18nDictionary = {
   "bot.create_session_error":
     "🔴 Não foi possível criar a sessão. Tente /new ou verifique o status do servidor com /status.",
   "bot.session_created": "✅ Sessão criada: {title}",
+  "bot.interrupted_for_new_prompt":
+    "⚡ Interrumpí la tarea anterior. Tu mensaje va primero; lo otro queda en la conversación y lo retomas con /sessions.",
   "bot.session_busy":
     "⏳ O agente já está executando uma tarefa. Aguarde a conclusão ou use /abort para interromper a execução atual.",
   "bot.session_reset_project_mismatch":

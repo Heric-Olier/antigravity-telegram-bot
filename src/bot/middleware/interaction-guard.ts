@@ -1,6 +1,8 @@
 import type { Context, NextFunction } from "grammy";
+import { abortCurrentOperation } from "../commands/abort-command.js";
 import { resolveInteractionGuardDecision } from "./interaction-guard-decision.js";
 import type { BlockReason, InteractionKind } from "../../app/types/interaction.js";
+import { getPromptQueueEnabled } from "../../app/stores/settings-store.js";
 import { reconcileForegroundBusyState } from "../../app/services/run-control-service.js";
 import {
   canQueueMediaPrompt,
@@ -133,6 +135,29 @@ export async function interactionGuardMiddleware(
   }
 
   const incomingPrompt = getIncomingPrompt(ctx);
+  // Hermes-style hot takeover: a plain text message while the agent works
+  // interrupts the current turn and is processed immediately (the interrupted
+  // conversation stays in agy and can be resumed from /sessions).
+  if (
+    decision.busy &&
+    !decision.state &&
+    decision.inputType === "text" &&
+    incomingPrompt &&
+    incomingPrompt.photos.length === 0 &&
+    incomingPrompt.fileParts.length === 0 &&
+    getPromptQueueEnabled()
+  ) {
+    try {
+      await abortCurrentOperation(ctx);
+      await ctx.reply(t("bot.interrupted_for_new_prompt"));
+      await next();
+      return;
+    } catch {
+      // Could not interrupt (no active agy turn in tests): fall through to
+      // the normal queueing/blocked paths below.
+    }
+  }
+
   if (decision.busy && !decision.state && canQueueMediaPrompt(ctx)) {
     await next();
     return;

@@ -18,6 +18,9 @@ const mocked = vi.hoisted(() => ({
   getPromptQueueEnabled: vi.fn(),
 }));
 
+const abortCurrentOperationMock = vi.hoisted(() => vi.fn());
+beforeEach(() => { abortCurrentOperationMock.mockResolvedValue(undefined); });
+vi.mock("../../../src/bot/commands/abort-command.js", () => ({ abortCurrentOperation: abortCurrentOperationMock }));
 vi.mock("../../../src/app/services/run-control-service.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../../src/app/services/run-control-service.js")>();
   return {
@@ -297,7 +300,6 @@ describe("interactionGuardMiddleware", () => {
     expect(next).not.toHaveBeenCalled();
     expect(ctx.reply).toHaveBeenCalledWith(t("bot.session_busy"));
   });
-
   it("blocks plain text while busy and suggests the queue when it is disabled", async () => {
     foregroundSessionState.markBusy("session-1", "D:\\Projects\\Repo");
 
@@ -306,6 +308,7 @@ describe("interactionGuardMiddleware", () => {
 
     await interactionGuardMiddleware(ctx, next);
 
+    expect(abortCurrentOperationMock).not.toHaveBeenCalled();
     expect(next).not.toHaveBeenCalled();
     expect(ctx.reply).toHaveBeenCalledWith(
       `${t("bot.session_busy")} ${t("queue.disabled_hint")}`,
@@ -522,7 +525,7 @@ describe("interactionGuardMiddleware", () => {
     );
   });
 
-  it("rejects a rich prompt when the queue is full", async () => {
+  it("takes hot takeover even when the queue is full", async () => {
     mocked.getPromptQueueEnabled.mockReturnValue(true);
     foregroundSessionState.markBusy("session-1", "D:\\Projects\\Repo");
     for (let index = 0; index < MAX_QUEUED_PROMPTS; index++) {
@@ -534,11 +537,7 @@ describe("interactionGuardMiddleware", () => {
 
     await interactionGuardMiddleware(ctx, next);
 
-    expect(next).not.toHaveBeenCalled();
-    expect(promptQueue.size()).toBe(MAX_QUEUED_PROMPTS);
-    expect(ctx.reply).toHaveBeenCalledWith(
-      t("queue.full", { max: String(MAX_QUEUED_PROMPTS) }),
-      expect.anything(),
-    );
-  });
-});
+    expect(abortCurrentOperationMock).toHaveBeenCalledWith(ctx);
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(ctx.reply).toHaveBeenCalledWith(t("bot.interrupted_for_new_prompt"));
+  });});

@@ -11,6 +11,7 @@ import { renameManager } from "../../src/app/managers/rename-manager.js";
 import { taskCreationManager } from "../../src/app/managers/scheduled-task-creation-manager.js";
 
 const mocked = vi.hoisted(() => ({
+  abortCurrentOperation: vi.fn().mockResolvedValue(undefined),
   queuePromptForMerging: vi.fn(),
   handleQuestionTextAnswer: vi.fn(),
   handleTaskTextInput: vi.fn(),
@@ -21,6 +22,10 @@ const mocked = vi.hoisted(() => ({
   getPromptQueueEnabled: vi.fn(),
 }));
 
+vi.mock("../../src/bot/commands/abort-command.js", async (importOriginal) => {
+  const actual = await importOriginal();
+  return { ...actual, abortCurrentOperation: mocked.abortCurrentOperation };
+});
 vi.mock("../../src/bot/handlers/message-merger.js", () => ({
   queuePromptForMerging: mocked.queuePromptForMerging,
   flushPendingPrompt: vi.fn(),

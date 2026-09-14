@@ -79,6 +79,8 @@ export const tr: I18nDictionary = {
   "bot.create_session_error":
     "🔴 Oturum oluşturulamadı. /new komutunu deneyin veya sunucu durumunu /status ile kontrol edin.",
   "bot.session_created": "✅ Oturum oluşturuldu: {title}",
+  "bot.interrupted_for_new_prompt":
+    "⚡ Interrumpí la tarea anterior. Tu mensaje va primero; lo otro queda en la conversación y lo retomas con /sessions.",
   "bot.session_busy":
     "⏳ Ajan zaten bir görev yürütüyor. Tamamlanmasını bekleyin veya geçerli çalışmayı kesmek için /abort kullanın.",
   "bot.session_reset_project_mismatch":
