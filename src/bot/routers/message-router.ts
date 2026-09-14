@@ -12,6 +12,7 @@ import { showAgentSelectionMenu } from "../menus/agent-selection-menu.js";
 import { showModelSelectionMenu } from "../menus/model-selection-menu.js";
 import { showVariantSelectionMenu } from "../menus/variant-selection-menu.js";
 import {
+  ACCOUNT_BUTTON_TEXT_PATTERN,
   AGENT_MODE_BUTTON_TEXT_PATTERN,
   CONTEXT_BUTTON_TEXT_PATTERN,
   MODEL_BUTTON_TEXT_PATTERN,
@@ -104,6 +105,12 @@ export function registerMessageRouter(bot: Bot<Context>, deps: MessageRouterDeps
       logger.error("[Bot] Error showing model menu:", err);
       await ctx.reply(t("error.load_models"));
     }
+  });
+
+  bot.hears(ACCOUNT_BUTTON_TEXT_PATTERN, async (ctx) => {
+    logger.debug(`[Bot] Account button pressed`);
+    const switchMod = await import("../commands/switch-command.js");
+    await switchMod.switchCommand(ctx as never);
   });
 
   bot.hears(CONTEXT_BUTTON_TEXT_PATTERN, async (ctx) => {

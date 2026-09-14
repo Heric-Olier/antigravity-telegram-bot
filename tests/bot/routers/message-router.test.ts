@@ -19,7 +19,7 @@ describe("bot/routers/message-router", () => {
       setTelegramContext: vi.fn(),
     });
 
-    expect(bot.hears).toHaveBeenCalledTimes(5);
+    expect(bot.hears).toHaveBeenCalledTimes(6);
     // The queued prompt route must win over the other reply keyboard routes.
     expect(defined(bot.hears.mock.calls[0]?.[0])).toBe(QUEUED_PROMPT_BUTTON_TEXT_PATTERN);
     expect(bot.on.mock.calls.map(([event]) => event)).toEqual([

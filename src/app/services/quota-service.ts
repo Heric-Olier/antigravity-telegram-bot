@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import * as fsMod from "node:fs";
 import { config } from "../../config.js";
 
 export interface QuotaBucket {
@@ -6,6 +7,8 @@ export interface QuotaBucket {
   kind: string;
   pct: number;
   resetIso?: string | undefined;
+  /** Minutes until the bucket resets (when resetIso parses). */
+  minutesLeft?: number | undefined;
 }
 
 let cache: { buckets: QuotaBucket[]; ts: number } | null = null;
@@ -46,7 +49,12 @@ export function parseUsage(stdout: string): QuotaBucket[] {
       const kind = parts[1] ?? "";
       const pctRaw = parts[2] ?? "";
       const pct = Number.parseInt(pctRaw.replace("%", ""), 10);
-      return { bucket, kind, pct: Number.isFinite(pct) ? pct : -1, resetIso: parts[3] || undefined };
+      const resetIso = parts[3] || undefined;
+      const resetMs = resetIso ? Date.parse(resetIso) : NaN;
+      const minutesLeft = Number.isFinite(resetMs)
+        ? Math.max(0, Math.round((resetMs - Date.now()) / 60_000))
+        : undefined;
+      return { bucket, kind, pct: Number.isFinite(pct) ? pct : -1, resetIso, minutesLeft };
     })
     .filter((b) => Boolean(b.bucket) && Boolean(b.kind));
 }
@@ -62,7 +70,10 @@ export function quotaBadgeLine(buckets: QuotaBucket[]): string {
     .map((b) => {
       const label = b.kind.includes("Five Hour") ? "5h" : "sem";
       const icon = b.pct >= 80 ? "🟢" : b.pct >= 40 ? "🟡" : "🔴";
-      return `${icon}${label} ${b.pct}%`;
+      // "falta": compact relative time (e.g. "1h05" / "3d04h"), wrapped in
+      // parentheses so both pct AND remaining time fit the button.
+      const left = shortLeft(b.minutesLeft);
+      return `${icon}${label} ${b.pct}%${left ? ` (${left})` : ""}`;
     })
     .join(" ");
 }
@@ -71,4 +82,40 @@ export function quotaBadgeLine(buckets: QuotaBucket[]): string {
  * manager calls this — a 60s-stale badge is fine for a footer button. */
 export function getCachedQuotaBadge(): string {
   return cache ? quotaBadgeLine(cache.buckets) : "";
+}
+
+/** Compact "time remaining" for a keyboard button: 1h45 / 3d4h. */
+function shortLeft(minutes?: number | undefined): string {
+  if (minutes === undefined) return "";
+  if (minutes >= 48 * 60) {
+    const d = Math.floor(minutes / (24 * 60));
+    const h = Math.round((minutes % (24 * 60)) / 60);
+    return `${d}d${h ? `${h}h` : ""}`;
+  }
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h === 0) return `${m}m`;
+  return m ? `${h}h${String(m).padStart(2, "0")}` : `${h}h`;
+}
+
+/** Active Google account email, taken from the freshest agy CLI log. */
+export function activeAccountEmail(): string | null {
+  try {
+    const readdir = (fsMod.readdirSync || fsMod.readdirSync) as (p: string) => string[];
+    const read = fsMod.readFileSync as (p: string, enc: string) => string;
+    const logDir = `${(process.env.HOME ?? "~")}/.gemini/antigravity-cli/log`;
+    const files = readdir(logDir).filter((f: string) => f.startsWith("cli-"));
+    files.sort();
+    const newest = files[files.length - 1];
+    if (!newest) return null;
+    const full = read(`${logDir}/${newest}`, "utf8");
+    // The auth line lands mid-file — take the LAST email in the log.
+    let email: string | null = null;
+    for (const m of full.matchAll(/[\w.+-]+@[\w-]+\.[\w.\-]+/g)) {
+      email = m[0];
+    }
+    return email;
+  } catch {
+    return null;
+  }
 }
