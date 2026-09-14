@@ -237,7 +237,7 @@ describe("AntigravityProcess", () => {
     spawnMock.mockImplementation(() => fakeChild);
   });
 
-  it("pipes one user event per prompt and closes stdin after writing", async () => {
+  it("pipes one user event per prompt and keeps stdin open for follow-ups", async () => {
     const proc = new AntigravityProcess({ cwd: "/tmp/proj" });
     proc.spawn();
 
@@ -245,14 +245,20 @@ describe("AntigravityProcess", () => {
     const endSpy = stdin.end as ReturnType<typeof vi.fn>;
 
     await proc.sendPrompt("hola mundo");
+    await proc.sendPrompt("segundo turno");
 
-    const written = String((fakeChild as unknown as { stdinWrites: string[] }).stdinWrites?.[0] ?? "");
-    expect(written.endsWith("\n")).toBe(true);
-    expect(JSON.parse(written.trim())).toEqual({
+    const writes = (fakeChild as unknown as { stdinWrites: string[] }).stdinWrites ?? [];
+    expect(writes).toHaveLength(2);
+    expect(JSON.parse(String(writes[0]).trim())).toEqual({
       event: "user",
       message: { content: "hola mundo" },
     });
-    expect(endSpy).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(String(writes[1]).trim())).toEqual({
+      event: "user",
+      message: { content: "segundo turno" },
+    });
+    // Hot takeover requires the pipe to stay open: stdin is NOT closed.
+    expect(endSpy).not.toHaveBeenCalled();
   });
 
   it("emits init, steps, and result for the real fixture lines (discarding non-JSON)", async () => {
