@@ -40,6 +40,7 @@ const COMMAND_DEFINITIONS: BotCommandI18nDefinition[] = [
   { command: "open", descriptionKey: "cmd.description.open" },
   { command: "ls", descriptionKey: "cmd.description.ls" },
   { command: "help", descriptionKey: "cmd.description.help" },
+  { command: "restart", descriptionKey: "cmd.restart.ack" },
 ];
 
 export function getLocalizedBotCommands(): BotCommandDefinition[] {

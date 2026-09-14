@@ -9,6 +9,7 @@ import { sessionsCommand } from "../commands/sessions-command.js";
 import { messagesCommand } from "../commands/messages-command.js";
 import { newCommand } from "../commands/new-command.js";
 import { abortCommand } from "../commands/abort-command.js";
+import { restartCommand } from "../commands/restart-command.js";
 import { detachCommand } from "../commands/detach-command.js";
 import { taskCommand } from "../commands/task-command.js";
 import { taskListCommand } from "../commands/tasklist-command.js";
@@ -92,6 +93,7 @@ export function registerCommandRouter(bot: Bot<Context>, deps: CommandRouterDeps
   bot.command("messages", messagesCommand);
   bot.command("new", (ctx) => newCommand(ctx, { bot, ensureEventSubscription: deps.ensureEventSubscription }));
   bot.command("abort", abortCommand);
+  bot.command("restart", restartCommand);
   bot.command("detach", detachCommand);
   bot.command("task", taskCommand);
   bot.command("tasklist", taskListCommand);

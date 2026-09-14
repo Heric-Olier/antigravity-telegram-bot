@@ -17,6 +17,8 @@ export const en = {
   "cmd.description.opencode_start": "Start Antigravity server",
   "cmd.description.opencode_stop": "Stop Antigravity server",
   "cmd.description.ls": "List directory contents",
+  "cmd.restart.ack":
+    "🔄 Restarting the bot with pending changes... wait ~5 seconds.",
   "cmd.description.help": "Help",
 
   "callback.unknown_command": "Unknown command",

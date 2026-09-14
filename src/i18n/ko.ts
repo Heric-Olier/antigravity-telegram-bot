@@ -26,6 +26,8 @@ export const ko: I18nDictionary = {
   "cmd.description.opencode_start": "Antigravity 서버 시작",
   "cmd.description.opencode_stop": "Antigravity 서버 중지",
   "cmd.description.ls": "디렉터리 내용 보기",
+  "cmd.restart.ack":
+    "🔄 Reiniciando el bot con los cambios pendientes... espera ~5 segundos.",
   "cmd.description.help": "도움말",
 
   "callback.unknown_command": "알 수 없는 명령어",

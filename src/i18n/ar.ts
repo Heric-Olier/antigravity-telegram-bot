@@ -26,6 +26,8 @@ export const ar: I18nDictionary = {
   "cmd.description.opencode_start": "تشغيل خادم Antigravity",
   "cmd.description.opencode_stop": "إيقاف خادم Antigravity",
   "cmd.description.ls": "استعراض ملفات المجلد",
+  "cmd.restart.ack":
+    "🔄 Reiniciando el bot con los cambios pendientes... espera ~5 segundos.",
   "cmd.description.help": "المساعدة",
   "cmd.description.rename": "تغيير اسم الجلسة الحالية",
   "cmd.description.open": "إضافة مشروع عبر استعراض المجلدات",

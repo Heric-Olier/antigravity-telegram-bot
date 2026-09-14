@@ -19,6 +19,8 @@ export const ru: I18nDictionary = {
   "cmd.description.opencode_start": "Запустить Antigravity сервер",
   "cmd.description.opencode_stop": "Остановить Antigravity сервер",
   "cmd.description.ls": "Список содержимого каталога",
+  "cmd.restart.ack":
+    "🔄 Reiniciando el bot con los cambios pendientes... espera ~5 segundos.",
   "cmd.description.help": "Справка",
 
   "callback.unknown_command": "Неизвестная команда",

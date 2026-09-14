@@ -19,6 +19,8 @@ export const zh: I18nDictionary = {
   "cmd.description.opencode_start": "启动 Antigravity 服务器",
   "cmd.description.opencode_stop": "停止 Antigravity 服务器",
   "cmd.description.ls": "列出目录内容",
+  "cmd.restart.ack":
+    "🔄 Reiniciando el bot con los cambios pendientes... espera ~5 segundos.",
   "cmd.description.help": "帮助",
 
   "callback.unknown_command": "未知命令",

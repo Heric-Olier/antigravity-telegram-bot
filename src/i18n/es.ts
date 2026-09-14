@@ -19,6 +19,8 @@ export const es: I18nDictionary = {
   "cmd.description.opencode_start": "Iniciar servidor Antigravity",
   "cmd.description.opencode_stop": "Detener servidor Antigravity",
   "cmd.description.ls": "Listar contenidos del directorio",
+  "cmd.restart.ack":
+    "🔄 Reiniciando el bot con los cambios pendientes... espera ~5 segundos.",
   "cmd.description.help": "Ayuda",
 
   "callback.unknown_command": "Comando desconocido",
