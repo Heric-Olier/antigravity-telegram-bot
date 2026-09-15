@@ -337,8 +337,28 @@ function handleResult(event: AgyResultEvent): void {
         logger.warn(
           `[AgyEvents] transient server error (attempt ${attempt}/${CAPACITY_RETRY_MAX}); resending prompt in ${delayMs}ms`,
         );
-        // Kill the dead/orphaned process instead of abandoning it (it would
-        // otherwise keep streaming steps alongside the retry spawn).
+        // TOKEN-ECONOMY: 503 arrives while the agy process is usually still
+        // ALIVE (the 503 comes from the server inside agy). Restarting the
+        // process on every retry drops the prompt cache → the next run pays
+        // FULL input tokens again (240k per step after context accumulates).
+        // Preferred path: keep the process alive and re-send into its stdin
+        // (hot rewrite) when it's still running, so server-side cache survives
+        // and the resend costs near zero extra tokens.
+        const live = activeProcess;
+        if (live && live.isRunning()) {
+          retryTimer = setTimeout(() => {
+            retryTimer = null;
+            void live
+              .sendPrompt(lastPromptText as string)
+              .catch((err) => {
+                logger.error("[AgyEvents] hot retry write failed:", err);
+              });
+          }, delayMs);
+          logger.info("[AgyEvents] 503 retry: same process, hot stdin resend (cache kept)");
+          return;
+        }
+        // Dead process: kill the orphan (never abandoned mid-sweep) before
+        // respawning a fresh one with the same conversation.
         const stale = activeProcess;
         activeProcess = null;
         if (stale) {
