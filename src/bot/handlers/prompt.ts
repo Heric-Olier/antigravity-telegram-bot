@@ -331,13 +331,39 @@ export async function processUserPrompt(
     // reasoning/tool phases emit no text_delta.
     if (ctx.chat) {
       startTypingIndicator(ctx.api, ctx.chat.id, currentSession.id);
+      // Short "received" ack on the chat thread: one honest line is better
+      // than an unexplained silence during cold start. Via ctx.reply so the
+      // routing always matches the chat the prompt arrived in.
+      void ctx.reply(t("bot.prompt_received")).catch(() => {});
     }
+
+    // Slow-start hint: if the prompt still hasn't been dispatched after 10s
+    // (cold spawn thrashing / attach), surface it instead of staying silent.
+    let promptDispatched = false;
+    setTimeout(() => {
+      if (botInstance && ctx.chat && !promptDispatched) {
+        void botInstance.api
+          .sendMessage(ctx.chat.id, t("bot.prompt_slow_start"))
+          .catch(() => {});
+      }
+    }, 10_000);
 
     safeBackgroundTask({
       taskName: "agy.sendPrompt",
       task: () => sendPromptToActiveProcess(promptText, currentSession.directory),
       onSuccess: () => {
         logger.info("[Bot] agy prompt written to pipe");
+        promptDispatched = true;
+        // Visible dispatch confirmation — suppressed after detach, mirroring
+        // the error path's detach semantics.
+        if (attachManager.isAttachedSession(currentSession.id) && ctx.chat) {
+          const botForAck = getPromptBotInstance();
+          if (botForAck) {
+            void botForAck.api
+              .sendMessage(ctx.chat.id, t("bot.prompt_dispatched"))
+              .catch(() => {});
+          }
+        }
       },
       onError: (error) => {
         foregroundSessionState.markIdle(currentSession.id);

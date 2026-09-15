@@ -90,6 +90,10 @@ export const tr: I18nDictionary = {
     "📖 **Yardım**\n\n/status - Sunucu durumunu kontrol et\n/sessions - Oturum listesi\n/new - Yeni oturum oluştur\n/help - Yardım",
 
   "bot.thinking": "💭 Düşünüyor...",
+  "bot.prompt_received": "📨 Alındı — ajan hazırlanıyor…",
+  "bot.prompt_dispatched": "⚙️ Ajan hattına gönderildi — çalışıyor.",
+  "bot.prompt_slow_start": "⏳ Ajan hâlâ başlıyor (soğuk başlangıç zaman alabilir)…",
+  "bot.queue_hot_taken": "⚡ Mesajınız doğrudan devam eden tura girdi (hot takeover).",
   "progress.compact.activity": "{header}\n{activity}",
   "progress.compact.working_header": "⏳ Çalışıyor",
   "progress.compact.finished_header": "✅ Çalışma tamamlandı",

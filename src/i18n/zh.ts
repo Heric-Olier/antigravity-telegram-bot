@@ -84,6 +84,10 @@ export const zh: I18nDictionary = {
     "📖 **帮助**\n\n/status - 查看服务器状态\n/sessions - 会话列表\n/new - 创建新会话\n/help - 帮助",
 
   "bot.thinking": "💭 思考中...",
+  "bot.prompt_received": "📨 已收到 — 正在准备 agent…",
+  "bot.prompt_dispatched": "⚙️ 已写入 agent 管道 — 开始工作。",
+  "bot.prompt_slow_start": "⏳ agent 仍在启动（冷启动可能较慢）…",
+  "bot.queue_hot_taken": "⚡ 你的消息已直接进入当前 turn (hot takeover)。",
   "progress.compact.activity": "{header}\n{activity}",
   "progress.compact.working_header": "⏳ 工作中",
   "progress.compact.finished_header": "✅ 工作完成",

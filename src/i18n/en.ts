@@ -89,6 +89,10 @@ export const en = {
     "📖 **Help**\n\n/status - Check server status\n/sessions - Session list\n/new - Create new session\n/help - Help",
 
   "bot.thinking": "💭 Thinking...",
+  "bot.prompt_received": "📨 Received — handing off to the agent…",
+  "bot.prompt_dispatched": "⚙️ Dispatched to the agent pipe — working on it.",
+  "bot.prompt_slow_start": "⏳ Still waiting for the agent to pick it up (cold start can take a while)…",
+  "bot.queue_hot_taken": "⚡ Your message went straight into the running turn (hot takeover) — no queue, no restart.",
   "progress.compact.activity": "{header}\n{activity}",
   "progress.compact.working_header": "⏳ Working",
   "progress.compact.finished_header": "✅ Finished Work",

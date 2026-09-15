@@ -89,6 +89,10 @@ export const ru: I18nDictionary = {
     "📖 **Справка**\n\n/status - Проверить статус сервера\n/sessions - Список сессий\n/new - Создать новую сессию\n/help - Справка",
 
   "bot.thinking": "💭 Думаю...",
+  "bot.prompt_received": "📨 Получено — подготавливаем агента…",
+  "bot.prompt_dispatched": "⚙️ Отправлено в пайплайн агента — работаем.",
+  "bot.prompt_slow_start": "⏳ Агент ещё запускается (холодный старт может занять время)…",
+  "bot.queue_hot_taken": "⚡ Ваше сообщение ушло прямо в текущий ход (hot takeover).",
   "progress.compact.activity": "{header}\n{activity}",
   "progress.compact.working_header": "⏳ Работаю",
   "progress.compact.finished_header": "✅ Работа завершена",

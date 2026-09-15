@@ -75,6 +75,11 @@ export function queuePromptForMerging(
     return;
   }
 
+  // Keep "typing" alive during the merge window so a long paste doesn't show
+  // a silent gap before the prompt is even handed to the pipeline.
+  if (ctx.api?.sendChatAction) {
+    void ctx.api.sendChatAction(chatId, "typing").catch(() => undefined);
+  }
   const timer = setTimeout(() => flushPending(chatId), mergeWindowMs);
   pendingByChat.set(chatId, { inputs: [input], ctx, deps, timer });
   logger.debug(

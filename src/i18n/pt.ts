@@ -91,6 +91,10 @@ export const pt: I18nDictionary = {
     "📖 **Ajuda**\n\n/status - Ver o status do servidor\n/sessions - Lista de sessões\n/new - Criar nova sessão\n/help - Ajuda",
 
   "bot.thinking": "💭 Pensando...",
+  "bot.prompt_received": "📨 Recebido — preparando o agente…",
+  "bot.prompt_dispatched": "⚙️ Enviado ao pipeline do agente — em trabalho.",
+  "bot.prompt_slow_start": "⏳ O agente ainda está iniciando (cold start pode demorar)…",
+  "bot.queue_hot_taken": "⚡ Sua mensagem entrou direto no turno em andamento (hot takeover).",
   "progress.compact.activity": "{header}\n{activity}",
   "progress.compact.working_header": "⏳ Trabalhando",
   "progress.compact.finished_header": "✅ Trabalho concluído",

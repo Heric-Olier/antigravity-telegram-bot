@@ -229,6 +229,11 @@ export function registerMessageRouter(bot: Bot<Context>, deps: MessageRouterDeps
       return;
     }
 
+    // Instant "typing" from message receipt (Hermes/opencode UX): fires before
+    // the merge window, pipeline handoffs, and any cold spawn — the user's
+    // phone shows activity within the first second, not after a silent gap.
+    void ctx.api.sendChatAction(ctx.chat.id, "typing").catch(() => undefined);
+
     queuePromptForMerging(ctx, input, promptDeps, config.bot.messageMergeWindowMs);
 
     logger.debug(

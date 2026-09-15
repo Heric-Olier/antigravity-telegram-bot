@@ -113,6 +113,8 @@ export async function tryEnqueuePromptIfBusy(
   // empty-carrier queue. Only queue when no live process exists.
   const { hotTakeoverPrompt } = await import("../../antigravity/events.js");
   if (hotTakeoverPrompt(input.text || "[attachment]")) {
+    // Tell the user their message was received live, not parked.
+    await ctx.reply(t("bot.queue_hot_taken")).catch(() => {});
     return false; // handled live; caller proceeds with processPrompt normally
   }
   return tryEnqueuePrompt(ctx, input);

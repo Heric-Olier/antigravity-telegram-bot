@@ -98,6 +98,10 @@ export const ko: I18nDictionary = {
     "📖 **도움말**\n\n/status - 서버 상태 확인\n/sessions - 세션 목록\n/new - 새 세션 만들기\n/help - 도움말",
 
   "bot.thinking": "💭 생각하는 중...",
+  "bot.prompt_received": "📨 수신됨 — 에이전트 준비 중…",
+  "bot.prompt_dispatched": "⚙️ 에이전트 파이프에 전송됨 — 작업 시작.",
+  "bot.prompt_slow_start": "⏳ 에이전트가 아직 시작 중입니다…",
+  "bot.queue_hot_taken": "⚡ 메시지가 현재 턴에 즉시 반영되었습니다 (hot takeover).",
   "progress.compact.activity": "{header}\n{activity}",
   "progress.compact.working_header": "⏳ 작업 중",
   "progress.compact.finished_header": "✅ 작업 완료",

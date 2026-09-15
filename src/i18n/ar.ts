@@ -93,6 +93,10 @@ export const ar: I18nDictionary = {
     "📖 **المساعدة**\n\n/status - عرض حالة الخادم والجلسة\n/sessions - عرض الجلسات\n/new - بدء جلسة جديدة\n/help - المساعدة",
 
   "bot.thinking": "💭 جارٍ التفكير...",
+  "bot.prompt_received": "📨 تم الاستلام — تحضير الوكيل…",
+  "bot.prompt_dispatched": "⚙️ تم الإرسال إلى مسار الوكيل — جارٍ العمل.",
+  "bot.prompt_slow_start": "⏳ لا يزال الوكيل يبدأ التشغيل…",
+  "bot.queue_hot_taken": "⚡ دخلت رسالتك مباشرةً إلى الدورة الحالية (hot takeover).",
   "progress.compact.activity": "{header}\n{activity}",
   "progress.compact.working_header": "⏳ جارٍ العمل",
   "progress.compact.finished_header": "✅ اكتمل العمل",
