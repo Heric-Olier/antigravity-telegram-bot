@@ -1,7 +1,6 @@
 import type { Api } from "grammy";
 import { createMainKeyboard } from "./main-reply-keyboard.js";
 import { fetchQuotaSnapshot, getCachedQuotaBadge } from "../../app/services/quota-service.js";
-import { assistantRunState } from "../../app/managers/assistant-run-state-manager.js";
 import { getContextUsed, getContextLimit } from "../../app/services/context-usage-tracker.js";
 import { getQueuedPromptButtonLabels } from "./queued-prompt-button.js";
 import { getStoredAgent } from "../../app/services/agent-selection-service.js";
@@ -18,7 +17,6 @@ import type { ContextInfo, KeyboardState } from "./keyboard-types.js";
 class KeyboardManager {
   private lastKeyboardText: string | null = null;
   private carrierMessageId: number | null = null;
-  private lastBadge: string = "";
   private state: KeyboardState | null = null;
 
   private api: Api | null = null;
@@ -36,31 +34,17 @@ class KeyboardManager {
     this.api = api;
     this.chatId = chatId;
     if (!this.quotaRefreshTimer) {
-      // Refresh the quota badge on the persistent keyboard once per MINUTE and
-      // ONLY while a turn is actually streaming. A silent idle-chatter carrier
-      // message (with its notification) every 30s is worse than a stale badge:
-      // the badge refreshes naturally on the next user-driven keyboard update.
+      // Silent data refresh ONLY: the quota/context numbers behind the
+      // keyboard stay current, but the interval NEVER sends anything. A
+      // carrier message = one empty notification per refresh; the user has
+      // explicitly rejected that UX. The reply keyboard refreshes whenever
+      // the user interacts (each interaction re-attaches it) or an
+      // event-driven caller sends it explicitly.
       this.quotaRefreshTimer = setInterval(() => {
-        void fetchQuotaSnapshot().then(() => {
-          const before = this.lastBadge;
-          this.lastBadge = getCachedQuotaBadge();
-          let changed = this.lastBadge !== before;
-          if (this.state && this.state.contextInfo) {
-            const prevUsed = this.state.contextInfo.tokensUsed;
-            this.state.contextInfo.tokensUsed = getContextUsed();
-            this.state.contextInfo.tokensLimit = getContextLimit();
-            if (this.state.contextInfo.tokensUsed !== prevUsed) changed = true;
-          }
-          if (!changed || !this.chatId) return;
-          if (!assistantRunState.hasActiveRun()) {
-            // Idle: keep the data fresh but DON'T spam an invisible carrier
-            // message (each one is an empty notification on the user's phone).
-            // Last known keyboard stays valid in the client until next turn.
-            logger.debug("[KeyboardManager] idle — skipping carrier refresh");
-            return;
-          }
-          void this.sendKeyboardUpdate();
-        }).catch(() => {});
+        if (this.state && this.state.contextInfo) {
+          this.state.contextInfo.tokensUsed = getContextUsed();
+          this.state.contextInfo.tokensLimit = getContextLimit();
+        }
       }, 30_000);
       void fetchQuotaSnapshot().catch(() => {});
     }
