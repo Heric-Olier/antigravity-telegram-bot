@@ -139,6 +139,9 @@ class EventSubscriptionService implements BotEventSubscriptionService {
   private readonly assistantResponseStreamModes = new Map<string, ResponseStreamingMode>();
   private readonly toolCallStreamer: ToolCallStreamer;
   private readonly typingHeartbeats = new Map<string, ReturnType<typeof setInterval>>();
+  private readonly typingHeartbeatsStamp = new Map<string, number>();
+  /** Hard TTL for the stream-side typing heartbeat (retry-orphan defense). */
+  private readonly typingStaleAfterMs = 10 * 60_000;
 
   private stopTypingIndicator(sessionId: string): void {
     // Shared prompt-side heartbeat must also die with the turn.
@@ -147,6 +150,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
     if (interval !== undefined) {
       clearInterval(interval);
       this.typingHeartbeats.delete(sessionId);
+      this.typingHeartbeatsStamp.delete(sessionId);
     }
   }
   private readonly toolMessageBatcher: ToolMessageBatcher;
@@ -578,6 +582,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
 
       // Keep a SINGLE heartbeat per session: restarting the interval on every
       // throttled partial triggered Telegram 429 floods that starved getUpdates.
+      this.typingHeartbeatsStamp.set(sessionId, Date.now());
       if (
         typeof this.botInstance.api.sendChatAction === "function" &&
         !this.typingHeartbeats.has(sessionId)
@@ -586,6 +591,13 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         this.typingHeartbeats.set(
           sessionId,
           setInterval(() => {
+            // Orphan sweep: a heartbeat nothing refreshed for 10 min stops here
+            // (dead-run defense from the old retry paths).
+            const stamp = this.typingHeartbeatsStamp.get(sessionId) ?? Date.now();
+            if (Date.now() - stamp > this.typingStaleAfterMs) {
+              this.stopTypingIndicator(sessionId);
+              return;
+            }
             void this.botInstance?.api.sendChatAction(chatId, "typing").catch(() => undefined);
           }, 5_000),
         );
@@ -1182,6 +1194,10 @@ class EventSubscriptionService implements BotEventSubscriptionService {
       // A still-current session keeps the card until after in-flight completion
       // work, then finalizes it (delete or finished summary).
       this.clearToolElapsedState(sessionId, "session_idle");
+      // Kill the "💭 Working…" ghost bubble: the tool streamer of THIS session
+      // must stop and collapse right now, even when completion flows through a
+      // branch later — previously its timer kept re-painting after idle.
+      await this.toolCallStreamer.breakSession(sessionId, "session_idle");
       const currentSessionAtIdle = getCurrentSession();
       const canFinalizeCompactProgress =
         Boolean(this.botInstance && this.chatIdInstance) && currentSessionAtIdle?.id === sessionId;
