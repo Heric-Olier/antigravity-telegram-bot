@@ -1193,6 +1193,24 @@ class EventSubscriptionService implements BotEventSubscriptionService {
       const completedRun = assistantRunState.finishRun(sessionId, "session_idle");
       clearPromptResponseMode(sessionId);
 
+      // Safety net for orphan sessions: an agy session spawned WITHOUT the
+      // conversation id (an old retry path bug) emits session.idle for an id
+      // that differs from the attached session, which then stays latched busy
+      // forever (typing indicator + empty-carrier refreshes keep firing).
+      // When no run is active anywhere, release the attached session too.
+      const attachedSnapshot = attachManager.getSnapshot();
+      if (
+        attachedSnapshot?.busy &&
+        attachedSnapshot.sessionId &&
+        !assistantRunState.hasActiveRun()
+      ) {
+        const attachedIdle = markAttachedSessionIdle(attachedSnapshot.sessionId);
+        logger.warn(
+          `[Bot] session.idle for ${sessionId}; attached ${attachedSnapshot.sessionId} had no live run — releasing stale busy latch`,
+        );
+        void attachedIdle;
+      }
+
       if (!this.botInstance || !this.chatIdInstance) {
         this.compactProgressStreamer.clearSession(sessionId, "session_idle");
         this.stopTypingIndicator(sessionId);

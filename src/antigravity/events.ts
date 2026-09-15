@@ -320,7 +320,20 @@ function handleResult(event: AgyResultEvent): void {
         setTimeout(() => {
           activeProcess = null;
           if (lastPromptDirectory) {
-            const proc = spawnProcessForDirectory(lastPromptDirectory, {});
+            // Resume the SAME conversation on retry: spawning without a
+            // conversation id creates an orphan session, whose later
+            // session.idle never releases the attached session's busy latch
+            // (typing indicator + carrier refreshes keep firing forever).
+            const spawnOptions: AntigravityProcessOptions = {};
+            const current = getCurrentSession();
+            if (current?.id.startsWith("agy-session-")) {
+              spawnOptions.conversationId = current.id.slice("agy-session-".length);
+            }
+            const stored = getStoredModel();
+            if (stored?.modelID) {
+              spawnOptions.model = stored.modelID;
+            }
+            const proc = spawnProcessForDirectory(lastPromptDirectory, spawnOptions);
             void proc;
           }
           void sendPromptToActiveProcess(lastPromptText as string, lastPromptDirectory as string);
