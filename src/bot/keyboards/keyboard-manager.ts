@@ -1,6 +1,7 @@
 import type { Api } from "grammy";
 import { createMainKeyboard } from "./main-reply-keyboard.js";
 import { fetchQuotaSnapshot, getCachedQuotaBadge } from "../../app/services/quota-service.js";
+import { assistantRunState } from "../../app/managers/assistant-run-state-manager.js";
 import { getContextUsed, getContextLimit } from "../../app/services/context-usage-tracker.js";
 import { getQueuedPromptButtonLabels } from "./queued-prompt-button.js";
 import { getStoredAgent } from "../../app/services/agent-selection-service.js";
@@ -35,7 +36,10 @@ class KeyboardManager {
     this.api = api;
     this.chatId = chatId;
     if (!this.quotaRefreshTimer) {
-      // Refresh the quota badge on the persistent keyboard once per minute.
+      // Refresh the quota badge on the persistent keyboard once per MINUTE and
+      // ONLY while a turn is actually streaming. A silent idle-chatter carrier
+      // message (with its notification) every 30s is worse than a stale badge:
+      // the badge refreshes naturally on the next user-driven keyboard update.
       this.quotaRefreshTimer = setInterval(() => {
         void fetchQuotaSnapshot().then(() => {
           const before = this.lastBadge;
@@ -47,9 +51,15 @@ class KeyboardManager {
             this.state.contextInfo.tokensLimit = getContextLimit();
             if (this.state.contextInfo.tokensUsed !== prevUsed) changed = true;
           }
-          if (changed && this.chatId) {
-            void this.sendKeyboardUpdate();
+          if (!changed || !this.chatId) return;
+          if (!assistantRunState.hasActiveRun()) {
+            // Idle: keep the data fresh but DON'T spam an invisible carrier
+            // message (each one is an empty notification on the user's phone).
+            // Last known keyboard stays valid in the client until next turn.
+            logger.debug("[KeyboardManager] idle — skipping carrier refresh");
+            return;
           }
+          void this.sendKeyboardUpdate();
         }).catch(() => {});
       }, 30_000);
       void fetchQuotaSnapshot().catch(() => {});

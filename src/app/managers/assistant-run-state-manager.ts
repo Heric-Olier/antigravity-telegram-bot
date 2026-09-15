@@ -25,6 +25,11 @@ export interface AssistantRunInfo extends AssistantRunStartInfo {
 class AssistantRunState {
   private readonly runs = new Map<string, AssistantRunInfo>();
 
+  /** True when at least one assistant turn is streaming. */
+  hasActiveRun(): boolean {
+    return this.runs.size > 0;
+  }
+
   startRun(sessionId: string, info: AssistantRunStartInfo): void {
     if (!sessionId) {
       return;
