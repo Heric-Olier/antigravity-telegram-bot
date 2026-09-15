@@ -17,9 +17,14 @@ import { logger } from "../utils/logger.js";
 import { isRecord } from "../utils/type-guards.js";
 
 /** Maximum transparent retries for transient provider-side failures. */
-const CAPACITY_RETRY_MAX = 3;
+const CAPACITY_RETRY_MAX = 10;
+/** Initial retry delay and cap (config may raise the cap for heavy 503 waves). */
+const RETRY_INITIAL_DELAY_MS = 5_000;
+const RETRY_MAX_DELAY_MS = 120_000;
 /** How many capacity-503 retries have been consumed for the current prompt. */
 let retryAttempt = 0;
+/** Pending retry timer — cancelled when the user acts during the backoff. */
+let retryTimer: ReturnType<typeof setTimeout> | null = null;
 /** Set when a turn is intentionally killed (/restart); swallows the stale
  * ERROR result that surfaces afterward. */
 let suppressNextTurnError = false;
@@ -27,11 +32,23 @@ let suppressNextTurnError = false;
 let lastPromptText: string | null = null;
 let lastPromptDirectory: string | null = null;
 
-/** Transient provider errors worth a transparent resend (not user faults). */
+/** Transient provider errors worth a transparent resend (not user faults).
+ * NOTE: "deadline exceeded" from the print-timeout config check is NOT here —
+ * agy's print-timeout exits 0 with partial output (handled in agent-process),
+ * so a bare deadline error text is a genuine upstream deadline. */
 function isTransientCapacityError(message: string): boolean {
-  return /UNAVAILABLE|RESOURCE_EXHAUSTED|No capacity available|Deadline|deadline exceeded|internal error|Internal/i.test(
+  return /UNAVAILABLE|RESOURCE_EXHAUSTED|No capacity available|internal error|Internal/i.test(
     message,
   );
+}
+
+/** Cancel any pending capacity retry (user acted during the backoff window). */
+function cancelPendingRetry(reason: string): void {
+  if (retryTimer) {
+    clearTimeout(retryTimer);
+    retryTimer = null;
+    logger.info(`[AgyEvents] pending retry cancelled: ${reason}`);
+  }
 }
 
 // Adapter: drives an AntigravityProcess and translates the raw agy stream-json
@@ -313,12 +330,22 @@ function handleResult(event: AgyResultEvent): void {
     if (!suppressNextTurnError && isTransientCapacityError(errorMessage) && lastPromptText) {
       const attempt = (retryAttempt = retryAttempt + 1);
       if (attempt <= CAPACITY_RETRY_MAX) {
-        const delayMs = Math.min(50_000, 5_000 * 2 ** (attempt - 1));
+        // Exponential backoff with a raised cap: Google's 503 waves last
+        // minutes, 3 attempts at ≤40s always came up short (gemini-cli uses
+        // the same shape: 10 attempts, exponential, capped).
+        const delayMs = Math.min(RETRY_MAX_DELAY_MS, RETRY_INITIAL_DELAY_MS * 2 ** (attempt - 1));
         logger.warn(
           `[AgyEvents] transient server error (attempt ${attempt}/${CAPACITY_RETRY_MAX}); resending prompt in ${delayMs}ms`,
         );
-        setTimeout(() => {
-          activeProcess = null;
+        // Kill the dead/orphaned process instead of abandoning it (it would
+        // otherwise keep streaming steps alongside the retry spawn).
+        const stale = activeProcess;
+        activeProcess = null;
+        if (stale) {
+          void stale.kill().catch(() => {});
+        }
+        retryTimer = setTimeout(() => {
+          retryTimer = null;
           if (lastPromptDirectory) {
             // Resume the SAME conversation on retry: spawning without a
             // conversation id creates an orphan session, whose later
@@ -369,6 +396,13 @@ function handleResult(event: AgyResultEvent): void {
     });
   }
 
+  // Turn is over — the prompt it consumed is done: forget it so a later 503
+  // can never resurrect a stale prompt, and reset the attempt counter.
+  lastPromptText = null;
+  lastPromptDirectory = null;
+  retryAttempt = 0;
+  cancelPendingRetry("turn finished");
+
   // Turn is over either way — release the foreground/typing state.
   emitBotEvent("session.idle", { sessionID: currentSessionId });
 }
@@ -389,10 +423,13 @@ function wireProcess(proc: AntigravityProcess): void {
   });
   proc.on("exit", ({ code, signal }) => {
     logger.info(`[AgyEvents] agy process exited (code=${code}, signal=${signal})`);
-    if (activeProcess === proc) {
+    const wasActive = activeProcess === proc;
+    if (wasActive) {
       activeProcess = null;
     }
-    if (currentSessionId && eventCallback) {
+    // Only emit idle when the process that died was the live one — an exit
+    // from an already-replaced process must not shut down the new turn.
+    if (wasActive && currentSessionId && eventCallback) {
       emitBotEvent("session.idle", { sessionID: currentSessionId });
     }
   });
@@ -515,6 +552,11 @@ export function __resetAgyEventsForTests(): void {
  */
 export function hotTakeoverPrompt(text: string): boolean {
   if (activeProcess && activeProcess.isRunning()) {
+    // A live prompt invalidates any pending capacity retry for the OLD prompt:
+    // the queued send would otherwise fire later and pile a stale prompt on
+    // top of the new one (the "attempt 1/2/3 cascade" over one conversation).
+    cancelPendingRetry("hot takeover by user message");
+    retryAttempt = 0;
     void activeProcess.sendPrompt(text).catch((err) => {
       logger.error("[AgyEvents] hot takeover write failed:", err);
     });
@@ -527,6 +569,9 @@ export function hotTakeoverPrompt(text: string): boolean {
 export async function sendPromptToActiveProcess(text: string, directory: string): Promise<void> {
   lastPromptText = text;
   lastPromptDirectory = directory;
+  // A fresh user prompt supersedes any retry of an older prompt.
+  cancelPendingRetry("new prompt sent");
+  retryAttempt = 0;
   if (activeProcess && activeProcess.isRunning()) {
     await activeProcess.sendPrompt(text);
     return;

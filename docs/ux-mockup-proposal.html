@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UX Mockup · Modo Trabajo · antigravity-tg-bot</title>
+<style>
+  :root{
+    --tg-bg:#0e1621;          /* Telegram dark chat background */
+    --tg-panel:#17212b;       /* header/composer panel */
+    --bubble-in:#182533;
+    --bubble-out:#2b5278;     /* Telegram outgoing blue */
+    --bubble-accent:#7665d6;  /* work-panel violet (blockquote expandable look) */
+    --text:#e8edf2; --text-dim:#8fa3b3; --text-faint:#5b6d7c;
+    --ok:#4dc97a; --warn:#e2a04a;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--tg-bg);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;color:var(--text);
+       min-height:100vh;display:flex;justify-content:center;padding:24px 12px}
+  .phone{width:420px;max-width:100%;display:flex;flex-direction:column;border-radius:18px;overflow:hidden;
+         background:
+           radial-gradient(1200px 600px at 20% -10%, rgba(80,100,130,.25), transparent 60%),
+           radial-gradient(900px 500px at 90% 110%, rgba(60,70,110,.2), transparent 60%),
+           var(--tg-bg);
+         border:1px solid #1f2a36; box-shadow:0 24px 60px rgba(0,0,0,.5)}
+  /* header */
+  .hdr{display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--tg-panel);border-bottom:1px solid #0d141c}
+  .hdr .back{color:#63b3ff;font-size:18px}
+  .avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#2b5278,#7665d6);
+          display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}
+  .hdr .title{flex:1}
+  .hdr .title b{display:block;font-size:14px}
+  .hdr .title span{font-size:12px;color:var(--ok)}
+  .hdr .icon{color:#8fa3b3}
+  /* chat */
+  .chat{padding:16px 12px 8px;display:flex;flex-direction:column;gap:8px}
+  .daystick{align-self:center;font-size:11px;color:#7d8b99;background:rgba(0,0,0,.25);padding:2px 10px;border-radius:10px;margin-bottom:6px}
+  .row{display:flex}
+  .row.in{justify-content:flex-start}
+  .row.out{justify-content:flex-end}
+  .bubble{max-width:85%;padding:8px 11px;border-radius:var(--radius);font-size:13.5px;line-height:1.45;position:relative}
+  .in .bubble{background:var(--bubble-in);border-top-left-radius:5px}
+  .out .bubble{background:var(--bubble-out);border-top-right-radius:5px}
+  .meta{font-size:10px;color:rgba(255,255,255,.55);text-align:right;margin-top:3px;display:flex;justify-content:flex-end;gap:4px;align-items:center}
+  .out .meta{color:rgba(255,255,255,.6)}
+  .check{color:#63d0ff}
+  /* user bubble contents */
+  .usermsg b{font-weight:600}
+  .usermsg .ctx{margin-top:4px;font-size:11.5px;color:rgba(255,255,255,.6)}
+  /* work panel = bot bubble w/ expandable blockquote aesthetic */
+  .work{background:var(--bubble-out)}
+  .work .head{font-weight:600;font-size:13.5px;color:#fff}
+  .work .tick{display:inline-block;font-size:11px;color:#9fd1ff;margin-right:6px}
+  .work .ghost{color:rgba(255,255,255,.85)}
+  .work .last{margin-top:3px;font-size:12.5px;color:rgba(255,255,255,.8)}
+  .work .last .t{color:rgba(255,255,255,.55)}
+  .work details{margin-top:7px}
+  .work details>summary{cursor:pointer;font-size:11px;color:#9fd1ff;list-style:none;display:inline-flex;align-items:center;gap:4px;
+                        border:1px solid rgba(255,255,255,.25);border-radius:10px;padding:2px 8px}
+  .work details>summary::-webkit-details-marker{display:none}
+  .work details[open]>summary{background:rgba(0,0,0,.18)}
+  .work ul{list-style:none;margin-top:6px;padding:8px 10px;background:rgba(0,0,0,.22);border-radius:10px}
+  .work li{display:flex;gap:7px;font-size:12.5px;color:rgba(255,255,255,.92);padding:3px 0;align-items:baseline}
+  .work li .d{color:rgba(255,255,255,.55);margin-left:auto;font-size:10.5px;white-space:nowrap}
+  .work li.dim{color:rgba(255,255,255,.55)}
+  .work li.prev{border-bottom:1px dashed rgba(255,255,255,.15);padding-bottom:6px;margin-bottom:3px}
+  .work li .cmd{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px}
+  /* final */
+  .final{background:var(--bubble-out)}
+  .final p{margin:0 0 7px}
+  .final p:last-child{margin:0}
+  .final code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;background:rgba(0,0,0,.28);
+              border-radius:4px;padding:1px 4px}
+  /* typing shimmer on last bubble */
+  .pulse{display:inline-flex;gap:3px;vertical-align:middle}
+  .pulse i{width:5px;height:5px;border-radius:50%;background:#9fd1ff;animation:p 1.2s infinite}
+  .pulse i:nth-child(2){animation-delay:.2s}.pulse i:nth-child(3){animation-delay:.4s}
+  @keyframes p{0%,60%,100%{opacity:.3}30%{opacity:1}}
+  /* composer */
+  .comp{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--tg-panel);border-top:1px solid #0d141c}
+  .comp .fake{flex:1;background:#202b38;border-radius:18px;padding:8px 12px;color:var(--text-faint);font-size:13px}
+  .comp .snd{color:#63b3ff}
+  /* annotations */
+  .annot{width:420px;max-width:100%;margin-top:14px;padding:12px 14px;background:#121a24;border:1px solid #22303e;border-radius:12px}
+  .annot h3{font-size:12px;color:#9fd1ff;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+  .annot li{font-size:12px;color:var(--text-dim);margin:4px 0 4px 16px}
+  .annot code{font-family:ui-monospace,Menlo,monospace;font-size:10.5px;color:#c7d6e2;background:#1a2530;border-radius:3px;padding:0 3px}
+</style>
+</head>
+<body>
+<div style="display:flex;flex-direction:column;gap:0">
+<div class="phone">
+  <div class="hdr">
+    <span class="back">‹</span>
+    <div class="avatar">AG</div>
+    <div class="title"><b>Antigravity Bot</b><span>working…</span></div>
+    <span class="icon">⋮</span>
+  </div>
+
+  <div class="chat">
+    <div class="daystick">Hoy</div>
+
+    <!-- (a) user message -->
+    <div class="row out">
+      <div class="bubble usermsg">
+        <div>Refactoriza <b>quota-service.ts</b> para que use el rate limiter nuevo y añade un test.</div>
+        <div class="ctx">📁 antigravity-bot · ⚙ Claude Sonnet 4.5</div>
+        <div class="meta">10:41 <span class="check">✓✓</span></div>
+      </div>
+    </div>
+
+    <!-- (b)+(c) bot: instant-ack merged with compact work panel.
+         Ack text arrives instantly, panel updates in place (throttled edits), never a new message. -->
+    <div class="row in">
+      <div class="bubble work">
+        <span class="head">🔧 Trabajando</span>
+        <span class="ghost">· 7 llamadas <span class="pulse"><i></i><i></i><i></i></span></span>
+        <div class="last"><span class="t">↳</span> 💻 <span class="cmd">bun test quota-service.spec</span> <span class="t">· 12s</span></div>
+        <details>
+          <summary>Ver transcripción</summary>
+          <ul>
+            <li><span>📖</span><span><span class="cmd">quota-service.ts</span></span><span class="d">412 l, 3s</span></li>
+            <li class="prev"><span>📁</span><span><span class="cmd">src/billing/</span></span><span class="d">1s</span></li>
+            <li><span>🔍</span><span><span class="cmd">rateLimiter\b</span></span><span class="d">0.4s</span></li>
+            <li><span>✏️</span><span><span class="cmd">quota-service.ts</span>+94 −61</span><span class="d">9s</span></li>
+            <li><span>💻</span><span class="cmd">bun test quota-service.spec</span><span class="d">12s</span></li>
+          </ul>
+        </details>
+        <div class="meta">10:42 · editado hace 5s</div>
+      </div>
+    </div>
+
+    <!-- (d) final answer. Work panel is collapsed/removed; footer keeps a sober audit line. -->
+    <div class="row in">
+      <div class="bubble final">
+        <p><b>Hecho</b> — refactor y test listos.</p>
+        <p><code>quota-service.ts</code> ahora delega en <code>TokenBucketLimiter</code> (inyectado, sin singleton). Test nuevo: <code>test/billing/quota-service.spec.ts</code></p>
+        <p>
+          <button style="background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#cfe6ff;border-radius:12px;padding:4px 10px;font-size:11.5px;margin-right:6px">📖 quota-service.ts</button>
+          <button style="background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#cfe6ff;border-radius:12px;padding:4px 10px;font-size:11.5px">📄 fuente diff — billing/</button>
+        </p>
+        <p style="font-size:11px;color:rgba(255,255,255,.5)">🕐 1m 32s · 🔧 7 llamadas · ✏️ 1 archivo</p>
+        <div class="meta">10:43 <span class="check">✓✓</span></div>
+      </div>
+    </div>
+
+    <!-- next message just starting: typing intent, no empty-string bubble -->
+    <div class="row in">
+      <div class="bubble work" style="opacity:.85">
+        <span class="head">💭 Pensando</span> <span class="pulse"><i></i><i></i><i></i></span>
+        <div class="meta">escribiendo…</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="comp">
+    <span class="icon">📎</span>
+    <div class="fake">Mensaje</div>
+    <span class="snd">🎤</span>
+  </div>
+</div>
+
+<!-- ANNOTATIONS: which event properties already exist to drive each section -->
+<div class="annot">
+  <h3>(a) Mensaje del usuario</h3>
+  <ul>
+    <li>Ya existe: <code>prompt.ts</code> guarda texto + archivos; footer de sesión/agent/model vía <code>session-service</code> / <code>settings-store</code>.</li>
+  </ul>
+  <h3>(b) Instant-ack en la misma burbuja</h3>
+  <ul>
+    <li>Hoy: <code>deliverThinkingMessage()</code> → <code>"💭 Pensando..."</code> como mensaje <b>separado</b>. El ack debe reutilizarse como <b>primera edición</b> del mensaje del panel (<code>editText</code>), no como mensaje aparte.</li>
+    <li>Datos disponibles al recibir el prompt: sessionId, chat, typing indicator (<code>startTypingIndicator</code>), contexto archivo/agent.</li>
+    <li>Regla: la burbuja nace con ícono + ventana rápida visible; NUNCA se envía texto vacío (el streamer ya filtra <code>lines.length === 0</code> en <code>buildParts</code>).</li>
+  </ul>
+  <h3>(c) Panel compacto '🔧 Trabajando · 7 llamadas'</h3>
+  <ul>
+    <li>Formato real del fork: <code>💭 Working… · N tool calls\n↳ última(≤60c)</code> dentro de <code>&lt;blockquote expandable&gt;</code> — <code>tool-call-streamer.ts buildParts()</code>.</li>
+    <li>Por llamada: <code>getToolIcon()</code> (🔨 📖 ✍️ ✏️ 🩹 💻 📁 🔍 🤖 …) + <code>getToolDetails()</code> que ya resuelve nombres Antigravity: <code>view_file→AbsolutePath/TargetFile</code>, <code>run_command→CommandLine</code>, <code>replace_file_content→TargetFile</code>, <code>list_dir→DirectoryPath</code>, <code>find_by_name→…</code>, grep→pattern (con truncado 64c en compacto).</li>
+    <li>Cronómetro: <code>RunningToolTick</code> cada 5s (<code>TOOL_ELAPSED_TICK_INTERVAL_MS</code>) + <code>appendDuration()</code>/<code>formatDuration()</code>; <code>completedToolDurations</code> da el tiempo final por call.</li>
+    <li>Eventos: <code>summaryAggregator.setOnTool</code> → <code>ToolInfo{callId, tool, state, input, title, metadata, hasFileAttachment}</code>; en compacto solo <code>addToolCall(callId)</code> + <code>addFileChange(path)</code> → footer final "tool calls: N · changed files: M" (<code>progress.compact.done</code>).</li>
+    <li>Throttle progresivo ya implementado (<code>stream-throttle.ts</code>): 1s → 2s (>1min) → 5s (>5min) → 10s (>15min), con backoff 429. Un solo mensaje Telegram editado in-place (precision nativa de <code>ToolCallStreamer.syncMessages</code>).</li>
+    <li>Cambio propuesto vs actual: präsenti­ras últimas 2 llamadas (no todas N) en la vista normal; el <code>blockquote expandable</code> nativo de Telegram ya da el ver-más gratis — solo hay que pasarle las últimas 2 + íconos en vez del historial entero.</li>
+  </ul>
+  <h3>(d) Final answer</h3>
+  <ul>
+    <li><code>finalize-assistant-response.ts</code> + <code>ResponseStreamer</code> ya entregan el texto final insertando el stream; lástima usar <code>breakSession()</code> de <code>ToolCallStreamer</code> para que el panel colapse y no queden message-huérfanos.</li>
+    <li>Footer audit disponible en compacto: contadores de <code>toolCallIds.size</code>/<code>filePaths.size</code> y duración de run (<code>assistantRunState</code>); adjuntos de diff nativos via <code>getSendDiffFileAttachments()</code> → botones menos necesarios.</li>
+  </ul>
+</div>
+</div>
+</body>
+</html>

@@ -190,7 +190,9 @@ export const config = {
     // Optional agy launch approval mode when YOLO is off ("default" | "accept-edits" | "plan").
     mode: getEnvVar("AGY_MODE", false) || "",
     // Value passed as --print-timeout=<value> (agy expects e.g. `600s`).
-    printTimeout: getEnvVar("AGY_PRINT_TIMEOUT", false) || "600s",
+    // 600s killing long tasks was the top failure mode (~30%): every task
+    // over ten minutes died mid-flight. Lengthcoding pairing: 1h default.
+    printTimeout: getEnvVar("AGY_PRINT_TIMEOUT", false) || "3600s",
     // Default model id when no model is selected via the /model menu.
     defaultModel: getEnvVar("AGY_DEFAULT_MODEL", false) || "gemini-3.8-flash-medium",
   },
