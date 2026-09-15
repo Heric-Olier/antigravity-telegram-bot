@@ -186,7 +186,10 @@ function noteStepActivity(_event: AgyStepEvent): void {
         id: shortId("msg", 0),
         sessionID: currentSessionId,
         role: "assistant",
-        time: { updated: Date.now() },
+        stallCleared: true,
+        // Marked completed so consumers that treat message.updated as an
+        // active-run marker (shouldMarkAttachedBusyFromEvent) ignore it.
+        time: { updated: Date.now(), completed: Date.now() },
       },
     });
   }
@@ -204,13 +207,17 @@ function startStallWatchdog(): void {
       stallNotified = true;
       const minutes = Math.round((Date.now() - lastStepAt) / 60_000);
       logger.warn(`[AgyEvents] turn stalled: no step activity for ${minutes}m`);
+      // Notice only: marked completed so the busy-latch matcher
+      // (assistant && !completed) does NOT treat this as a running turn.
+      // Without completed, every stalled turn kept re-latching the attach
+      // session busy after the turn ended, and queued messages never drained.
       emitBotEvent("message.updated", {
         info: {
           id: shortId("msg", 0),
           sessionID: currentSessionId,
           role: "assistant",
           stallMinutes: minutes,
-          time: { updated: Date.now() },
+          time: { updated: Date.now(), completed: Date.now() },
         },
       });
     }
@@ -249,7 +256,6 @@ function handleStep(event: AgyStepEvent): void {
     });
     return;
   }
-
   logger.debug(`[AgyEvents] Unhandled step update: ${JSON.stringify(event).slice(0, 200)}`);
 }
 
