@@ -1286,6 +1286,20 @@ class EventSubscriptionService implements BotEventSubscriptionService {
       await markAttachedSessionIdle(sessionId);
       this.clearToolElapsedState(sessionId, "session_error");
 
+      // Safety net (mirrors setOnSessionIdle): an error emitted by an orphan
+      // session must not leave the attached session latched busy forever.
+      const attachedAtError = attachManager.getSnapshot();
+      if (
+        attachedAtError?.busy &&
+        attachedAtError.sessionId &&
+        !assistantRunState.hasActiveRun()
+      ) {
+        await markAttachedSessionIdle(attachedAtError.sessionId);
+        logger.warn(
+          `[Bot] session.error for ${sessionId}; attached ${attachedAtError.sessionId} had no live run — releasing stale busy latch`,
+        );
+      }
+
       if (!this.botInstance || !this.chatIdInstance) {
         clearPromptResponseMode(sessionId);
         this.compactProgressStreamer.clearSession(sessionId, "session_error_no_bot_context");
@@ -1305,6 +1319,9 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         this.stopTypingIndicator(sessionId);
           foregroundSessionState.markIdle(sessionId);
         await scheduledTaskRuntime.flushDeferredDeliveries();
+        // The session that errored isn't the foreground one; the queue may
+        // still hold user prompts parked while the (dead) run was busy.
+        void dispatchNextQueuedPrompt();
         return;
       }
 
