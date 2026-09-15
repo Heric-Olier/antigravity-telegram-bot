@@ -105,7 +105,17 @@ export async function tryEnqueuePromptIfBusy(
   ctx: Context,
   input: QueuedPromptInput,
 ): Promise<boolean> {
-  return isForegroundBusy() && tryEnqueuePrompt(ctx, input);
+  if (!isForegroundBusy()) {
+    return false;
+  }
+  // HOT TAKEOVER (Hermes-style): a live agy process consumes the new message
+  // as the next turn of the SAME conversation instead of parking it in the
+  // empty-carrier queue. Only queue when no live process exists.
+  const { hotTakeoverPrompt } = await import("../../antigravity/events.js");
+  if (hotTakeoverPrompt(input.text || "[attachment]")) {
+    return false; // handled live; caller proceeds with processPrompt normally
+  }
+  return tryEnqueuePrompt(ctx, input);
 }
 
 /**

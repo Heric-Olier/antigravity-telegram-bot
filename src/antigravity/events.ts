@@ -493,6 +493,24 @@ export function __resetAgyEventsForTests(): void {
  * when no process is alive yet, which is the normal "first prompt after
  * /new or app start" path.
  */
+/**
+ * HOT TAKEOVER: write a new user message into the LIVE agy stdin pipe while a
+ * turn is still running. agy consumes it as the next message of the same
+ * conversation after the current turn settles — no queue, no restart, and the
+ * prior work is preserved. Returns false when no live process exists (caller
+ * keeps its queue fallback).
+ */
+export function hotTakeoverPrompt(text: string): boolean {
+  if (activeProcess && activeProcess.isRunning()) {
+    void activeProcess.sendPrompt(text).catch((err) => {
+      logger.error("[AgyEvents] hot takeover write failed:", err);
+    });
+    logger.info("[AgyEvents] hot takeover: user message injected into live agy stdin");
+    return true;
+  }
+  return false;
+}
+
 export async function sendPromptToActiveProcess(text: string, directory: string): Promise<void> {
   lastPromptText = text;
   lastPromptDirectory = directory;
