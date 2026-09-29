@@ -17,6 +17,14 @@ function logUnauthorizedAttempt(userId: number | undefined): void {
 }
 
 export async function authMiddleware(ctx: Context, next: NextFunction): Promise<void> {
+  // Service updates for our OWN actions (e.g. the pinned_message Telegram
+  // emits when the bot creates its dashboard pin) arrive with the bot itself
+  // as `from` — they are not intruders and must be ignored silently.
+  if (ctx.from?.is_bot) {
+    logger.debug(`[Auth] Ignoring bot-originated update from ${ctx.from.id}`);
+    return;
+  }
+
   const userId = ctx.from?.id;
 
   logger.debug(
