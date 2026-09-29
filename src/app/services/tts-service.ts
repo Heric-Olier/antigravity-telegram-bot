@@ -293,12 +293,18 @@ export async function prepareTtsResponseForSession({
     return { shouldSend: false };
   }
 
-  if (normalizedText.length > MAX_TTS_INPUT_CHARS) {
-    logger.warn(
-      `[TTS] Skipping audio reply for session ${sessionId}: text length ${normalizedText.length} exceeds limit ${MAX_TTS_INPUT_CHARS}`,
+  // Speak the first part instead of dropping the whole reply: long answers
+  // used to be skipped silently even though the user asked for audio.
+  const speechText =
+    normalizedText.length > MAX_TTS_INPUT_CHARS
+      ? `${normalizedText.slice(0, MAX_TTS_INPUT_CHARS - 1).trimEnd()}…`
+      : normalizedText;
+
+  if (speechText.length < normalizedText.length) {
+    logger.info(
+      `[TTS] Audio reply truncated for session ${sessionId}: ${normalizedText.length} -> ${speechText.length} chars`,
     );
-    return { shouldSend: false };
   }
 
-  return { shouldSend: true, speech: await synthesizeSpeechImpl(normalizedText) };
+  return { shouldSend: true, speech: await synthesizeSpeechImpl(speechText) };
 }

@@ -290,7 +290,7 @@ function handleStep(event: AgyStepEvent): void {
     });
     return;
   }
-  logger.debug(`[AgyEvents] Unhandled step update: ${JSON.stringify(event).slice(0, 200)}`);
+  logger.debug(`[AgyEvents] Step done (no handler action): ${JSON.stringify(event).slice(0, 200)}`);
 }
 
 function handleResult(event: AgyResultEvent, sourceProc?: AntigravityProcess): void {

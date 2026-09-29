@@ -2,6 +2,20 @@ import { Context, NextFunction } from "grammy";
 import { config } from "../../config.js";
 import { logger } from "../../utils/logger.js";
 
+/** Throttle repeated unauthorized-attempt warnings (once per user per 10 min). */
+const UNAUTHORIZED_LOG_INTERVAL_MS = 10 * 60_000;
+const lastUnauthorizedLogAt = new Map<number, number>();
+
+function logUnauthorizedAttempt(userId: number | undefined): void {
+  const key = userId ?? 0;
+  const now = Date.now();
+  if (now - (lastUnauthorizedLogAt.get(key) ?? 0) < UNAUTHORIZED_LOG_INTERVAL_MS) {
+    return;
+  }
+  lastUnauthorizedLogAt.set(key, now);
+  logger.warn(`Unauthorized access attempt from user ID: ${userId}`);
+}
+
 export async function authMiddleware(ctx: Context, next: NextFunction): Promise<void> {
   const userId = ctx.from?.id;
 
@@ -14,7 +28,7 @@ export async function authMiddleware(ctx: Context, next: NextFunction): Promise<
     await next();
   } else {
     // Silently ignore unauthorized users
-    logger.warn(`Unauthorized access attempt from user ID: ${userId}`);
+    logUnauthorizedAttempt(userId);
 
     // Actively hide commands for unauthorized users by setting empty command list
     // Only do this if the chat is NOT the authorized user's chat

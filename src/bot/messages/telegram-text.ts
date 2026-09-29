@@ -215,12 +215,9 @@ export async function editRenderedBotPart({
 }: EditRenderedBotPartParams): Promise<RenderedPartDeliveryResult> {
   const rawOptions = stripRichFormattingOptions(options);
 
-  logger.debug("[Bot] Editing rendered Telegram part", {
-    messageId,
-    source: part.source,
-    blockCount: part.blocks.length,
-    fallbackTextLength: part.fallbackText.length,
-  });
+  logger.debug(
+    `[Bot] Editing rendered Telegram part: messageId=${messageId}, source=${part.source}, blocks=${part.blocks.length}, fallbackLen=${part.fallbackText.length}`,
+  );
 
   if (isPlainPart(part)) {
     await api.editMessageText(

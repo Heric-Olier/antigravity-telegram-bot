@@ -1475,9 +1475,35 @@ class SummaryAggregator {
       }
 
       if ("status" in state && state.status === "completed") {
+        // Compact one-line summary — the previous full JSON dump pushed
+        // multi-hundred-line payloads into the journal for every tool call.
+        const completedState = state as {
+          title?: unknown;
+          input?: unknown;
+          output?: unknown;
+        };
+        const completedInput =
+          completedState.input && typeof completedState.input === "object"
+            ? completedState.input
+            : null;
+        const inputSummary = completedInput
+          ? Object.entries(completedInput as Record<string, unknown>)
+              .slice(0, 4)
+              .map(([key, value]) => {
+                const text = typeof value === "string" ? value : JSON.stringify(value);
+                return `${key}=${(text ?? "").slice(0, 60)}`;
+              })
+              .join(", ")
+          : "";
+        const outputPreview =
+          typeof completedState.output === "string"
+            ? JSON.stringify(completedState.output.slice(0, 120))
+            : "";
         logger.debug(
-          `[Aggregator] Tool completed: callID=${part.callID}, tool=${part.tool}`,
-          JSON.stringify(state, null, 2),
+          `[Aggregator] Tool completed: callID=${part.callID}, tool=${part.tool}` +
+            `, title=${typeof completedState.title === "string" ? completedState.title : "?"}` +
+            (inputSummary ? `, input={${inputSummary}}` : "") +
+            (outputPreview ? `, outputPreview=${outputPreview}` : ""),
         );
 
         const completedKey = `completed-${part.callID}`;

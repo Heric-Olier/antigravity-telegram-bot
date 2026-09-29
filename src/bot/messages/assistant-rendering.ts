@@ -38,30 +38,24 @@ export function renderAssistantFinalPartsSafe(text: string): TelegramRenderedPar
 
   if (!useAssistantEntitiesFormat()) {
     const parts = createPlainRenderedParts(text);
-    logger.debug("[AssistantRender] Built final assistant parts in raw mode", {
-      formatMode,
-      textLength: text.length,
-      partCount: parts.length,
-    });
+    logger.debug(
+      `[AssistantRender] Built final payload (raw): format=${formatMode}, len=${text.length}, parts=${parts.length}`,
+    );
     return parts;
   }
 
   try {
     const parts = renderTelegramParts(text);
-    logger.debug("[AssistantRender] Built final assistant parts in blocks mode", {
-      formatMode,
-      textLength: text.length,
-      partCount: parts.length,
-    });
+    logger.debug(
+      `[AssistantRender] Built final payload (blocks): format=${formatMode}, len=${text.length}, parts=${parts.length}`,
+    );
     return parts;
   } catch (error) {
     logger.warn("[AssistantRender] Part rendering failed, falling back to plain text parts", error);
     const parts = createPlainRenderedParts(text);
-    logger.debug("[AssistantRender] Built final assistant parts in raw fallback mode", {
-      formatMode,
-      textLength: text.length,
-      partCount: parts.length,
-    });
+    logger.debug(
+      `[AssistantRender] Built final payload (raw fallback): format=${formatMode}, len=${text.length}, parts=${parts.length}`,
+    );
     return parts;
   }
 }
@@ -111,22 +105,17 @@ export function prepareAssistantStreamingPayload(
 
   if (!useAssistantEntitiesFormat()) {
     const parts = createPlainRenderedParts(messageText);
-    logger.debug("[AssistantRender] Built streaming assistant payload in raw mode", {
-      formatMode,
-      textLength: messageText.length,
-      partCount: parts.length,
-    });
+    logger.debug(
+      `[AssistantRender] Built streaming payload (raw): format=${formatMode}, len=${messageText.length}, parts=${parts.length}`,
+    );
     return parts.length > 0 ? { parts } : null;
   }
 
   const blocks = buildStreamingBlocks(messageText);
   const parts = chunkTelegramRenderedBlocks(blocks);
-  logger.debug("[AssistantRender] Built streaming assistant payload in blocks mode", {
-    formatMode,
-    textLength: messageText.length,
-    blockCount: blocks.length,
-    partCount: parts.length,
-  });
+  logger.debug(
+    `[AssistantRender] Built streaming payload (blocks): format=${formatMode}, len=${messageText.length}, blocks=${blocks.length}, parts=${parts.length}`,
+  );
 
   return parts.length > 0 ? { parts } : null;
 }

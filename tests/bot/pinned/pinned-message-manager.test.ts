@@ -21,6 +21,7 @@ const mocked = vi.hoisted(() => ({
   getModelContextLimit: vi.fn().mockResolvedValue(204800),
   getGitWorktreeContext: vi.fn(),
   formatModelDisplayName: vi.fn(() => "test-model"),
+  getContextUsed: vi.fn().mockReturnValue(0),
 }));
 
 vi.mock("../../../src/opencode/client.js", () => ({ opencodeClient: mocked.opencodeClient }));
@@ -42,6 +43,9 @@ vi.mock("../../../src/app/services/model-selection-service.js", () => ({ getStor
 vi.mock("../../../src/app/services/model-context-limit-service.js", () => ({
   DEFAULT_CONTEXT_LIMIT: 204800,
   getModelContextLimit: mocked.getModelContextLimit,
+}));
+vi.mock("../../../src/app/services/context-usage-tracker.js", () => ({
+  getContextUsed: mocked.getContextUsed,
 }));
 vi.mock("../../../src/i18n/index.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../../src/i18n/index.js")>();
@@ -105,6 +109,7 @@ describe("pinned/manager", () => {
     mocked.formatModelDisplayName.mockReturnValue("test-model");
     mocked.getStoredModel.mockReturnValue({ providerID: "openai", modelID: "gpt-5" });
     mocked.getModelContextLimit.mockResolvedValue(204800);
+    mocked.getContextUsed.mockReturnValue(0);
     mocked.getPinnedMessageId.mockReturnValue(null);
     mocked.getPinnedDashboardEnabled.mockReturnValue(true);
     mocked.opencodeClient.session.messages.mockResolvedValue({ data: [] });
@@ -170,6 +175,21 @@ describe("pinned/manager", () => {
       expect(state.tokensUsed).toBe(400);
       expect(state.cost).toBeCloseTo(0.85);
     });
+  });
+
+  it("never reports less than agy's step-usage context tracker", () => {
+    mocked.getContextUsed.mockReturnValue(84046);
+
+    pinnedMessageManager.updateTokensSilent({
+      input: 0,
+      output: 0,
+      reasoning: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+    });
+
+    expect(pinnedMessageManager.getState().tokensUsed).toBe(84046);
+    mocked.getContextUsed.mockReturnValue(0);
   });
 
   describe("updateTokensSilent", () => {

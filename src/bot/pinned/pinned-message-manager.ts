@@ -1,6 +1,7 @@
 import type { Api } from "grammy";
 import { logger } from "../../utils/logger.js";
 import { getGitWorktreeContext } from "../../app/services/worktree-service.js";
+import { getContextUsed } from "../../app/services/context-usage-tracker.js";
 import { getCurrentSession } from "../../app/services/session-service.js";
 import {
   getCurrentProject,
@@ -203,9 +204,10 @@ class PinnedMessageManager {
       await this.fetchContextLimit();
     }
 
-    // Context = input + cache.read (cache.read contains previously cached context)
-    // This represents the actual context window usage
-    this.state.tokensUsed = tokens.input + tokens.cacheRead;
+    // Context = input + cache.read (cache.read contains previously cached
+    // context), never below agy's per-step tracker: some turn-end envelopes
+    // report 0 tokens, which used to pin the badge at 0/1M.
+    this.state.tokensUsed = Math.max(tokens.input + tokens.cacheRead, getContextUsed());
 
     logger.debug(
       `[PinnedManager] Tokens updated: ${this.state.tokensUsed}/${this.state.tokensLimit}`,
@@ -223,7 +225,7 @@ class PinnedMessageManager {
    * to keep pinned state in sync with keyboardManager.
    */
   updateTokensSilent(tokens: TokensInfo): void {
-    this.state.tokensUsed = tokens.input + tokens.cacheRead;
+    this.state.tokensUsed = Math.max(tokens.input + tokens.cacheRead, getContextUsed());
     logger.debug(
       `[PinnedManager] Tokens updated (silent): ${this.state.tokensUsed}/${this.state.tokensLimit}`,
     );

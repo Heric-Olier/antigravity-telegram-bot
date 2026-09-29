@@ -61,8 +61,9 @@ describe("bot/messages/assistant-rendering", () => {
     ]);
 
     expect(debug).toHaveBeenCalledWith(
-      "[AssistantRender] Built final assistant parts in raw mode",
-      expect.objectContaining({ formatMode: "raw", partCount: 1 }),
+      expect.stringContaining(
+        "[AssistantRender] Built final payload (raw): format=raw, len=13, parts=1",
+      ),
     );
   });
 
@@ -92,8 +93,9 @@ describe("bot/messages/assistant-rendering", () => {
     });
 
     expect(debug).toHaveBeenCalledWith(
-      "[AssistantRender] Built streaming assistant payload in raw mode",
-      expect.objectContaining({ formatMode: "raw", partCount: 1 }),
+      expect.stringContaining(
+        "[AssistantRender] Built streaming payload (raw): format=raw, len=14, parts=1",
+      ),
     );
   });
 

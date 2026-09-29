@@ -70,7 +70,7 @@ vi.mock("../../../src/config.js", () => ({
   },
 }));
 
-import {
+import { prepareTtsResponseForSession,
   isTtsConfigured,
   synthesizeSpeech,
   stripMarkdownForSpeech,
@@ -489,5 +489,40 @@ describe("synthesizeSpeech (Edge)", () => {
     mockEdgeSynth.mockRejectedValue(new Error("Edge TTS: no audio received"));
 
     await expect(synthesizeSpeech("Hello")).rejects.toThrow("no audio received");
+  });
+});
+
+describe("prepareTtsResponseForSession (long replies)", () => {
+  it("truncates oversized replies to the limit instead of skipping them", async () => {
+    const synthesize = vi.fn().mockResolvedValue({} as never);
+
+    const result = await prepareTtsResponseForSession({
+      sessionId: "session-1",
+      text: "x".repeat(9000),
+      consumeResponseMode: () => "text_and_tts" as const,
+      isTtsConfigured: () => true,
+      synthesizeSpeech: synthesize,
+    });
+
+    expect(result.shouldSend).toBe(true);
+    expect(synthesize).toHaveBeenCalledTimes(1);
+    const spoken = synthesize.mock.calls[0]?.[0] as string;
+    expect(spoken.length).toBe(4000);
+    expect(spoken.endsWith("\u2026")).toBe(true);
+  });
+
+  it("passes short replies through trimmed and unchanged", async () => {
+    const synthesize = vi.fn().mockResolvedValue({} as never);
+
+    const result = await prepareTtsResponseForSession({
+      sessionId: "session-1",
+      text: "  hello there  ",
+      consumeResponseMode: () => "text_and_tts" as const,
+      isTtsConfigured: () => true,
+      synthesizeSpeech: synthesize,
+    });
+
+    expect(result.shouldSend).toBe(true);
+    expect(synthesize).toHaveBeenCalledWith("hello there");
   });
 });
