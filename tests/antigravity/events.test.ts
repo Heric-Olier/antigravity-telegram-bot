@@ -316,4 +316,33 @@ describe("antigravity/events", () => {
     expect(events.length).toBe(before);
     killSpy.mockRestore();
   });
+
+  it("drops a stale result from a replaced/aborted process", async () => {
+    const firstSpawn = makeFakeChild();
+    const secondSpawn = makeFakeChild();
+    spawnMock
+      .mockImplementationOnce(() => firstSpawn.child)
+      .mockImplementationOnce(() => secondSpawn.child);
+
+    const killSpy = vi.spyOn(process, "kill").mockImplementation((() => true) as never);
+
+    const second = collect();
+    await subscribeToEvents("/tmp/proj-a", collect().callback);
+    await flush(1);
+    await subscribeToEvents("/tmp/proj-b", second.callback);
+    await flush(1);
+
+    // The replaced process may still flush one stale envelope; it must NOT
+    // surface in the new session.
+    const staleStdout = (firstSpawn.child as unknown as { stdout: EventEmitter }).stdout;
+    const before = second.events.length;
+    staleStdout.emit(
+      "data",
+      `${JSON.stringify({ event: "result", result: { status: "SUCCESS", response: "stale", num_turns: 1 } })}\n`,
+    );
+    await flush(10);
+
+    expect(second.events.length).toBe(before);
+    killSpy.mockRestore();
+  });
 });

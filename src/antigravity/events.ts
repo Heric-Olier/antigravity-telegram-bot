@@ -31,8 +31,12 @@ let pendingModelRecycle = false;
 /** Pending retry timer — cancelled when the user acts during the backoff. */
 let retryTimer: ReturnType<typeof setTimeout> | null = null;
 /** Set when a turn is intentionally killed (/restart); swallows the stale
- * ERROR result that surfaces afterward. */
+ * ERROR result that surfaces afterward. Bounded by a TTL so a lost
+ * envelope can never suppress a LATER real error forever. */
 let suppressNextTurnError = false;
+let suppressNextTurnErrorAt = 0;
+/** How long the stale post-kill envelope is still expected. */
+const SUPPRESS_ERROR_TTL_MS = 120_000;
 /** Last user prompt + directory, kept so transient failures can resend. */
 let lastPromptText: string | null = null;
 let lastPromptDirectory: string | null = null;
@@ -217,6 +221,14 @@ function noteStepActivity(_event: AgyStepEvent): void {
   }
 }
 
+/** Stop gap-notifications for a finished/aborted turn: without this, an
+ * idle bot fires a spurious "turn stalled" ~8 min after its LAST step
+ * (the watchdog used to reset only on the next step). */
+function resetStallWatchdog(): void {
+  lastStepAt = 0;
+  stallNotified = false;
+}
+
 function startStallWatchdog(): void {
   if (stallTimer) {
     return;
@@ -281,7 +293,16 @@ function handleStep(event: AgyStepEvent): void {
   logger.debug(`[AgyEvents] Unhandled step update: ${JSON.stringify(event).slice(0, 200)}`);
 }
 
-function handleResult(event: AgyResultEvent): void {
+function handleResult(event: AgyResultEvent, sourceProc?: AntigravityProcess): void {
+  // A replaced/aborted process can still flush one stale envelope (its
+  // kill-canceled turn). Processing it against the CURRENT session would
+  // surface the stale error in an unrelated conversation — drop it.
+  if (sourceProc && sourceProc !== activeProcess) {
+    logger.warn(
+      `[AgyEvents] dropping stale result from a replaced/aborted process (status=${event.status})`,
+    );
+    return;
+  }
   logger.info(
     `[AgyEvents] result: status=${event.status} turns=${event.numTurns ?? "?"} respLen=${(event.response ?? "").length}`,
   );
@@ -298,19 +319,6 @@ function handleResult(event: AgyResultEvent): void {
   const messageId = shortId("msg", 0);
   const now = Date.now();
 
-  // Ready-to-render final text snapshot.
-  emitBotEvent("message.part.updated", {
-    sessionID: currentSessionId,
-    time: now,
-    part: {
-      id: nextPartId(),
-      sessionID: currentSessionId,
-      messageID: messageId,
-      type: "text",
-      text: finalText,
-    },
-  });
-
   if (event.status === "ERROR") {
     // Prefer the real error text from the envelope's `error` field; the
     // `response` may still carry the nicety text agy emitted before failing.
@@ -324,7 +332,8 @@ function handleResult(event: AgyResultEvent): void {
     // deadline) are retried transparently with backoff rather than surfacing
     // an error the user can't act on. agy keeps the conversation state, so a
     // fresh process re-attaches via --conversation and can continue.
-    const suppressed = suppressNextTurnError;
+    const suppressed =
+      suppressNextTurnError && Date.now() - suppressNextTurnErrorAt <= SUPPRESS_ERROR_TTL_MS;
     suppressNextTurnError = false;
     if (suppressed) {
       // Intentional interrupt (e.g. /restart): the error is an artifact of
@@ -371,24 +380,36 @@ function handleResult(event: AgyResultEvent): void {
         }
         retryTimer = setTimeout(() => {
           retryTimer = null;
-          if (lastPromptDirectory) {
-            // Resume the SAME conversation on retry: spawning without a
-            // conversation id creates an orphan session, whose later
-            // session.idle never releases the attached session's busy latch
-            // (typing indicator + carrier refreshes keep firing forever).
-            const spawnOptions: AntigravityProcessOptions = {};
-            const current = getCurrentSession();
-            if (current?.id.startsWith("agy-session-")) {
-              spawnOptions.conversationId = current.id.slice("agy-session-".length);
-            }
-            const stored = getStoredModel();
-            if (stored?.modelID) {
-              spawnOptions.model = stored.modelID;
-            }
-            const proc = spawnProcessForDirectory(lastPromptDirectory, spawnOptions);
-            void proc;
+          // The subscription can be torn down while the backoff runs (/new,
+          // /abort). Spawning or writing after teardown would throw
+          // ("Cannot spawn agy without an event callback") inside a timer —
+          // an uncaughtException that kills the whole bot.
+          if (!eventCallback || !lastPromptText || !lastPromptDirectory) {
+            logger.warn("[AgyEvents] retry aborted: subscription or prompt state went away");
+            retryAttempt = 0;
+            return;
           }
-          void sendPromptToActiveProcess(lastPromptText as string, lastPromptDirectory as string);
+          // Resume the SAME conversation on retry: spawning without a
+          // conversation id creates an orphan session, whose later
+          // session.idle never releases the attached session's busy latch
+          // (typing indicator + carrier refreshes keep firing forever).
+          const spawnOptions: AntigravityProcessOptions = {};
+          const current = getCurrentSession();
+          if (current?.id.startsWith("agy-session-")) {
+            spawnOptions.conversationId = current.id.slice("agy-session-".length);
+          }
+          const stored = getStoredModel();
+          if (stored?.modelID) {
+            spawnOptions.model = stored.modelID;
+          }
+          // Write straight into the fresh process: going through
+          // sendPromptToActiveProcess would reset retryAttempt, so the
+          // attempt cap could never be reached (5 s respawn loop on a
+          // 503 wave with a dead process).
+          const proc = spawnProcessForDirectory(lastPromptDirectory, spawnOptions);
+          void proc.sendPrompt(lastPromptText).catch((err) => {
+            logger.error("[AgyEvents] retry respawn write failed:", err);
+          });
         }, delayMs);
         return;
       }
@@ -396,11 +417,37 @@ function handleResult(event: AgyResultEvent): void {
     } else {
       retryAttempt = 0;
     }
+    // Final surface (no retry left): the snapshot part goes out only here —
+    // emitted earlier it would re-latch the busy matcher (assistant &&
+    // !completed) on retry/suppression paths that never emit an idle.
+    emitBotEvent("message.part.updated", {
+      sessionID: currentSessionId,
+      time: now,
+      part: {
+        id: nextPartId(),
+        sessionID: currentSessionId,
+        messageID: messageId,
+        type: "text",
+        text: finalText,
+      },
+    });
     emitBotEvent("session.error", {
       sessionID: currentSessionId,
       error: { name: "AntigravityError", message: errorMessage },
     });
   } else {
+    // Ready-to-render final text snapshot (success path).
+    emitBotEvent("message.part.updated", {
+      sessionID: currentSessionId,
+      time: now,
+      part: {
+        id: nextPartId(),
+        sessionID: currentSessionId,
+        messageID: messageId,
+        type: "text",
+        text: finalText,
+      },
+    });
     // Completed assistant message lets consumers that finish on
     // message.updated (time.completed) deliver the reply.
     emitBotEvent("message.updated", {
@@ -446,7 +493,9 @@ function handleResult(event: AgyResultEvent): void {
     }
   }
 
-  // Turn is over either way — release the foreground/typing state.
+  // Turn is over either way — release the foreground/typing state and stop
+  // the stall watchdog (its gap-notice only belongs to a run in flight).
+  resetStallWatchdog();
   emitBotEvent("session.idle", { sessionID: currentSessionId });
 }
 
@@ -462,7 +511,7 @@ function wireProcess(proc: AntigravityProcess): void {
     handleStep(event);
   });
   proc.on("result", (event: AgyResultEvent) => {
-    handleResult(event);
+    handleResult(event, proc);
   });
   proc.on("exit", ({ code, signal }) => {
     logger.info(`[AgyEvents] agy process exited (code=${code}, signal=${signal})`);
@@ -527,10 +576,16 @@ export async function subscribeToEvents(
   // open a brand-new (empty) conversation — the source of the "phantom new
   // session" pins and the stray conversation DBs. When the bot has a saved
   // agy session, attach to it instead of starting fresh.
+  const storedRawId = getCurrentSession()?.id ?? "";
+  const storedConversationId = storedRawId.replace(/^agy-session-/, "");
+  // A `new-<ts>` placeholder is not a resumable conversation — passing it
+  // as --conversation only worked by accident (agy ignored it and opened
+  // a new thread anyway); skip it so the init-promote path realigns.
   const savedId =
     spawnOptions.conversationId ??
-    getCurrentSession()?.id.replace(/^agy-session-/, "") ??
-    undefined;
+    (storedConversationId && !storedConversationId.startsWith("new-")
+      ? storedConversationId
+      : undefined);
   const merged: AntigravityProcessOptions = savedId
     ? { ...spawnOptions, conversationId: savedId }
     : spawnOptions;
@@ -543,6 +598,13 @@ export async function subscribeToEvents(
 }
 
 export function stopEventListening(): void {
+  // Full teardown (/new, project switch): nothing from the old session may
+  // survive — kill the pending retry and forget the stale prompt state so a
+  // late timer can neither write to a dead process nor spawn an orphan.
+  cancelPendingRetry("session teardown");
+  lastPromptText = null;
+  lastPromptDirectory = null;
+  retryAttempt = 0;
   if (activeProcess) {
     void activeProcess.kill().catch(() => undefined);
     activeProcess = null;
@@ -552,6 +614,7 @@ export function stopEventListening(): void {
   currentSessionId = "";
   nextPartCounter = 0;
   pendingModelRecycle = false;
+  resetStallWatchdog();
 }
 
 /**
@@ -562,12 +625,21 @@ export function stopEventListening(): void {
  */
 export async function interruptActiveTurn(): Promise<void> {
   const proc = activeProcess;
+  // The aborted turn must not resurrect later: drop its pending retry and
+  // prompt state (a stale timer would write into a dead process or spawn
+  // an orphan conversation).
+  cancelPendingRetry("turn aborted");
+  lastPromptText = null;
+  lastPromptDirectory = null;
+  retryAttempt = 0;
+  resetStallWatchdog();
   if (proc) {
     activeProcess = null;
     // The interrupted turn's eventual ERROR result (e.g. a stale 503
-    // envelope) is an artifact of the intentional kill — swallow it instead
-    // of surfacing it to the user right after a /restart.
+    // envelope) is an artifact of the intentional kill — swallowed by the
+    // TTL-bounded suppression in handleResult.
     suppressNextTurnError = true;
+    suppressNextTurnErrorAt = Date.now();
     await proc.kill().catch(() => undefined);
     if (currentSessionId && eventCallback) {
       // Surface the turn end so foreground/attached busy states flip.
@@ -636,6 +708,7 @@ export function hotTakeoverPrompt(text: string): boolean {
     // top of the new one (the "attempt 1/2/3 cascade" over one conversation).
     cancelPendingRetry("hot takeover by user message");
     retryAttempt = 0;
+    suppressNextTurnError = false;
     void activeProcess.sendPrompt(text).catch((err) => {
       logger.error("[AgyEvents] hot takeover write failed:", err);
     });
@@ -648,9 +721,11 @@ export function hotTakeoverPrompt(text: string): boolean {
 export async function sendPromptToActiveProcess(text: string, directory: string): Promise<void> {
   lastPromptText = text;
   lastPromptDirectory = directory;
-  // A fresh user prompt supersedes any retry of an older prompt.
+  // A fresh user prompt supersedes any retry of an older prompt — and any
+  // suppression from a previously interrupted turn.
   cancelPendingRetry("new prompt sent");
   retryAttempt = 0;
+  suppressNextTurnError = false;
   if (activeProcess && activeProcess.isRunning()) {
     const effectiveModel = activeProcess.getModelId();
     const storedNow = getStoredModel()?.modelID;

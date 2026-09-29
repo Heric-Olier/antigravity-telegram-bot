@@ -156,6 +156,17 @@ export class AntigravityProcess extends EventEmitter {
     child.on("error", (error) => {
       logger.error("[AgyProcess] Process error", error);
       this.emit("error", error);
+      // A failed spawn (ENOENT/EACCES/...) emits 'error' + 'close' but
+      // NOT 'exit'. Without a terminal event the session latch stays busy
+      // forever and the prompt queue never drains (silent stuck bot).
+      // Treat the failure as process death so consumers can recover.
+      if (!this.exited) {
+        this.exited = true;
+        this.cleanupListeners();
+        this.lineReader?.close();
+        this.lineReader = null;
+        this.emit("exit", { code: -1, signal: null, spawnFailed: true });
+      }
     });
 
     this.trackExit(child);
