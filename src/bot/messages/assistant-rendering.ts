@@ -1,5 +1,21 @@
 import { config } from "../../config.js";
 import { logger } from "../../utils/logger.js";
+
+// Streaming payloads are rebuilt on every render tick (Telegram syncs are
+// throttled elsewhere; the builds are not), so cap these logs at one per
+// second — a busy stream tail used to emit ~15 lines/second to the journal.
+let lastStreamingPayloadLogAtMs = 0;
+const STREAMING_PAYLOAD_LOG_THROTTLE_MS = 1_000;
+
+function logStreamingPayload(message: string): void {
+  const now = Date.now();
+  if (now - lastStreamingPayloadLogAtMs < STREAMING_PAYLOAD_LOG_THROTTLE_MS) {
+    return;
+  }
+  lastStreamingPayloadLogAtMs = now;
+  logger.debug(message);
+}
+
 import { chunkPlainText, chunkTelegramRenderedBlocks } from "../render/chunker.js";
 import { renderTelegramBlocks, renderTelegramParts, toRenderedBlocks } from "../render/pipeline.js";
 import type { TelegramRenderedBlock, TelegramRenderedPart } from "../render/types.js";
@@ -105,7 +121,7 @@ export function prepareAssistantStreamingPayload(
 
   if (!useAssistantEntitiesFormat()) {
     const parts = createPlainRenderedParts(messageText);
-    logger.debug(
+    logStreamingPayload(
       `[AssistantRender] Built streaming payload (raw): format=${formatMode}, len=${messageText.length}, parts=${parts.length}`,
     );
     return parts.length > 0 ? { parts } : null;
@@ -113,7 +129,7 @@ export function prepareAssistantStreamingPayload(
 
   const blocks = buildStreamingBlocks(messageText);
   const parts = chunkTelegramRenderedBlocks(blocks);
-  logger.debug(
+  logStreamingPayload(
     `[AssistantRender] Built streaming payload (blocks): format=${formatMode}, len=${messageText.length}, blocks=${blocks.length}, parts=${parts.length}`,
   );
 

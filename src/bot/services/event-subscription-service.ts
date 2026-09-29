@@ -1712,6 +1712,12 @@ class EventSubscriptionService implements BotEventSubscriptionService {
   private async completeThinkingStream(sessionId: string, messageId: string): Promise<void> {
     const key = this.getThinkingPayloadKey(sessionId, messageId);
     const sections = this.thinkingSections.get(key);
+    if (!sections) {
+      // No thinking content was ever streamed for this message — nothing to
+      // complete (skips the no-op call and its misleading "no active stream
+      // state" debug line on every turn end).
+      return;
+    }
     // Re-render from the sections: the streamed payload keeps its trailing
     // block literal because it was still being written.
     const finalPayload = sections

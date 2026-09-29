@@ -129,8 +129,6 @@ export function registerMessageRouter(bot: Bot<Context>, deps: MessageRouterDeps
   });
 
   bot.hears(VARIANT_BUTTON_TEXT_PATTERN, async (ctx) => {
-    logger.debug(`[Bot] Variant button pressed: ${ctx.message?.text}`);
-
     try {
       if (await blockMenuWhileInteractionActive(ctx)) {
         return;
@@ -139,10 +137,12 @@ export function registerMessageRouter(bot: Bot<Context>, deps: MessageRouterDeps
       // The footer 💡 button now carries the quota badge → open /usage.
       // (Variant menu stays available through /settings.)
       if (ctx.message?.text?.includes("%")) {
+        logger.debug(`[Bot] Quota badge pressed: ${ctx.message?.text}`);
         const usageMod = await import("../commands/usage-command.js");
         await usageMod.usageCommand(ctx as never);
         return;
       }
+      logger.debug(`[Bot] Variant button pressed: ${ctx.message?.text}`);
       await showVariantSelectionMenu(ctx);
     } catch (err) {
       logger.error("[Bot] Error showing variant menu:", err);

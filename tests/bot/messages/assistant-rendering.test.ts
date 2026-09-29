@@ -153,4 +153,16 @@ describe("bot/messages/assistant-rendering", () => {
       { block: { type: "paragraph", text: "tail" }, plainText: "tail" },
     ]);
   });
+
+  it("throttles repeated streaming payload logs within the same second", async () => {
+    const { module, debug } = await loadAssistantRendering("raw");
+
+    module.prepareAssistantStreamingPayload("first chunk");
+    module.prepareAssistantStreamingPayload("second chunk");
+
+    const streamingLogs = debug.mock.calls.filter((call) =>
+      String(call[0]).includes("Built streaming payload"),
+    );
+    expect(streamingLogs).toHaveLength(1);
+  });
 });
