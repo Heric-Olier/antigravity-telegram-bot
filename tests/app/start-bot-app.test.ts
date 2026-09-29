@@ -627,4 +627,18 @@ describe("app/start-bot-app", () => {
     expect(bot).toMatchObject({ botInfo: { username: "test_bot" } });
     expect(mocked.restoreFollowedSessionOnPollingStartMock).toHaveBeenCalledWith(bot);
   });
+
+  it("exits cleanly when polling settles right after a SIGTERM (no forced timer needed)", async () => {
+    const { releaseStart, appPromise } = await startAppWithPendingBot();
+
+    expectHandler("SIGTERM")();
+    releaseStart();
+    await appPromise;
+    await flushBackgroundTasks();
+
+    expect(mocked.loggerWarnMock).not.toHaveBeenCalledWith(
+      expect.stringContaining("forcing exit"),
+    );
+    expect(processExitSpy).toHaveBeenCalledWith(0);
+  });
 });

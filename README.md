@@ -19,10 +19,10 @@ Single-user by design. The bot talks only to your local `agy` process and the Te
 - **Streaming answers** — assistant replies stream into the chat as they are generated.
 - **In-flight hot takeover** — send a follow-up while the agent is still working and the message rides the live `agy` stdin pipe into the running turn, no abort and restart.
 - **Live quota badge** — the persistent keyboard shows your 5-hour and weekly quota with exact reset times, refreshed from `agy -p /usage` every 60 seconds.
-- **OAuth account switching** — `/switch` + `/code` perform the official Google OAuth flow over the CLI's pty, with keyring backup/restore via `libsecret`.
+- **Account switching** — `/switch` opens the accounts menu (multi-account via the `agy-accounts` plugin); adding an account uses `/addaccount` + `/code` and completes from the chat — switching never re-logs-in.
 - **Real context tracker** — context usage measured from actual `agy` usage events (not a guess), survives restarts, reflects auto-compaction.
 - **Tasks & schedules** — scheduled prompts with configurable limits and timeouts.
-- **Groq voice** — voice messages transcribed and replies spoken back via Groq Whisper STT + TTS.
+- **Voice** — voice messages transcribed via Groq Whisper STT; replies can be spoken back with Edge TTS (free, no extra API key).
 - **Expandable tool stream** — a `💭 Working…` blockquote expands into the tool-by-tool stream, including subagent activity.
 - **Typing indicator from receipt** — the chat action heartbeat starts when your message is received, not after the first event.
 
@@ -54,10 +54,13 @@ After=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=/opt/antigravity-telegram-bot
-ExecStart=/usr/bin/node dist/index.js
-Restart=on-failure
-EnvironmentFile=/opt/antigravity-telegram-bot/.env
+Environment=OPENCODE_TELEGRAM_HOME=%h/.config/antigravity-telegram-bot
+Environment=OPENCODE_TELEGRAM_RUNTIME_MODE=installed
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/bin/node /opt/antigravity-telegram-bot/dist/cli.js start
+Restart=always
+RestartSec=5
+TimeoutStopSec=20
 
 [Install]
 WantedBy=default.target
@@ -66,6 +69,8 @@ WantedBy=default.target
 ```bash
 systemctl --user enable --now antigravity-telegram-bot
 ```
+
+The installed runtime reads its configuration from `$OPENCODE_TELEGRAM_HOME/.env` (no `EnvironmentFile` needed).
 
 ## The wire: minimal agy stream-json
 

@@ -227,13 +227,15 @@ export async function startBotApp(): Promise<void> {
         .then(() => flushLoggerWithTimeout())
         .finally(() => process.exit(0));
     }, SHUTDOWN_TIMEOUT_MS);
-    shutdownTimeout.unref?.();
+    // Deliberately NOT unref'd: the watchdog must be able to fire even when
+    // the event loop would otherwise drain, and it is the last resort for a
+    // stuck shutdown (systemd would otherwise SIGABRT us at 15 s).
 
-    try {
-      bot.stop();
-    } catch (error) {
-      logger.warn("[App] Failed to stop Telegram bot cleanly", error);
-    }
+    void Promise.resolve()
+      .then(() => bot.stop())
+      .catch((error) => {
+        logger.warn("[App] Failed to stop Telegram bot cleanly", error);
+      });
 
     void clearManagedServiceState().catch((error) => {
       logger.warn("[App] Failed to clear managed service state", error);
@@ -297,7 +299,9 @@ export async function startBotApp(): Promise<void> {
     process.off("uncaughtException", uncaughtExceptionHandler);
     process.off("SIGINT", handleSigint);
     process.off("SIGTERM", handleSigterm);
-    if (shutdownTimeout) {
+    if (shutdownTimeout && !shutdownStarted) {
+      // Keep the forced-exit watchdog armed while a shutdown is in
+      // progress: the clean exit below (or the watchdog itself) ends us.
       clearTimeout(shutdownTimeout);
       shutdownTimeout = null;
     }
@@ -307,5 +311,12 @@ export async function startBotApp(): Promise<void> {
       logger.warn("[App] Failed to clear managed service state", error);
     });
     await flushSettings();
+    if (shutdownStarted) {
+      // Clean stop: settings were flushed above and bot.start() has settled —
+      // exit explicitly instead of lingering on residual handles (systemd
+      // SIGABRTs the unit 15 s after SIGTERM otherwise).
+      await flushLoggerWithTimeout().catch(() => undefined);
+      process.exit(0);
+    }
   }
 }
