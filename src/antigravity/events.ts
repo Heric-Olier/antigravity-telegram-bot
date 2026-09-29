@@ -140,7 +140,7 @@ function toolPartFromStep(step: AgyStepEvent): ToolPart {
   const subagents = step.subagentInfo?.subagents ?? [];
   const subagentSuffix =
     subagents.length > 0
-      ? ` (${subagents.length} subagente${subagents.length === 1 ? "" : "s"}: ${subagents
+      ? ` (${subagents.length} subagent${subagents.length === 1 ? "" : "s"}: ${subagents
           .map((s) => s.role || s.type_name || "?")
           .slice(0, 4)
           .join(", ")}${subagents.length > 4 ? ", …" : ""})`

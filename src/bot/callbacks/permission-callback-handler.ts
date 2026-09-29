@@ -23,8 +23,6 @@ function isPermissionReply(value: string): value is PermissionReply {
   return value === "once" || value === "always" || value === "reject";
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-
 export async function handlePermissionCallback(ctx: Context): Promise<boolean> {
   const data = ctx.callbackQuery?.data;
   if (!data) return false;

@@ -34,11 +34,6 @@ describe("bot/message-patterns", () => {
   });
 
   it("matches current and legacy variant button prefixes", () => {
-    const keyboard = createMainKeyboard("build", {
-      providerID: "openrouter",
-      modelID: "openai/gpt-4o",
-    });
-
     // The footer variant button is gone; the pattern only carries legacy text.
     expect("💡 Default").toMatch(VARIANT_BUTTON_TEXT_PATTERN);
     expect("💭 Default").toMatch(VARIANT_BUTTON_TEXT_PATTERN);

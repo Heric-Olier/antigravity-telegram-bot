@@ -21,6 +21,7 @@ export async function showAccountMenu(ctx: Context): Promise<void> {
     kb.text("➕ Add Google account", CB.ADD).row();
     await ctx.reply(
       "No Google accounts saved yet.\nUse “Add account” — it opens a Google sign-in; paste the final localhost URL back with /code.",
+      { reply_markup: kb },
     );
     return;
   }
@@ -46,6 +47,12 @@ export async function showAccountMenu(ctx: Context): Promise<void> {
 
 /** Register the inline-callback handlers for the account menu. */
 export function registerAccountMenuHandlers(bot: Bot): void {
+  // The ⭐ active-account button carries no action — answer it explicitly so
+  // the tap does not spin forever and the menu never looks dead.
+  bot.callbackQuery(CB.LIST, async (ctx) => {
+    await ctx.answerCallbackQuery({ text: "Already active" }).catch(() => {});
+  });
+
   bot.callbackQuery(new RegExp(`^${CB.SWITCH}`), async (ctx) => {
     const email = ctx.callbackQuery.data.slice(CB.SWITCH.length);
     await ctx.answerCallbackQuery().catch(() => {});

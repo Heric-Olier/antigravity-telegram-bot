@@ -132,17 +132,6 @@ type SessionStub = {
   };
 };
 
-type SessionMessageStub = {
-  info: {
-    role: "user" | "assistant";
-    summary?: boolean;
-    time: {
-      created: number;
-    };
-  };
-  parts: Array<{ type: string; text?: string }>;
-};
-
 function createSession(index: number): SessionStub {
   return {
     id: `session-${index + 1}`,
@@ -151,24 +140,6 @@ function createSession(index: number): SessionStub {
     time: {
       created: 1700000000000 + index * 1000,
     },
-  };
-}
-
-function createSessionMessage(
-  role: "user" | "assistant",
-  text: string | null,
-  created: number,
-  summary = false,
-): SessionMessageStub {
-  return {
-    info: {
-      role,
-      summary,
-      time: {
-        created,
-      },
-    },
-    parts: text === null ? [] : [{ type: "text", text }],
   };
 }
 

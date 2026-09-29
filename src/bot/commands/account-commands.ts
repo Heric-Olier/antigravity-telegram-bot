@@ -19,7 +19,7 @@ export async function accountsCommand(ctx: CommandContext<Context>): Promise<voi
   }
   const lines = profiles.map((p) => (p === active ? `★ ${p} (active)` : `  ${p}`));
   await ctx.reply(
-    `Saved Google accounts:\n${lines.join("\n")}\n\nSwitch with /switch <email> — no re-login needed.`,
+    `Saved Google accounts:\n${lines.join("\n")}\n\nUse the 🔁 button to switch accounts — instant, no re-login needed.`,
   );
 }
 

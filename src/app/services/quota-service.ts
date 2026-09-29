@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
 import * as fsMod from "node:fs";
 import { config } from "../../config.js";
+import { logger } from "../../utils/logger.js";
 
 export interface QuotaBucket {
   bucket: string;
@@ -32,7 +33,7 @@ export function fetchQuotaSnapshot(force = false): Promise<QuotaBucket[]> {
         const buckets = parseUsage(stdout ?? "");
         cache = { buckets, ts: Date.now() };
         resolve(buckets);
-        if (error && buckets.length === 0) console.warn(error);
+        if (error && buckets.length === 0) logger.warn("[QuotaService] usage probe failed", error);
       },
     );
   });

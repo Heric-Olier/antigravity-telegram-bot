@@ -54,7 +54,3 @@ export async function handleSwitchCode(ctx: CommandContext<Context>): Promise<vo
 export async function switchCommand(ctx: CommandContext<Context>): Promise<void> {
   await showAccountMenu(ctx);
 }
-
-export function hasPendingSwitch(): boolean {
-  return pending !== null;
-}

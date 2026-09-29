@@ -1442,6 +1442,21 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         void markAttachedSessionBusy(attached.sessionId);
       }
 
+      // Step-stall notice from the driver watchdog (fires once per stall):
+      // surface it, so a long quiet turn does not look like a hung bot.
+      if (event.type === "message.updated") {
+        const stallMinutes = (event.properties as { info?: { stallMinutes?: number } }).info
+          ?.stallMinutes;
+        if (typeof stallMinutes === "number" && this.botInstance && this.chatIdInstance) {
+          void this.botInstance.api
+            .sendMessage(
+              this.chatIdInstance,
+              `⏳ Still working — no new steps for ${stallMinutes} min. The turn is alive; the backend may just be slow.`,
+            )
+            .catch((error) => logger.warn("[Bot] Failed to send stall notice:", error));
+        }
+      }
+
       if (event.type === "session.created" || event.type === "session.updated") {
         const info = (
           event.properties as { info?: { directory?: string; time?: { updated?: number } } }

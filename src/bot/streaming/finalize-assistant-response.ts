@@ -36,8 +36,8 @@ export async function finalizeAssistantResponse({
   sendRenderedPart,
 }: FinalizeAssistantResponseOptions): Promise<boolean> {
   logger.debug(
-    `[FinalizeResponse] Final assistant raw text received: session=${sessionId}, message=${messageId}`,
-    messageText,
+    `[FinalizeResponse] Final assistant raw text received: session=${sessionId}, message=${messageId}, len=${messageText.length}`,
+    messageText.slice(0, 300),
   );
 
   const keyboard = getReplyKeyboard();

@@ -477,7 +477,7 @@ class SummaryAggregator {
     if (event.type.startsWith("question.")) {
       logger.info(
         `[Aggregator] Question event: ${event.type}`,
-        JSON.stringify(event.properties, null, 2),
+        JSON.stringify(event.properties).slice(0, 400),
       );
     }
 
@@ -485,7 +485,7 @@ class SummaryAggregator {
     if (event.type.startsWith("session.")) {
       logger.debug(
         `[Aggregator] Session event: ${event.type}`,
-        JSON.stringify(event.properties, null, 2),
+        JSON.stringify(event.properties).slice(0, 400),
       );
     }
 

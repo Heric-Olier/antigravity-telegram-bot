@@ -38,15 +38,61 @@ describe("bot/streaming/finalize-assistant-response logging", () => {
     });
 
     expect(debug).toHaveBeenCalledWith(
-      "[FinalizeResponse] Final assistant raw text received: session=s1, message=m1",
+      "[FinalizeResponse] Final assistant raw text received: session=s1, message=m1, len=16",
       "raw model output",
     );
     expect(
       debug.mock.calls.filter(
         (call) =>
           call[0] ===
-          "[FinalizeResponse] Final assistant raw text received: session=s1, message=m1",
+          "[FinalizeResponse] Final assistant raw text received: session=s1, message=m1, len=16",
       ),
     ).toHaveLength(1);
+  });
+
+  it("truncates very long raw text in the debug payload", async () => {
+    vi.resetModules();
+
+    const debug = vi.fn();
+    vi.doMock("../../../src/utils/logger.js", () => ({
+      logger: {
+        debug,
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+      },
+    }));
+
+    const { finalizeAssistantResponse } =
+      await import("../../../src/bot/streaming/finalize-assistant-response.js");
+
+    const longText = "x".repeat(1000);
+    await finalizeAssistantResponse({
+      sessionId: "s2",
+      messageId: "m2",
+      messageText: longText,
+      responseStreamer: {
+        complete: vi.fn().mockResolvedValue({ streamed: false, telegramMessageIds: [] }),
+      },
+      flushPendingServiceMessages: vi.fn().mockResolvedValue(undefined),
+      prepareStreamingPayload: vi.fn(() => null),
+      renderFinalParts: vi.fn(() => [
+        {
+          blocks: [],
+          fallbackText: "ok",
+          source: "plain" as const,
+        },
+      ]),
+      getReplyKeyboard: vi.fn(() => undefined),
+      sendRenderedPart: vi.fn().mockResolvedValue(undefined),
+    });
+
+    const rawCall = debug.mock.calls.find((call) =>
+      String(call[0]).startsWith("[FinalizeResponse] Final assistant raw text received"),
+    );
+
+    expect(rawCall).toBeDefined();
+    expect(String(rawCall?.[0])).toContain("len=1000");
+    expect(String(rawCall?.[1])).toHaveLength(300);
   });
 });

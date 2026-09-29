@@ -120,17 +120,6 @@ const testDeps = {
   ensureEventSubscription: vi.fn().mockResolvedValue(undefined),
 } as unknown as MessagesCallbackDeps;
 
-function makeUserMessage(id: string, text: string, created: number) {
-  return {
-    info: {
-      id,
-      role: "user",
-      time: { created },
-    },
-    parts: [{ type: "text", text }],
-  };
-}
-
 describe("bot/commands/messages", () => {
   beforeEach(() => {
     interactionManager.clear("test_setup");

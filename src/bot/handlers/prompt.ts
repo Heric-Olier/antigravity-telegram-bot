@@ -307,7 +307,7 @@ export async function processUserPrompt(
     };
 
     logger.info(
-      `[Bot] Sending prompt to agy process (agent=${currentAgent}, model=${storedModel.modelID}, fileCount=${filePartCount})...`,
+      `[Bot] Sending prompt to agy process (agent=${currentAgent}, storedModel=${storedModel.modelID}, fileCount=${filePartCount})...`,
     );
 
     foregroundSessionState.markBusy(currentSession.id, currentSession.directory);
