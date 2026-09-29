@@ -538,7 +538,11 @@ class SummaryAggregator {
         this.handlePermissionReplied(event);
         break;
       default:
-        logger.debug(`[Aggregator] Unhandled event type: ${event.type}`);
+        // step.progress is consumed by the bot layer (tool-stream header);
+        // skip the "unhandled" noise for it.
+        if (eventType !== "step.progress") {
+          logger.debug(`[Aggregator] Unhandled event type: ${event.type}`);
+        }
         break;
     }
   }

@@ -290,6 +290,16 @@ function handleStep(event: AgyStepEvent): void {
     });
     return;
   }
+
+  // Live progress for the bot layer (tool-stream header + periodic pings).
+  // Emitted for steps that carry no renderable action — the silent ones.
+  if (typeof event.stepIndex === "number") {
+    emitBotEvent("step.progress", {
+      sessionID: currentSessionId,
+      stepIndex: event.stepIndex,
+      thinkingTokens: event.usage?.thinking_tokens ?? 0,
+    });
+  }
   logger.debug(`[AgyEvents] Step done (no handler action): ${JSON.stringify(event).slice(0, 200)}`);
 }
 

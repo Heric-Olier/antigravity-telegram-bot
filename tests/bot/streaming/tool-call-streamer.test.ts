@@ -542,4 +542,32 @@ describe("bot/streaming/tool-call-streamer", () => {
     expect(editText).toHaveBeenCalledTimes(1);
     expect(editText).toHaveBeenCalledWith("s1", 1, wrapped(["first", "second"].join("\n"), 2));
   });
+
+  it("renders live turn progress in the header and no-ops without state", async () => {
+    vi.useFakeTimers();
+
+    const sendText = vi.fn().mockResolvedValue(1);
+    const editText = vi.fn().mockResolvedValue(undefined);
+    const deleteText = vi.fn().mockResolvedValue(undefined);
+    const streamer = new ToolCallStreamer({
+      throttleMs: 200,
+      sendText,
+      editText,
+      deleteText,
+    });
+
+    // No stream state for the session yet: progress must not create one.
+    streamer.setProgress("ghost", { stepIndex: 5, thinkingTokens: 10, elapsedMs: 1_000 });
+
+    streamer.append("s1", "first action");
+    streamer.setProgress("s1", { stepIndex: 618, thinkingTokens: 3_400, elapsedMs: 6 * 60_000 });
+
+    await vi.advanceTimersByTimeAsync(200);
+
+    expect(sendText).toHaveBeenCalledTimes(1);
+    const sent = defined(sendText.mock.calls[0]?.[1]) as unknown as string;
+    expect(sent).toContain("step 618");
+    expect(sent).toContain("\u{1F9E0} 3.4k tk");
+    expect(sent).toContain("6m");
+  });
 });

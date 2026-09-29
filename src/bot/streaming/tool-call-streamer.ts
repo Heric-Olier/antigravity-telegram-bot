@@ -21,6 +21,14 @@ interface StreamEntry {
   text: string;
 }
 
+/** Live turn progress merged into the stream header (step index, thinking
+ * tokens accumulated this turn, elapsed ms since the first step). */
+export interface StreamProgress {
+  stepIndex?: number;
+  thinkingTokens?: number;
+  elapsedMs?: number;
+}
+
 interface StreamState {
   key: ToolStreamKey;
   sessionId: string;
@@ -33,6 +41,7 @@ interface StreamState {
   cancelled: boolean;
   isBroken: boolean;
   isBreaking: boolean;
+  progress: StreamProgress | null;
   fatalErrorMessage: string | null;
   fatalErrorLogged: boolean;
 }
@@ -101,6 +110,13 @@ function splitLongText(text: string, limit: number): string[] {
   return chunks;
 }
 
+export function formatCompactTokens(value: number): string {
+  if (value >= 1000) {
+    return `${(value / 1000).toFixed(1)}k`;
+  }
+  return String(value);
+}
+
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
@@ -114,7 +130,7 @@ function escapeHtml(value: string): string {
  * expand the individual tool lines. Plaintext fallback clients just see the
  * summary + list.
  */
-function buildParts(entries: StreamEntry[]): string[] {
+function buildParts(entries: StreamEntry[], progress: StreamProgress | null = null): string[] {
   const lines = entries
     .map((entry) => entry.text.trim())
     .filter(Boolean);
@@ -127,7 +143,18 @@ function buildParts(entries: StreamEntry[]): string[] {
   const body = `<blockquote expandable>${escaped}</blockquote>`;
   const last = lines[lines.length - 1] ?? "";
   const lastShort = last.length > 60 ? `${last.slice(0, 57)}…` : last;
-  const header = `💭 Working… · ${lines.length} tool call${lines.length === 1 ? "" : "s"}\n↳ ${escapeHtml(lastShort)}`;
+  const progressBits: string[] = [];
+  if (progress?.stepIndex !== undefined) {
+    progressBits.push(`step ${progress.stepIndex}`);
+  }
+  if (progress?.thinkingTokens !== undefined && progress.thinkingTokens > 0) {
+    progressBits.push(`🧠 ${formatCompactTokens(progress.thinkingTokens)} tk`);
+  }
+  if (progress?.elapsedMs !== undefined && progress.elapsedMs >= 60_000) {
+    progressBits.push(`${Math.round(progress.elapsedMs / 60_000)}m`);
+  }
+  const progressSuffix = progressBits.length > 0 ? ` · ${progressBits.join(" · ")}` : "";
+  const header = `💭 Working… · ${lines.length} tool call${lines.length === 1 ? "" : "s"}${progressSuffix}\n↳ ${escapeHtml(lastShort)}`;
   const full = `${header}\n${body}`;
 
   return splitLongText(full, TELEGRAM_MESSAGE_SAFE_LENGTH).filter(Boolean);
@@ -163,7 +190,24 @@ export class ToolCallStreamer {
 
     const state = this.getOrCreateState(sessionId, streamKey);
     state.entries.push({ text: normalizedText });
-    state.latestParts = buildParts(state.entries);
+    state.latestParts = buildParts(state.entries, state.progress);
+    this.ensureTimer(state);
+  }
+
+  /** Merge live turn progress (step/thinking/elapsed) into the stream header.
+   * No-op when no stream state exists (never creates a bubble on its own). */
+  setProgress(
+    sessionId: string,
+    progress: StreamProgress,
+    streamKey: ToolStreamKey = DEFAULT_STREAM_KEY,
+  ): void {
+    const state = this.states.get(this.getStateId(sessionId, streamKey));
+    if (!state || state.isBroken || state.cancelled || state.isBreaking) {
+      return;
+    }
+
+    state.progress = { ...state.progress, ...progress };
+    state.latestParts = buildParts(state.entries, state.progress);
     this.ensureTimer(state);
   }
 
@@ -187,7 +231,7 @@ export class ToolCallStreamer {
       state.entries.push({ prefix: normalizedPrefix, text: normalizedText });
     }
 
-    state.latestParts = buildParts(state.entries);
+    state.latestParts = buildParts(state.entries, state.progress);
     this.ensureTimer(state);
   }
 
@@ -212,7 +256,7 @@ export class ToolCallStreamer {
     }
 
     state.entries.splice(entryIndex, 1);
-    state.latestParts = buildParts(state.entries);
+    state.latestParts = buildParts(state.entries, state.progress);
     this.ensureTimer(state);
   }
 
@@ -311,6 +355,7 @@ export class ToolCallStreamer {
       cancelled: false,
       isBroken: false,
       isBreaking: false,
+      progress: null,
       fatalErrorMessage: null,
       fatalErrorLogged: false,
     };

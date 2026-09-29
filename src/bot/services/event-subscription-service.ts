@@ -57,7 +57,11 @@ import { foregroundSessionState } from "../../app/managers/foreground-session-st
 import { scheduledTaskRuntime } from "../../app/services/scheduled-task-runtime-service.js";
 import { assistantRunState } from "../../app/managers/assistant-run-state-manager.js";
 import { ResponseStreamer, type StreamingMessagePayload } from "../streaming/response-streamer.js";
-import { ToolCallStreamer, type ToolStreamKey } from "../streaming/tool-call-streamer.js";
+import {
+  ToolCallStreamer,
+  formatCompactTokens,
+  type ToolStreamKey,
+} from "../streaming/tool-call-streamer.js";
 import { RunningToolTracker, type RunningToolTick } from "../streaming/running-tool-tracker.js";
 import { CompactProgressStreamer } from "../streaming/compact-progress-streamer.js";
 import {
@@ -142,6 +146,12 @@ class EventSubscriptionService implements BotEventSubscriptionService {
   private readonly typingHeartbeatsStamp = new Map<string, number>();
   /** Hard TTL for the stream-side typing heartbeat (retry-orphan defense). */
   private readonly typingStaleAfterMs = 10 * 60_000;
+  /** Live per-session progress for the stream header + progress pings. */
+  private readonly turnProgress = new Map<
+    string,
+    { firstStepAt: number; lastPingAt: number; thinkingTotal: number }
+  >();
+  private readonly progressPingIntervalMs = 10 * 60_000;
 
   private stopTypingIndicator(sessionId: string): void {
     // Shared prompt-side heartbeat must also die with the turn.
@@ -1457,6 +1467,27 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         }
       }
 
+      // Live step progress (agy emits one per silent step): feed the tool
+      // stream header and send a quiet ping every ~10 min of active work.
+      if ((event.type as string) === "step.progress") {
+        const props = event.properties as {
+          stepIndex?: number;
+          thinkingTokens?: number;
+          sessionID?: string;
+        };
+        if (typeof props.stepIndex === "number") {
+          const stepSession = typeof props.sessionID === "string" ? props.sessionID : eventSessionId;
+          this.handleStepProgress(stepSession, props.stepIndex, props.thinkingTokens ?? 0);
+        }
+      }
+
+      if (event.type === "session.idle") {
+        const idleSession = (event.properties as { sessionID?: string }).sessionID;
+        if (typeof idleSession === "string") {
+          this.turnProgress.delete(idleSession);
+        }
+      }
+
       if (event.type === "session.created" || event.type === "session.updated") {
         const info = (
           event.properties as { info?: { directory?: string; time?: { updated?: number } } }
@@ -1479,6 +1510,56 @@ class EventSubscriptionService implements BotEventSubscriptionService {
       logger.error("Failed to subscribe to events:", err);
     });
   };
+
+  private handleStepProgress(
+    sessionId: string | null,
+    stepIndex: number,
+    thinkingTokens: number,
+  ): void {
+    if (!sessionId) {
+      return;
+    }
+
+    const now = Date.now();
+    let progress = this.turnProgress.get(sessionId);
+    if (!progress) {
+      progress = { firstStepAt: now, lastPingAt: now, thinkingTotal: 0 };
+      this.turnProgress.set(sessionId, progress);
+    }
+    progress.thinkingTotal += thinkingTokens;
+
+    this.toolCallStreamer.setProgress(sessionId, {
+      stepIndex,
+      thinkingTokens: progress.thinkingTotal,
+      elapsedMs: now - progress.firstStepAt,
+    });
+
+    if (now - progress.lastPingAt < this.progressPingIntervalMs) {
+      return;
+    }
+    progress.lastPingAt = now;
+    this.sendProgressPing(stepIndex, progress, now);
+  }
+
+  private sendProgressPing(
+    stepIndex: number,
+    progress: { firstStepAt: number; thinkingTotal: number },
+    now: number,
+  ): void {
+    if (!this.botInstance || !this.chatIdInstance || this.chatIdInstance <= 0) {
+      return;
+    }
+
+    const minutes = Math.max(1, Math.round((now - progress.firstStepAt) / 60_000));
+    const details = [`⏳ Still working — ${minutes} min in`, `step ${stepIndex}`];
+    if (progress.thinkingTotal > 0) {
+      details.push(`🧠 ${formatCompactTokens(progress.thinkingTotal)} thinking tokens`);
+    }
+
+    void this.botInstance.api
+      .sendMessage(this.chatIdInstance, details.join(" · "), { disable_notification: true })
+      .catch((error) => logger.warn("[Bot] Failed to send progress ping:", error));
+  }
 
   private getAssistantResponseStreamKey(sessionId: string, messageId: string): string {
     return `${sessionId}:${messageId}`;
