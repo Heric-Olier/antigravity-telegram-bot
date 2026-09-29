@@ -21,6 +21,19 @@ const CAPACITY_RETRY_MAX = 10;
 /** Initial retry delay and cap (config may raise the cap for heavy 503 waves). */
 const RETRY_INITIAL_DELAY_MS = 5_000;
 const RETRY_MAX_DELAY_MS = 120_000;
+// Malformed/empty function calls are a model-side glitch (Capa 9 research):
+// retry the SAME prompt once before surfacing the error. A damaged
+// conversation fails the retry again and the error surfaces — the bot then
+// offers the compaction handoff.
+const MALFORMED_RETRY_MAX = 1;
+const MALFORMED_RETRY_DELAY_MS = 3_000;
+let malformedRetryAttempt = 0;
+
+export function isMalformedFunctionCallError(message: string): boolean {
+  return /improperly formatted function call|malformed function call|function call is empty/i.test(
+    message,
+  );
+}
 /** How many capacity-503 retries have been consumed for the current prompt. */
 let retryAttempt = 0;
 
@@ -472,6 +485,54 @@ function handleResult(event: AgyResultEvent, sourceProc?: AntigravityProcess): v
     } else {
       retryAttempt = 0;
     }
+    // Malformed/empty function call: one silent resend before surfacing it.
+    if (!suppressNextTurnError && isMalformedFunctionCallError(errorMessage) && lastPromptText) {
+      const attempt = (malformedRetryAttempt = malformedRetryAttempt + 1);
+      if (attempt <= MALFORMED_RETRY_MAX) {
+        logger.warn(
+          `[AgyEvents] malformed function call (attempt ${attempt}/${MALFORMED_RETRY_MAX}); resending prompt in ${MALFORMED_RETRY_DELAY_MS}ms`,
+        );
+        const live = activeProcess;
+        if (live && live.isRunning()) {
+          retryTimer = setTimeout(() => {
+            retryTimer = null;
+            void live.sendPrompt(lastPromptText as string).catch((err) => {
+              logger.error("[AgyEvents] malformed retry write failed:", err);
+            });
+          }, MALFORMED_RETRY_DELAY_MS);
+          return;
+        }
+        // Dead process: respawn with the same conversation + model, then resend.
+        const staleProc = activeProcess;
+        activeProcess = null;
+        if (staleProc) {
+          void staleProc.kill().catch(() => {});
+        }
+        retryTimer = setTimeout(() => {
+          retryTimer = null;
+          if (!eventCallback || !lastPromptText || !lastPromptDirectory) {
+            logger.warn("[AgyEvents] malformed retry aborted: subscription or prompt state went away");
+            malformedRetryAttempt = 0;
+            return;
+          }
+          const malformedSpawnOptions: AntigravityProcessOptions = {};
+          const currentForRetry = getCurrentSession();
+          if (currentForRetry?.id.startsWith("agy-session-")) {
+            malformedSpawnOptions.conversationId = currentForRetry.id.slice("agy-session-".length);
+          }
+          const storedForRetry = getStoredModel();
+          if (storedForRetry?.modelID) {
+            malformedSpawnOptions.model = storedForRetry.modelID;
+          }
+          const retryProc = spawnProcessForDirectory(lastPromptDirectory, malformedSpawnOptions);
+          void retryProc.sendPrompt(lastPromptText).catch((err) => {
+            logger.error("[AgyEvents] malformed retry respawn write failed:", err);
+          });
+        }, MALFORMED_RETRY_DELAY_MS);
+        return;
+      }
+      malformedRetryAttempt = 0;
+    }
     // Final surface (no retry left): the snapshot part goes out only here —
     // emitted earlier it would re-latch the busy matcher (assistant &&
     // !completed) on retry/suppression paths that never emit an idle.
@@ -529,6 +590,7 @@ function handleResult(event: AgyResultEvent, sourceProc?: AntigravityProcess): v
   lastPromptText = null;
   lastPromptDirectory = null;
   retryAttempt = 0;
+  malformedRetryAttempt = 0;
   cancelPendingRetry("turn finished");
 
   // Deferred model change: recycle now that the turn is over so the next
@@ -662,6 +724,7 @@ export function stopEventListening(): void {
   lastPromptText = null;
   lastPromptDirectory = null;
   retryAttempt = 0;
+  malformedRetryAttempt = 0;
   if (activeProcess) {
     void activeProcess.kill().catch(() => undefined);
     activeProcess = null;
@@ -691,6 +754,7 @@ export async function interruptActiveTurn(): Promise<void> {
   lastPromptText = null;
   lastPromptDirectory = null;
   retryAttempt = 0;
+  malformedRetryAttempt = 0;
   resetStallWatchdog();
   resetFeedTurn();
   if (proc) {
@@ -788,6 +852,7 @@ export async function sendPromptToActiveProcess(text: string, directory: string)
   // suppression from a previously interrupted turn.
   cancelPendingRetry("new prompt sent");
   retryAttempt = 0;
+  malformedRetryAttempt = 0;
   suppressNextTurnError = false;
   if (activeProcess && activeProcess.isRunning()) {
     const effectiveModel = activeProcess.getModelId();

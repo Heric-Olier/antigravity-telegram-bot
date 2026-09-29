@@ -113,6 +113,15 @@ export const en = {
     "⚡ Your message was taken in-flight into the running turn; you'll see its answer in the same conversation, nothing interrupted.",
   "bot.interrupted_for_new_prompt":
     "⚡ Interrupted the previous task. Your message goes first; the other one stays in its conversation — resume with /sessions.",
+  "cmd.description.compact": "Compact the conversation context",
+  "compact.busy": "⏳ The agent is busy — try again when the current task finishes.",
+  "compact.no_session": "There is no active conversation to compact yet.",
+  "compact.started": "🧹 Compacting: asked the agent for a handoff summary…",
+  "compact.auto_started": "🧹 The conversation reached {tokens}k tokens — compacting automatically…",
+  "compact.done": "✅ Compacted — continuing in a fresh conversation with the context handed over.",
+  "compact.failed": "⚠️ Compaction failed — check the logs; you can retry with /compact.",
+  "compact.damaged_hint": "🛠 This error usually means the conversation state got damaged. I can compact it and continue in a new conversation.",
+  "compact.button": "🧹 Compact & continue",
   "bot.session_busy":
     "⏳ Agent is already running a task. Wait for completion or use /abort to interrupt current run.",
   "bot.session_reset_project_mismatch":

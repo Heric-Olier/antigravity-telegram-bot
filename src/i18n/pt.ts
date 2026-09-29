@@ -116,6 +116,15 @@ export const pt: I18nDictionary = {
     "⚡ Tu mensaje entró en caliente al turno en curso; verás su respuesta en la misma conversación sin interrumpir nada.",
   "bot.interrupted_for_new_prompt":
     "⚡ Interrumpí la tarea anterior. Tu mensaje va primero; lo otro queda en la conversación y lo retomas con /sessions.",
+  "cmd.description.compact": "Compactar o contexto da conversa",
+  "compact.busy": "⏳ O agente está ocupado — tente novamente quando a tarefa atual terminar.",
+  "compact.no_session": "Ainda não há uma conversa ativa para compactar.",
+  "compact.started": "🧹 Compactando: pedi ao agente um resumo de transferência…",
+  "compact.auto_started": "🧹 A conversa atingiu {tokens}k tokens — compactando automaticamente…",
+  "compact.done": "✅ Compactado — seguimos numa conversa nova com o contexto transferido.",
+  "compact.failed": "⚠️ A compactação falhou — verifique os logs; tente novamente com /compact.",
+  "compact.damaged_hint": "🛠 Este erro geralmente significa que o estado da conversa foi danificado. Posso compactá-la e continuar numa conversa nova.",
+  "compact.button": "🧹 Compactar e continuar",
   "bot.session_busy":
     "⏳ O agente já está executando uma tarefa. Aguarde a conclusão ou use /abort para interromper a execução atual.",
   "bot.session_reset_project_mismatch":

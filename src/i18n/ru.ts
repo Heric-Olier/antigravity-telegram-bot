@@ -112,6 +112,15 @@ export const ru: I18nDictionary = {
     "⚡ Tu mensaje entró en caliente al turno en curso; verás su respuesta en la misma conversación sin interrumpir nada.",
   "bot.interrupted_for_new_prompt":
     "⚡ Interrumpí la tarea anterior. Tu mensaje va primero; lo otro queda en la conversación y lo retomas con /sessions.",
+  "cmd.description.compact": "Сжать контекст беседы",
+  "compact.busy": "⏳ Агент занят — попробуйте, когда текущая задача завершится.",
+  "compact.no_session": "Пока нет активной беседы для сжатия.",
+  "compact.started": "🧹 Сжатие: запросил у агента сводку для передачи…",
+  "compact.auto_started": "🧹 Беседа достигла {tokens}k токенов — сжимаю автоматически…",
+  "compact.done": "✅ Сжато — продолжаем в новой беседе с переданным контекстом.",
+  "compact.failed": "⚠️ Не удалось сжать — проверьте логи; повторите с /compact.",
+  "compact.damaged_hint": "🛠 Эта ошибка обычно означает, что состояние беседы повреждено. Могу сжать его и продолжить в новой беседе.",
+  "compact.button": "🧹 Сжать и продолжить",
   "bot.session_busy":
     "⏳ Агент уже выполняет задачу. Дождитесь завершения или используйте /abort, чтобы прервать текущий запуск.",
   "bot.session_reset_project_mismatch":

@@ -122,6 +122,15 @@ export const ko: I18nDictionary = {
     "⚡ Tu mensaje entró en caliente al turno en curso; verás su respuesta en la misma conversación sin interrumpir nada.",
   "bot.interrupted_for_new_prompt":
     "⚡ Interrumpí la tarea anterior. Tu mensaje va primero; lo otro queda en la conversación y lo retomas con /sessions.",
+  "cmd.description.compact": "대화 컨텍스트 압축",
+  "compact.busy": "⏳ 에이전트가 작업 중입니다 — 현재 작업이 끝나면 다시 시도하세요.",
+  "compact.no_session": "아직 압축할 활성 대화가 없습니다.",
+  "compact.started": "🧹 압축 중: 에이전트에 핸드오프 요약을 요청했습니다…",
+  "compact.auto_started": "🧹 대화가 {tokens}k 토큰에 도달했습니다 — 자동으로 압축합니다…",
+  "compact.done": "✅ 압축 완료 — 컨텍스트를 넘겨받은 새 대화에서 계속합니다.",
+  "compact.failed": "⚠️ 압축 실패 — 로그를 확인하세요; /compact로 다시 시도할 수 있습니다.",
+  "compact.damaged_hint": "🛠 이 오류는 보통 대화 상태가 손상되었음을 의미합니다. 압축하고 새 대화에서 계속할 수 있습니다.",
+  "compact.button": "🧹 압축 후 계속",
   "bot.session_busy":
     "⏳ 에이전트가 이미 작업을 실행 중입니다. 완료될 때까지 기다리거나 /abort로 현재 실행을 중단하세요.",
   "bot.session_reset_project_mismatch":

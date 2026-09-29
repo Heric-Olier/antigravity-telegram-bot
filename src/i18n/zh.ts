@@ -106,6 +106,15 @@ export const zh: I18nDictionary = {
     "⚡ Tu mensaje entró en caliente al turno en curso; verás su respuesta en la misma conversación sin interrumpir nada.",
   "bot.interrupted_for_new_prompt":
     "⚡ Interrumpí la tarea anterior. Tu mensaje va primero; lo otro queda en la conversación y lo retomas con /sessions.",
+  "cmd.description.compact": "压缩对话上下文",
+  "compact.busy": "⏳ 代理正忙 — 当前任务结束后再试。",
+  "compact.no_session": "还没有可压缩的活动对话。",
+  "compact.started": "🧹 正在压缩：已向代理请求交接摘要…",
+  "compact.auto_started": "🧹 对话已达 {tokens}k tokens — 正在自动压缩…",
+  "compact.done": "✅ 已压缩 — 将在交接上下文的新对话中继续。",
+  "compact.failed": "⚠️ 压缩失败 — 请检查日志；可用 /compact 重试。",
+  "compact.damaged_hint": "🛠 此错误通常意味着对话状态已损坏。我可以压缩它并在新对话中继续。",
+  "compact.button": "🧹 压缩并继续",
   "bot.session_busy": "⏳ 代理正在执行任务。请等待完成，或使用 /abort 中断当前运行。",
   "bot.session_reset_project_mismatch":
     "⚠️ 活动会话与所选项目不匹配，因此已重置。使用 /sessions 选择一个会话，或 /new 创建新会话。",

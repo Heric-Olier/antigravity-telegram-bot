@@ -1,7 +1,7 @@
 import { promises as fs } from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
-import { Bot, Context, InputFile } from "grammy";
+import { Bot, Context, InlineKeyboard, InputFile } from "grammy";
 import { config } from "../../config.js";
 import { t } from "../../i18n/index.js";
 import {
@@ -24,7 +24,9 @@ import {
 } from "../../app/formatters/duration-formatter.js";
 import { ToolMessageBatcher } from "../../app/formatters/tool-message-batcher.js";
 import {
+  getAutoCompactEnabled,
   getCompactOutputMode,
+  getCurrentProject,
   getDeleteCompactProgressOnFinish,
   getResponseStreamingMode,
   getSendDiffFileAttachments,
@@ -32,7 +34,11 @@ import {
   getShowThinkingContent,
   type ResponseStreamingMode,
 } from "../../app/stores/settings-store.js";
-import { getCurrentSession } from "../../app/services/session-service.js";
+import {
+  clearSession,
+  getCurrentSession,
+  setCurrentSession,
+} from "../../app/services/session-service.js";
 import { clearPromptResponseMode } from "../handlers/prompt.js";
 import { ingestSessionInfoForCache } from "../../app/services/session-cache-service.js";
 import { logger } from "../../utils/logger.js";
@@ -70,6 +76,7 @@ import {
 } from "../streaming/stream-throttle.js";
 import { attachManager } from "../../app/managers/attach-manager.js";
 import {
+  attachToSession,
   markAttachedSessionBusy,
   markAttachedSessionIdle,
 } from "../../app/services/attach-service.js";
@@ -98,8 +105,36 @@ import {
   clearAllInteractionState,
   interactionManager,
 } from "../../app/managers/interaction-manager.js";
-import { stopEventListening, subscribeToEvents } from "../../antigravity/events.js";
+import {
+  isMalformedFunctionCallError,
+  sendPromptToActiveProcess,
+  stopEventListening,
+  subscribeToEvents,
+} from "../../antigravity/events.js";
 import { stopTypingIndicator as idleClearTyping } from "../typing-indicator.js";
+import {
+  buildCompactionSeedPrompt,
+  buildCompactionSummaryPrompt,
+  captureCompactionSummary,
+  clearAwaitingSummary,
+  clearPendingHandoff,
+  getPendingHandoff,
+  isAwaitingSummary,
+  markAwaitingSummary,
+  shouldAutoCompactNow,
+  setCompactionRequester,
+  type CompactionStartReason,
+} from "../../app/services/context-compaction-service.js";
+import { getContextUsed, resetContextUsage } from "../../app/services/context-usage-tracker.js";
+import { isForegroundBusy } from "../../app/services/run-control-service.js";
+import { createMainKeyboard } from "../keyboards/main-reply-keyboard.js";
+import {
+  getStoredAgent,
+  resolveProjectAgent,
+} from "../../app/services/agent-selection-service.js";
+import { getStoredModel } from "../../app/services/model-selection-service.js";
+import { formatVariantForButton } from "../../app/services/variant-selection-service.js";
+import type { SessionInfo } from "../../app/types/session.js";
 
 const TELEGRAM_DOCUMENT_CAPTION_MAX_LENGTH = 1024;
 const SESSION_RETRY_PREFIX = "🔁";
@@ -389,6 +424,9 @@ class EventSubscriptionService implements BotEventSubscriptionService {
   setTelegramContext(bot: Bot<Context> | null, chatId: number | null): void {
     this.botInstance = bot;
     this.chatIdInstance = chatId;
+    if (bot) {
+      this.registerCompactionHooks(bot);
+    }
   }
 
   private getLiveToolPrefix(callId: string): string {
@@ -662,6 +700,10 @@ class EventSubscriptionService implements BotEventSubscriptionService {
           return;
         }
 
+        // Capa 9: if this completion is the handoff summary we asked for,
+        // capture it and run the handoff after the normal delivery.
+        const consumedCompactionSummary = captureCompactionSummary(sessionId, messageText);
+
         const currentSession = getCurrentSession();
         if (currentSession?.id !== sessionId) {
           clearPromptResponseMode(sessionId);
@@ -745,6 +787,10 @@ class EventSubscriptionService implements BotEventSubscriptionService {
           foregroundSessionState.markIdle(sessionId);
         } finally {
           await scheduledTaskRuntime.flushDeferredDeliveries();
+        }
+
+        if (consumedCompactionSummary) {
+          await this.runCompactionHandoff();
         }
       });
     });
@@ -1300,6 +1346,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         this.stopTypingIndicator(sessionId);
           foregroundSessionState.markIdle(sessionId);
         await scheduledTaskRuntime.flushDeferredDeliveries();
+        void this.maybeAutoCompact(sessionId);
         void dispatchNextQueuedPrompt();
       }
     });
@@ -1359,6 +1406,9 @@ class EventSubscriptionService implements BotEventSubscriptionService {
       const normalizedMessage = message.trim() || t("common.unknown_error");
       if (shouldSuppressUserAbortSessionError(sessionId, normalizedMessage)) {
         logger.debug(`[Bot] Suppressed user-initiated abort error: session=${sessionId}`);
+        if (isAwaitingSummary()) {
+          clearAwaitingSummary();
+        }
         this.stopTypingIndicator(sessionId);
           foregroundSessionState.markIdle(sessionId);
         await scheduledTaskRuntime.flushDeferredDeliveries();
@@ -1375,6 +1425,19 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         .catch((err) => {
           logger.error("[Bot] Failed to send session.error message:", err);
         });
+
+      // Capa 9: the empty/malformed function-call failure usually means the
+      // conversation state got damaged — offer the compaction handoff.
+      if (isAwaitingSummary()) {
+        clearAwaitingSummary();
+      }
+      if (isMalformedFunctionCallError(normalizedMessage)) {
+        await this.botInstance.api
+          .sendMessage(this.chatIdInstance, t("compact.damaged_hint"), {
+            reply_markup: new InlineKeyboard().text(t("compact.button"), "compact:run"),
+          })
+          .catch((err) => logger.warn("[Bot] Failed to send compaction hint:", err));
+      }
 
       this.stopTypingIndicator(sessionId);
           foregroundSessionState.markIdle(sessionId);
@@ -1664,6 +1727,151 @@ class EventSubscriptionService implements BotEventSubscriptionService {
     this.assistantEditResponseStreamer.clearAll(reason);
     this.assistantDraftResponseStreamer.clearAll(reason);
     this.thinkingResponseStreamer.clearAll(reason);
+  }
+
+  // ── Context compaction (Capa 9) ─────────────────────────────────────────
+
+  private compactionCallbackRegistered = false;
+  private compactionRunning = false;
+
+  /** Registers the /compact requester + the "compact:run" inline button once. */
+  private registerCompactionHooks(bot: Bot<Context>): void {
+    if (this.compactionCallbackRegistered) {
+      return;
+    }
+    this.compactionCallbackRegistered = true;
+    setCompactionRequester((reason) => this.startCompaction(reason));
+    bot.callbackQuery("compact:run", async (ctx) => {
+      await ctx.answerCallbackQuery().catch(() => undefined);
+      await this.startCompaction("error");
+    });
+  }
+
+  private async startCompaction(reason: CompactionStartReason): Promise<void> {
+    if (!this.botInstance || !this.chatIdInstance) {
+      return;
+    }
+    const api = this.botInstance.api;
+    const chatId = this.chatIdInstance;
+
+    if (this.compactionRunning || isAwaitingSummary()) {
+      if (reason !== "auto") {
+        await api.sendMessage(chatId, t("compact.busy")).catch(() => undefined);
+      }
+      return;
+    }
+    if (isForegroundBusy()) {
+      if (reason !== "auto") {
+        await api.sendMessage(chatId, t("compact.busy")).catch(() => undefined);
+      }
+      return;
+    }
+    const current = getCurrentSession();
+    const project = getCurrentProject();
+    if (!current || !current.id.startsWith("agy-session-") || !project) {
+      if (reason !== "auto") {
+        await api.sendMessage(chatId, t("compact.no_session")).catch(() => undefined);
+      }
+      return;
+    }
+
+    this.compactionRunning = true;
+    try {
+      markAwaitingSummary(current.id);
+      const startedText =
+        reason === "auto"
+          ? t("compact.auto_started", { tokens: String(Math.round(getContextUsed() / 1000)) })
+          : t("compact.started");
+      await api.sendMessage(chatId, startedText).catch((err) => {
+        logger.warn("[Bot] Failed to announce compaction start:", err);
+      });
+      logger.info(`[Bot] Context compaction started (reason=${reason}, session=${current.id})`);
+      await sendPromptToActiveProcess(buildCompactionSummaryPrompt(), project.worktree);
+    } catch (err) {
+      clearAwaitingSummary();
+      logger.error("[Bot] Failed to start context compaction:", err);
+      await api.sendMessage(chatId, t("compact.failed")).catch(() => undefined);
+    } finally {
+      this.compactionRunning = false;
+    }
+  }
+
+  private maybeAutoCompact(sessionId: string): void {
+    if (!getAutoCompactEnabled()) {
+      return;
+    }
+    if (isAwaitingSummary() || this.compactionRunning || isForegroundBusy()) {
+      return;
+    }
+    const session = getCurrentSession();
+    if (!session || session.id !== sessionId || !session.id.startsWith("agy-session-")) {
+      return;
+    }
+    if (!shouldAutoCompactNow(sessionId, getContextUsed())) {
+      return;
+    }
+    void this.startCompaction("auto");
+  }
+
+  /** Runs after the handoff summary was captured: fresh conversation + seed. */
+  private async runCompactionHandoff(): Promise<void> {
+    const pending = getPendingHandoff();
+    if (!pending || !this.botInstance || !this.chatIdInstance) {
+      clearPendingHandoff();
+      return;
+    }
+    const api = this.botInstance.api;
+    const chatId = this.chatIdInstance;
+    const project = getCurrentProject();
+    if (!project) {
+      clearPendingHandoff();
+      await api.sendMessage(chatId, t("compact.failed")).catch(() => undefined);
+      return;
+    }
+
+    try {
+      stopEventListening();
+      clearSession();
+      const sessionInfo: SessionInfo = {
+        id: `new-${Date.now()}`,
+        title: "New conversation",
+        directory: project.worktree,
+      };
+      setCurrentSession(sessionInfo);
+      clearAllInteractionState("session_created");
+      resetContextUsage();
+
+      await attachToSession({
+        bot: this.botInstance,
+        chatId,
+        session: sessionInfo,
+        ensureEventSubscription: this.ensureEventSubscription,
+      });
+
+      const currentAgent = await resolveProjectAgent(getStoredAgent());
+      const currentModel = getStoredModel();
+      keyboardManager.updateAgent(currentAgent);
+      const contextInfo = keyboardManager.getContextInfo();
+      const variantName = formatVariantForButton(currentModel.variant || "default");
+      const keyboard = createMainKeyboard(
+        currentAgent,
+        currentModel,
+        contextInfo ?? undefined,
+        variantName,
+      );
+
+      await api
+        .sendMessage(chatId, t("compact.done"), { reply_markup: keyboard })
+        .catch((err) => logger.warn("[Bot] Failed to announce compaction completion:", err));
+
+      clearPendingHandoff();
+      await sendPromptToActiveProcess(buildCompactionSeedPrompt(pending.summary), project.worktree);
+      logger.info(`[Bot] Context compaction handoff complete (source=${pending.sourceSessionId})`);
+    } catch (err) {
+      clearPendingHandoff();
+      logger.error("[Bot] Context compaction handoff failed:", err);
+      await api.sendMessage(chatId, t("compact.failed")).catch(() => undefined);
+    }
   }
 
   private hasActiveAssistantResponseStream(sessionId: string): boolean {

@@ -113,6 +113,15 @@ export const tr: I18nDictionary = {
     "⚡ Tu mensaje entró en caliente al turno en curso; verás su respuesta en la misma conversación sin interrumpir nada.",
   "bot.interrupted_for_new_prompt":
     "⚡ Interrumpí la tarea anterior. Tu mensaje va primero; lo otro queda en la conversación y lo retomas con /sessions.",
+  "cmd.description.compact": "Konuşma bağlamını sıkıştır",
+  "compact.busy": "⏳ Ajan meşgul — mevcut görev bittiğinde tekrar deneyin.",
+  "compact.no_session": "Henüz sıkıştırılacak etkin bir konuşma yok.",
+  "compact.started": "🧹 Sıkıştırılıyor: ajandan devir özeti istendi…",
+  "compact.auto_started": "🧹 Konuşma {tokens}k token'a ulaştı — otomatik sıkıştırılıyor…",
+  "compact.done": "✅ Sıkıştırıldı — bağlam aktarılmış yeni bir konuşmada devam ediyoruz.",
+  "compact.failed": "⚠️ Sıkıştırma başarısız — günlükleri kontrol edin; /compact ile yeniden deneyin.",
+  "compact.damaged_hint": "🛠 Bu hata genellikle konuşma durumunun bozulduğu anlamına gelir. Sıkıştırıp yeni bir konuşmada devam edebilirim.",
+  "compact.button": "🧹 Sıkıştır ve devam et",
   "bot.session_busy":
     "⏳ Ajan zaten bir görev yürütüyor. Tamamlanmasını bekleyin veya geçerli çalışmayı kesmek için /abort kullanın.",
   "bot.session_reset_project_mismatch":

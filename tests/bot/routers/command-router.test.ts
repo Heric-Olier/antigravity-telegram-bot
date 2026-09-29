@@ -40,6 +40,7 @@ describe("bot/routers/command-router", () => {
       "sessions",
       "messages",
       "new",
+      "compact",
       "abort",
       "restart",
       "switch",

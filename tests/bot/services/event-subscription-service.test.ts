@@ -16,6 +16,8 @@ const mocked = vi.hoisted(() => ({
 vi.mock("../../../src/antigravity/events.js", () => ({
   subscribeToEvents: mocked.subscribeToEvents,
   stopEventListening: mocked.stopEventListening,
+  sendPromptToActiveProcess: async () => undefined,
+  isMalformedFunctionCallError: () => false,
 }));
 
 type FakeBotApi = {
@@ -39,7 +41,7 @@ function createFakeBot(): { bot: Bot<Context>; api: FakeBotApi } {
     sendDocument: vi.fn().mockResolvedValue({ message_id: 101 }),
   };
 
-  return { bot: { api } as unknown as Bot<Context>, api };
+  return { bot: { api, callbackQuery: vi.fn() } as unknown as Bot<Context>, api };
 }
 
 function emitAssistantMessage(

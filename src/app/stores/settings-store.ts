@@ -248,6 +248,15 @@ export function setSendDiffFileAttachments(enabled: boolean): void {
   void writeSettingsFile(currentSettings);
 }
 
+export function getAutoCompactEnabled(): boolean {
+  return currentSettings.autoCompactEnabled ?? true;
+}
+
+export function getAutoCompactThresholdTokens(): number {
+  const value = currentSettings.autoCompactThresholdTokens;
+  return typeof value === "number" && value > 0 ? value : 150_000;
+}
+
 export function getPromptQueueEnabled(): boolean {
   return currentSettings.promptQueueEnabled ?? false;
 }
@@ -353,6 +362,8 @@ function applyInitialSettingsPreset(preset: Record<string, unknown>): void {
     "responseStreamingMode",
     "sendDiffFileAttachments",
     "promptQueueEnabled",
+    "autoCompactEnabled",
+    "autoCompactThresholdTokens",
   ]);
 
   for (const [key, value] of Object.entries(preset)) {
@@ -381,6 +392,15 @@ function applyInitialSettingsPreset(preset: Record<string, unknown>): void {
       }
       if (currentSettings.responseStreamingMode === undefined) {
         currentSettings.responseStreamingMode = value as ResponseStreamingMode;
+      }
+    } else if (key === "autoCompactThresholdTokens") {
+      if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+        throw new Error(
+          `INITIAL_SETTINGS_PRESET: "autoCompactThresholdTokens" must be a positive number.`,
+        );
+      }
+      if (currentSettings.autoCompactThresholdTokens === undefined) {
+        currentSettings.autoCompactThresholdTokens = value;
       }
     } else {
       // Boolean settings: compactOutputMode, deleteCompactProgressOnFinish, showThinkingContent, showAssistantRunFooter, pinnedDashboardEnabled, sendDiffFileAttachments, promptQueueEnabled
@@ -417,6 +437,10 @@ function applyInitialSettingsPreset(preset: Record<string, unknown>): void {
         case "promptQueueEnabled":
           if (currentSettings.promptQueueEnabled === undefined)
             currentSettings.promptQueueEnabled = value;
+          break;
+        case "autoCompactEnabled":
+          if (currentSettings.autoCompactEnabled === undefined)
+            currentSettings.autoCompactEnabled = value;
           break;
       }
     }

@@ -112,7 +112,12 @@ function makeFakeChild(): SpawnCapture {
   };
 }
 
-import { subscribeToEvents, stopEventListening, __resetAgyEventsForTests } from "../../src/antigravity/events.js";
+import {
+  subscribeToEvents,
+  sendPromptToActiveProcess,
+  stopEventListening,
+  __resetAgyEventsForTests,
+} from "../../src/antigravity/events.js";
 
 type Collected = Array<{ type: string; properties: Record<string, unknown> }>;
 
@@ -285,6 +290,48 @@ describe("antigravity/events", () => {
     const completed = events.filter((event) => event.type === "message.updated").pop();
     expect((completed?.properties.info as { id: string }).id).toBe("agy-msg-1");
   });
+
+  it("retries a malformed function call once via hot stdin, then surfaces it", async () => {
+    const spawn = makeFakeChild();
+    spawnMock.mockImplementation(() => spawn.child);
+
+    const { events, callback } = collect();
+    await subscribeToEvents("/tmp/proj", callback);
+    await flush(1);
+
+    await sendPromptToActiveProcess("haz la tarea", "/tmp/proj");
+    const writesAfterPrompt = spawn.child.stdin.writes.length;
+    expect(writesAfterPrompt).toBeGreaterThan(0);
+
+    const malformedResult = JSON.stringify({
+      event: "result",
+      result: {
+        status: "ERROR",
+        response: "",
+        error:
+          "Your previous response contained an improperly formatted function call: " +
+          "Malformed function call: Failed to parse function call: Function call is empty - no input to parse.\n" +
+          "Please retry with a properly formatted function call\nRetries remaining: 1",
+        num_turns: 1,
+      },
+    });
+
+    const stdout = (spawn.child as unknown as { stdout: EventEmitter }).stdout;
+
+    // First failure → a silent hot-stdin resend is scheduled (~3 s).
+    stdout.emit("data", `${malformedResult}\n`);
+    await flush(30);
+    expect(events.some((event) => event.type === "session.error")).toBe(false);
+
+    await new Promise((resolve) => setTimeout(resolve, 3300));
+    expect(spawn.child.stdin.writes.length).toBeGreaterThan(writesAfterPrompt);
+    expect(events.some((event) => event.type === "session.error")).toBe(false);
+
+    // Second failure → the retry cap is reached → the error surfaces.
+    stdout.emit("data", `${malformedResult}\n`);
+    await flush(50);
+    expect(events.some((event) => event.type === "session.error")).toBe(true);
+  }, 15000);
 
   it("ignores the user_input echo, non-JSON and broken lines", async () => {
     const spawn = makeFakeChild();

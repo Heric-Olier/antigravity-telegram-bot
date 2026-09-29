@@ -116,6 +116,15 @@ export const de: I18nDictionary = {
     "⚡ Tu mensaje entró en caliente al turno en curso; verás su respuesta en la misma conversación sin interrumpir nada.",
   "bot.interrupted_for_new_prompt":
     "⚡ Interrumpí la tarea anterior. Tu mensaje va primero; lo otro queda en la conversación y lo retomas con /sessions.",
+  "cmd.description.compact": "Den Gesprächskontext komprimieren",
+  "compact.busy": "⏳ Der Agent ist beschäftigt — versuche es, wenn die aktuelle Aufgabe fertig ist.",
+  "compact.no_session": "Es gibt noch kein aktives Gespräch zum Komprimieren.",
+  "compact.started": "🧹 Komprimiere: Handoff-Zusammenfassung beim Agenten angefragt…",
+  "compact.auto_started": "🧹 Das Gespräch hat {tokens}k Tokens erreicht — komprimiere automatisch…",
+  "compact.done": "✅ Komprimiert — weiter in einem neuen Gespräch mit übergebenem Kontext.",
+  "compact.failed": "⚠️ Komprimierung fehlgeschlagen — Logs prüfen; erneut mit /compact versuchen.",
+  "compact.damaged_hint": "🛠 Dieser Fehler bedeutet meist, dass der Gesprächszustand beschädigt ist. Ich kann ihn komprimieren und in einem neuen Gespräch fortfahren.",
+  "compact.button": "🧹 Komprimieren & fortfahren",
   "bot.session_busy":
     "⏳ Agent führt bereits eine Aufgabe aus. Warte auf Abschluss oder nutze /abort, um den aktuellen Lauf zu unterbrechen.",
   "bot.session_reset_project_mismatch":

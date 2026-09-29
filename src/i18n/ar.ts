@@ -116,6 +116,15 @@ export const ar: I18nDictionary = {
     "⚡ Tu mensaje entró en caliente al turno en curso; verás su respuesta en la misma conversación sin interrumpir nada.",
   "bot.interrupted_for_new_prompt":
     "⚡ Interrumpí la tarea anterior. Tu mensaje va primero; lo otro queda en la conversación y lo retomas con /sessions.",
+  "cmd.description.compact": "ضغط سياق المحادثة",
+  "compact.busy": "⏳ الوكيل مشغول — حاول مرة أخرى عند انتهاء المهمة الحالية.",
+  "compact.no_session": "لا توجد محادثة نشطة لضغطها بعد.",
+  "compact.started": "🧹 جارٍ الضغط: طلبت من الوكيل ملخص تسليم…",
+  "compact.auto_started": "🧹 وصلت المحادثة إلى {tokens}k رمز — جارٍ الضغط تلقائيًا…",
+  "compact.done": "✅ تم الضغط — نتابع في محادثة جديدة مع نقل السياق.",
+  "compact.failed": "⚠️ فشل الضغط — تحقق من السجلات؛ أعد المحاولة بـ /compact.",
+  "compact.damaged_hint": "🛠 يعني هذا الخطأ عادةً أن حالة المحادثة تالفة. يمكنني ضغطها والمتابعة في محادثة جديدة.",
+  "compact.button": "🧹 اضغط وتابع",
   "bot.session_busy":
     "⏳ الوكيل مشغول بتنفيذ مهمة الآن. انتظر حتى ينتهي، أو استخدم /abort لإيقاف المهمة الحالية.",
   "bot.session_reset_project_mismatch":

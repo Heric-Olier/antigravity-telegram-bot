@@ -25,6 +25,9 @@ export interface Settings {
   responseStreamingMode?: ResponseStreamingMode | undefined;
   sendDiffFileAttachments?: boolean | undefined;
   promptQueueEnabled?: boolean | undefined;
+  /** Auto-compaction: hand the context over to a fresh conversation past the threshold. */
+  autoCompactEnabled?: boolean | undefined;
+  autoCompactThresholdTokens?: number | undefined;
   sessionDirectoryCache?: SessionDirectoryCacheInfo | undefined;
   scheduledTasks?: ScheduledTask[] | undefined;
   scheduledTaskSessionIgnores?: ScheduledTaskSessionIgnoreInfo[] | undefined;

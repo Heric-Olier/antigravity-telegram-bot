@@ -8,6 +8,7 @@ import { lsCommand } from "../commands/ls-command.js";
 import { sessionsCommand } from "../commands/sessions-command.js";
 import { messagesCommand } from "../commands/messages-command.js";
 import { newCommand } from "../commands/new-command.js";
+import { compactCommand } from "../commands/compact-command.js";
 import { abortCommand } from "../commands/abort-command.js";
 import { restartCommand } from "../commands/restart-command.js";
 import { switchCommand, handleSwitchCode } from "../commands/switch-command.js";
@@ -99,6 +100,7 @@ export function registerCommandRouter(bot: Bot<Context>, deps: CommandRouterDeps
   bot.command("sessions", sessionsCommand);
   bot.command("messages", messagesCommand);
   bot.command("new", (ctx) => newCommand(ctx, { bot, ensureEventSubscription: deps.ensureEventSubscription }));
+  bot.command("compact", compactCommand);
   bot.command("abort", abortCommand);
   bot.command("restart", restartCommand);
   bot.command("switch", switchCommand);
