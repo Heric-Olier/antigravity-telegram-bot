@@ -1,7 +1,8 @@
 import type { CommandContext, Context } from "grammy";
-import { startAccountSwitch, type SwitchHandle } from "../../app/services/account-switch-service.js";
+import type { SwitchHandle } from "../../app/services/account-switch-service.js";
 import { completeManualExchange } from "../../app/services/agy-accounts-service.js";
 import { restartAgyProcess } from "../../app/services/agy-restart.js";
+import { showAccountMenu } from "../menus/account-menu.js";
 import { t } from "../../i18n/index.js";
 
 let pending: SwitchHandle | null = null;
@@ -44,36 +45,14 @@ export async function handleSwitchCode(ctx: CommandContext<Context>): Promise<vo
   await ctx.reply(t("switch.submitting"));
 }
 
+/**
+ * `/switch` now opens the saved-accounts menu: the legacy pty OAuth flow it
+ * used to launch is superseded by the agy-accounts plugin flow (account menu,
+ * /switchprofile, /addaccount). The legacy flow never worked with the
+ * fullscreen TUI and any child failure used to crash the whole bot process.
+ */
 export async function switchCommand(ctx: CommandContext<Context>): Promise<void> {
-  if (pending) {
-    await ctx.reply(t("switch.already_pending"));
-    return;
-  }
-  await ctx.reply(t("switch.working"));
-  const handle = await startAccountSwitch();
-  if (!handle.authUrl) {
-    pending = handle;
-    pending.onFinish(() => {
-      pending = null;
-    });
-    await ctx.reply(t("switch.no_url_yet"));
-    return;
-  }
-  pending = handle;
-  handle.onFinish((ok, detail) => {
-    void ctx
-      .reply(
-        ok
-          ? t("switch.done")
-          : `${t("switch.failed")}\n<code>${detail.replace(/<[^>]+>/g, "").slice(-300)}</code>`,
-        { parse_mode: "HTML" },
-      )
-      .catch(() => {});
-    pending = null;
-  });
-  await ctx.reply(`${t("switch.url_intro")}\n\n${handle.authUrl}\n\n${t("switch.paste_code_hint")}`, {
-    link_preview_options: { is_disabled: true },
-  });
+  await showAccountMenu(ctx);
 }
 
 export function hasPendingSwitch(): boolean {

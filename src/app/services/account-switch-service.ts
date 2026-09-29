@@ -1,4 +1,5 @@
 import { spawn, execFile } from "node:child_process";
+import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -28,39 +29,105 @@ export interface SwitchHandle {
  *  4. URL goes to Telegram; the user opens it with the destination account
  *  5. user pastes the code into the chat; we write it into the pty
  *  6. agy stores the new token in the keyring
+ *
+ * The bot UI no longer routes users here (the account menu / agy-accounts
+ * plugin flow replaced the pty flow), but this module stays hardened: every
+ * child failure is reported through the handle instead of escaping as an
+ * uncaught exception. Historical bug (2026-09-28): a bare `spawn("script")`
+ * without an 'error' listener crashed the whole bot on ENOENT.
  */
 export function startAccountSwitch(): Promise<SwitchHandle> {
   return new Promise((resolve) => {
     killLiveAgy(() => {
-      // backup is async by design: it needs the outfile path and must run
-      // BEFORE delete wipes the items (the switch flow never restores the
-      // old token anyway — it just snapshots it for safety).
-      const backupDir = path.join(os.homedir(), ".config", "antigravity-telegram-bot", "account-backups");
-      const backupFile = path.join(backupDir, `agy-backup-${Date.now()}.json`);
-      void execHelper("backup", backupFile);
-      void execHelper("delete");
+      void (async () => {
+        // Safety snapshot FIRST and verified — the delete must never run
+        // without a backup (it used to race: `void` backup + `void` delete,
+        // so the delete won and the snapshot was lost/empty).
+        const backupDir = path.join(
+          os.homedir(),
+          ".config",
+          "antigravity-telegram-bot",
+          "account-backups",
+        );
+        const backupFile = path.join(backupDir, `agy-backup-${Date.now()}.json`);
+        const backup = await execHelper("backup", backupFile);
+        if (!/"ok"\s*:\s*true/.test(backup)) {
+          logger.warn(
+            `[Switch] keyring backup did not succeed — aborting before delete: ${backup.slice(0, 200)}`,
+          );
+          resolve(SwitchHandleImpl.failed(`keyring backup failed: ${backup.slice(0, 300)}`));
+          return;
+        }
+        const deleted = await execHelper("delete");
+        logger.info(`[Switch] keyring delete result: ${deleted.slice(0, 140)}`);
 
-      const child = spawn("script", ["-qec", config.antigravity.bin, "/dev/null"], {
-        cwd: config.antigravity.workspaceDir,
-      });
+        const ptyBin = resolvePtyBin();
+        let child: ReturnType<typeof spawn> | null = null;
+        try {
+          child = spawn(ptyBin, ["-qec", config.antigravity.bin, "/dev/null"], {
+            cwd: config.antigravity.workspaceDir,
+          });
+        } catch (error) {
+          logger.error("[Switch] pty spawn threw synchronously", error);
+          resolve(SwitchHandleImpl.failed(`pty spawn failed: ${String(error)}`));
+          return;
+        }
 
-      const handle = new SwitchHandleImpl(child);
-      child.stdout?.setEncoding("utf8");
-      child.stdout?.on("data", (chunk: string) => handle.feed(chunk));
-      child.stderr?.setEncoding("utf8");
-      child.stderr?.on("data", (chunk: string) => handle.feedErr(chunk));
-      child.on("exit", (code_) => handle.closed(code_ ?? 0));
+        const handle = new SwitchHandleImpl(child);
+        // A spawn failure ("script" missing / EACCES / ...) arrives ASYNC as
+        // an 'error' event: without this listener it becomes an
+        // uncaughtException and takes the whole bot process down.
+        child.on("error", (error) => {
+          logger.error("[Switch] pty spawn error", error);
+          handle.fail(`pty spawn failed: ${error.message}`);
+        });
+        child.stdout?.setEncoding("utf8");
+        child.stdout?.on("data", (chunk: string) => handle.feed(chunk));
+        child.stderr?.setEncoding("utf8");
+        child.stderr?.on("data", (chunk: string) => handle.feedErr(chunk));
+        child.on("exit", (exitCode) => handle.closed(exitCode ?? 0));
 
-      // agy needs a beat to boot and print the selection menu/URL.
-      setTimeout(() => resolve(handle), 8_000);
-      logger.info("[Switch] started (backup+delete done, pty spawned)");
+        // agy needs a beat to boot and print the selection menu/URL.
+        setTimeout(() => resolve(handle), 8_000);
+        logger.info(
+          `[Switch] started (backup verified, keyring deleted, pty spawned via ${ptyBin})`,
+        );
+      })();
     });
   });
 }
 
+/**
+ * `script` is resolved by absolute path when possible: bare-name resolution
+ * depends on the service PATH, and the systemd user manager can boot without
+ * Linuxbrew (its only source on this machine — `/usr/bin/script` does not
+ * exist in Bazzite) before the graphical session import lands. Last resort is
+ * the plain PATH lookup, guarded by the child 'error' handler above.
+ */
+function resolvePtyBin(): string {
+  const candidates = [
+    process.env.AGY_PTY_BIN,
+    "/usr/bin/script",
+    "/home/linuxbrew/.linuxbrew/bin/script",
+  ].filter((value): value is string => Boolean(value));
+  for (const candidate of candidates) {
+    try {
+      if (existsSync(candidate)) {
+        return candidate;
+      }
+    } catch {
+      // try the next candidate
+    }
+  }
+  return "script";
+}
+
 function killLiveAgy(done: () => void): void {
   execFile("pgrep", ["-f", "agy --print="], (err, stdout) => {
-    const pids = (stdout ?? "").split("\n").map((s) => s.trim()).filter(Boolean);
+    const pids = (stdout ?? "")
+      .split("\n")
+      .map((s) => s.trim())
+      .filter(Boolean);
     if (pids.length === 0 || (err && !stdout)) {
       done();
       return;
@@ -81,20 +148,36 @@ function execHelper(cmd: string, arg?: string): Promise<string> {
     const args = [helperPy, cmd];
     if (arg) args.push(arg);
     execFile(PY, args, { timeout: 20_000 }, (err, stdout) => {
-      logger.info(`[Switch] helper ${cmd}: ${(stdout || String(err)).slice(0, 140)}`);
-      res(stdout ?? "");
+      const output = stdout || (err ? String(err) : "");
+      logger.info(`[Switch] helper ${cmd}: ${output.slice(0, 140)}`);
+      res(output);
     });
   });
 }
 
-class SwitchHandleImpl implements SwitchHandle {
+// Exported for tests: the failure paths here are the crash-prevention
+// contract — a failed switch must always surface through onFinish(cb).
+export class SwitchHandleImpl implements SwitchHandle {
   authUrl: string | null = null;
   private buffer = "";
   private submitted = false;
   private cbs: Array<(ok: boolean, detail: string) => void> = [];
-  private exitedOnce = false;
+  private finishResult: { ok: boolean; detail: string } | null = null;
+  private failureDetail: string | null = null;
 
-  constructor(private readonly child: ReturnType<typeof spawn>) {}
+  /** A handle for a switch that failed before it could start. */
+  static failed(reason: string): SwitchHandleImpl {
+    const handle = new SwitchHandleImpl(null);
+    handle.fail(reason);
+    return handle;
+  }
+
+  constructor(private readonly child: ReturnType<typeof spawn> | null) {}
+
+  fail(reason: string): void {
+    this.failureDetail = reason;
+    this.finish(false);
+  }
 
   feed(chunk: string): void {
     this.buffer += chunk;
@@ -115,25 +198,36 @@ class SwitchHandleImpl implements SwitchHandle {
     if (this.submitted) return;
     this.submitted = true;
     logger.info("[Switch] submitting auth code to agy pty");
-    this.child.stdin?.write(`${code.trim()}\n`);
+    this.child?.stdin?.write(`${code.trim()}\n`);
   }
 
   onFinish(cb: (ok: boolean, detail: string) => void): void {
+    if (this.finishResult) {
+      cb(this.finishResult.ok, this.finishResult.detail);
+      return;
+    }
     this.cbs.push(cb);
   }
 
   closed(exitCode: number): void {
-    if (this.exitedOnce) return;
-    this.exitedOnce = true;
     const ok = exitCode === 0 && /sign\s*in|logged|gemini/i.test(this.buffer);
-    for (const cb of this.cbs) cb(ok, this.buffer.slice(-500));
+    this.finish(ok);
   }
 
   abort(): void {
     try {
-      this.child.kill("SIGKILL");
+      this.child?.kill("SIGKILL");
     } catch {
       // ignore
     }
+  }
+
+  private finish(ok: boolean): void {
+    if (this.finishResult) return;
+    this.finishResult = { ok, detail: this.failureDetail ?? this.buffer.slice(-500) };
+    for (const cb of this.cbs) {
+      cb(this.finishResult.ok, this.finishResult.detail);
+    }
+    this.cbs = [];
   }
 }
