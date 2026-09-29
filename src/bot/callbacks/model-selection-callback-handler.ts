@@ -17,6 +17,7 @@ import {
 import { interactionManager } from "../../app/managers/interaction-manager.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
+import { recycleLiveProcessForModelChange } from "../../antigravity/events.js";
 import { failure, switched } from "./feedback.js";
 import { createMainKeyboard } from "../keyboards/main-reply-keyboard.js";
 import { keyboardManager } from "../keyboards/keyboard-manager.js";
@@ -85,6 +86,12 @@ async function applyModelSelectionAndNotify(
 
   selectModel(modelInfo);
   keyboardManager.updateModel(modelInfo);
+  // A live agy process keeps its spawn-time --model: recycle it (or defer to
+  // the end of the turn) so the selection reaches the running conversation.
+  const modelRecycle = recycleLiveProcessForModelChange();
+  if (modelRecycle !== "none") {
+    logger.info(`[ModelHandler] live process model recycle: ${modelRecycle}`);
+  }
   await pinnedMessageManager.refreshContextLimit();
 
   const contextInfo =

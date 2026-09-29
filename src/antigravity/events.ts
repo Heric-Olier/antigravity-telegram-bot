@@ -23,6 +23,11 @@ const RETRY_INITIAL_DELAY_MS = 5_000;
 const RETRY_MAX_DELAY_MS = 120_000;
 /** How many capacity-503 retries have been consumed for the current prompt. */
 let retryAttempt = 0;
+
+// Deferred model-change recycle: a model was selected while a turn was in
+// flight; recycle the live process when the turn ends so the next prompt
+// spawns with the stored model (see recycleLiveProcessForModelChange).
+let pendingModelRecycle = false;
 /** Pending retry timer — cancelled when the user acts during the backoff. */
 let retryTimer: ReturnType<typeof setTimeout> | null = null;
 /** Set when a turn is intentionally killed (/restart); swallows the stale
@@ -423,6 +428,24 @@ function handleResult(event: AgyResultEvent): void {
   retryAttempt = 0;
   cancelPendingRetry("turn finished");
 
+  // Deferred model change: recycle now that the turn is over so the next
+  // prompt spawns with the model the user selected mid-turn.
+  if (pendingModelRecycle) {
+    pendingModelRecycle = false;
+    const liveProc = activeProcess;
+    const storedModelId = getStoredModel()?.modelID;
+    if (
+      liveProc &&
+      liveProc.isRunning() &&
+      storedModelId &&
+      liveProc.getModelId() !== storedModelId
+    ) {
+      activeProcess = null;
+      void liveProc.kill().catch(() => undefined);
+      logger.info("[AgyEvents] deferred model change applied: agy recycled for the next spawn");
+    }
+  }
+
   // Turn is over either way — release the foreground/typing state.
   emitBotEvent("session.idle", { sessionID: currentSessionId });
 }
@@ -528,6 +551,7 @@ export function stopEventListening(): void {
   eventCallback = null;
   currentSessionId = "";
   nextPartCounter = 0;
+  pendingModelRecycle = false;
 }
 
 /**
@@ -550,7 +574,42 @@ export async function interruptActiveTurn(): Promise<void> {
       emitBotEvent("session.idle", { sessionID: currentSessionId });
     }
     nextPartCounter = 0;
+    // Aborts and restarts kill the process anyway; a deferred recycle is moot.
+    pendingModelRecycle = false;
   }
+}
+
+/**
+ * The `--model` flag only exists at spawn time: a live agy process keeps the
+ * model it was started with. After a model selection the process is recycled
+ * so the next prompt spawns fresh with the stored model (the conversation is
+ * preserved via --conversation). While a turn is in flight the recycle is
+ * deferred to the end of the turn instead of killing the user's work.
+ */
+export function recycleLiveProcessForModelChange(): "killed" | "deferred" | "none" {
+  const proc = activeProcess;
+  // No live process → nothing to recycle. Checking this BEFORE reading the
+  // model store keeps the call harmless in contexts where the store is not
+  // available (e.g. handler tests with a partial mock).
+  if (!proc || !proc.isRunning()) {
+    return "none";
+  }
+  const stored = getStoredModel()?.modelID;
+  if (!stored) {
+    return "none";
+  }
+  if (proc.getModelId() === stored) {
+    return "none";
+  }
+  if (lastPromptText !== null) {
+    pendingModelRecycle = true;
+    logger.info("[AgyEvents] model change deferred to turn end (turn in flight)");
+    return "deferred";
+  }
+  activeProcess = null;
+  void proc.kill().catch(() => undefined);
+  logger.info(`[AgyEvents] live agy recycled for model change (next spawn uses ${stored})`);
+  return "killed";
 }
 
 export function __resetAgyEventsForTests(): void {
@@ -593,6 +652,15 @@ export async function sendPromptToActiveProcess(text: string, directory: string)
   cancelPendingRetry("new prompt sent");
   retryAttempt = 0;
   if (activeProcess && activeProcess.isRunning()) {
+    const effectiveModel = activeProcess.getModelId();
+    const storedNow = getStoredModel()?.modelID;
+    if (storedNow && effectiveModel !== storedNow) {
+      // The live process keeps its spawn-time --model; surface the mismatch
+      // instead of letting the prompt log (stored model) lie about it.
+      logger.warn(
+        `[AgyEvents] live agy model mismatch (running=${effectiveModel ?? "agy-default"} stored=${storedNow}) — applies on next spawn`,
+      );
+    }
     await activeProcess.sendPrompt(text);
     return;
   }

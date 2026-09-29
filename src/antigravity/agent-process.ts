@@ -135,6 +135,11 @@ export class AntigravityProcess extends EventEmitter {
     this.options = options;
   }
 
+  /** The `--model` flag this process was spawned with (undefined = agy default). */
+  getModelId(): string | undefined {
+    return this.options.model;
+  }
+
   spawn(): void {
     const { command, args } = createAgySpawnCommand(this.options);
     const cwd = this.options.cwd ? expandHome(this.options.cwd) : expandHome(config.antigravity.workspaceDir);
