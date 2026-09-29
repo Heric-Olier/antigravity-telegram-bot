@@ -95,6 +95,29 @@ function nextPartId(): string {
   return shortId("part", nextPartCounter++);
 }
 
+// ── Feed-style block rotation (Capa 8) ───────────────────────────────────────
+// Each narration block (the text between two tool batches) gets its own
+// message id so the bot layer renders it as a separate Telegram message
+// (Hermes-style feed) instead of accumulating one giant edited message. The
+// counter is monotonic across turns: ids stay unique, so late/stale events can
+// never collide with a fresh block's state.
+let currentTextBlockIndex = 0;
+let rotatedThisTurn = false;
+let blockHasText = false;
+let pendingBlockRotation = false;
+let currentBlockText = "";
+
+function currentTextMessageId(): string {
+  return shortId("msg", currentTextBlockIndex);
+}
+
+function resetFeedTurn(): void {
+  rotatedThisTurn = false;
+  blockHasText = false;
+  pendingBlockRotation = false;
+  currentBlockText = "";
+}
+
 function emitBotEvent(type: string, properties: Record<string, unknown>): void {
   const callback = eventCallback;
   if (!callback) {
@@ -146,7 +169,7 @@ function toolPartFromStep(step: AgyStepEvent): ToolPart {
           .join(", ")}${subagents.length > 4 ? ", …" : ""})`
       : "";
   const toolName = `${step.toolName ?? step.toolInfo?.name ?? "tool"}${subagentSuffix}`;
-  const messageId = shortId("msg", 0);
+  const messageId = currentTextMessageId();
 
   let state: ToolState;
   if (step.state === "ERROR") {
@@ -185,7 +208,7 @@ function textPartUpdated(text: string): { part: Record<string, unknown> } {
     part: {
       id: nextPartId(),
       sessionID: currentSessionId,
-      messageID: shortId("msg", 0),
+      messageID: currentTextMessageId(),
       type: "text",
       text,
     },
@@ -209,7 +232,7 @@ function noteStepActivity(_event: AgyStepEvent): void {
     stallNotified = false;
     emitBotEvent("message.updated", {
       info: {
-        id: shortId("msg", 0),
+        id: currentTextMessageId(),
         sessionID: currentSessionId,
         role: "assistant",
         stallCleared: true,
@@ -247,7 +270,7 @@ function startStallWatchdog(): void {
       // session busy after the turn ended, and queued messages never drained.
       emitBotEvent("message.updated", {
         info: {
-          id: shortId("msg", 0),
+          id: currentTextMessageId(),
           sessionID: currentSessionId,
           role: "assistant",
           stallMinutes: minutes,
@@ -269,6 +292,17 @@ function handleStep(event: AgyStepEvent): void {
   noteStepUsage(event.usage as Parameters<typeof noteStepUsage>[0]);
 
   if (event.stepType === "agent_response" && typeof event.textDelta === "string") {
+    // Feed mode: the first text after a tool batch opens a NEW block id, so the
+    // bot layer sends it as its own Telegram message instead of editing the
+    // previous one.
+    if (pendingBlockRotation) {
+      currentTextBlockIndex += 1;
+      currentBlockText = "";
+      pendingBlockRotation = false;
+      rotatedThisTurn = true;
+    }
+    blockHasText = true;
+    currentBlockText += event.textDelta;
     const { part } = textPartUpdated(event.textDelta);
     // The aggregator's streaming path reads properties.delta first
     // (message.part.updated with a delta applies it incrementally).
@@ -282,6 +316,11 @@ function handleStep(event: AgyStepEvent): void {
   }
 
   if (event.stepType === "tool") {
+    // A tool ran after narration text: the next text starts a new block.
+    if (blockHasText) {
+      pendingBlockRotation = true;
+      blockHasText = false;
+    }
     const part = toolPartFromStep(event);
     emitBotEvent("message.part.updated", {
       sessionID: currentSessionId,
@@ -326,7 +365,13 @@ function handleResult(event: AgyResultEvent, sourceProc?: AntigravityProcess): v
     }
   }
   const finalText = typeof event.response === "string" ? event.response : "";
-  const messageId = shortId("msg", 0);
+  const messageId = currentTextMessageId();
+  // Feed mode: a rotated turn keeps earlier blocks in their own Telegram
+  // messages, so the ready-to-render snapshot must carry ONLY the text of the
+  // current (last) block — the whole-response text would duplicate every
+  // earlier block on the last message.
+  const snapshotText =
+    rotatedThisTurn && currentBlockText.length > 0 ? currentBlockText : finalText;
   const now = Date.now();
 
   if (event.status === "ERROR") {
@@ -446,7 +491,8 @@ function handleResult(event: AgyResultEvent, sourceProc?: AntigravityProcess): v
       error: { name: "AntigravityError", message: errorMessage },
     });
   } else {
-    // Ready-to-render final text snapshot (success path).
+    // Ready-to-render final text snapshot (success path). Scoped to the last
+    // block when the turn rotated (feed mode).
     emitBotEvent("message.part.updated", {
       sessionID: currentSessionId,
       time: now,
@@ -455,7 +501,7 @@ function handleResult(event: AgyResultEvent, sourceProc?: AntigravityProcess): v
         sessionID: currentSessionId,
         messageID: messageId,
         type: "text",
-        text: finalText,
+        text: snapshotText,
       },
     });
     // Completed assistant message lets consumers that finish on
@@ -506,6 +552,7 @@ function handleResult(event: AgyResultEvent, sourceProc?: AntigravityProcess): v
   // Turn is over either way — release the foreground/typing state and stop
   // the stall watchdog (its gap-notice only belongs to a run in flight).
   resetStallWatchdog();
+  resetFeedTurn();
   emitBotEvent("session.idle", { sessionID: currentSessionId });
 }
 
@@ -623,8 +670,10 @@ export function stopEventListening(): void {
   eventCallback = null;
   currentSessionId = "";
   nextPartCounter = 0;
+  currentTextBlockIndex = 0;
   pendingModelRecycle = false;
   resetStallWatchdog();
+  resetFeedTurn();
 }
 
 /**
@@ -643,6 +692,7 @@ export async function interruptActiveTurn(): Promise<void> {
   lastPromptDirectory = null;
   retryAttempt = 0;
   resetStallWatchdog();
+  resetFeedTurn();
   if (proc) {
     activeProcess = null;
     // The interrupted turn's eventual ERROR result (e.g. a stale 503
@@ -731,6 +781,9 @@ export function hotTakeoverPrompt(text: string): boolean {
 export async function sendPromptToActiveProcess(text: string, directory: string): Promise<void> {
   lastPromptText = text;
   lastPromptDirectory = directory;
+  // A fresh user prompt starts a new turn: feed block bookkeeping resets (the
+  // block id counter itself stays monotonic so ids never collide).
+  resetFeedTurn();
   // A fresh user prompt supersedes any retry of an older prompt — and any
   // suppression from a previously interrupted turn.
   cancelPendingRetry("new prompt sent");
@@ -746,6 +799,9 @@ export async function sendPromptToActiveProcess(text: string, directory: string)
         `[AgyEvents] live agy model mismatch (running=${effectiveModel ?? "agy-default"} stored=${storedNow}) — applies on next spawn`,
       );
     }
+    logger.info(
+      "[AgyEvents] prompt written to live agy process (in-flight take or follow-up turn)",
+    );
     await activeProcess.sendPrompt(text);
     return;
   }

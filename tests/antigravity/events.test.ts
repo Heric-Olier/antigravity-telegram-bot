@@ -216,6 +216,76 @@ describe("antigravity/events", () => {
     expect(events[7]?.properties).toEqual({ sessionID: created.sessionID });
   });
 
+  it("rotates message ids per narration block (feed mode)", async () => {
+    const spawn = makeFakeChild();
+    spawnMock.mockImplementation(() => spawn.child);
+
+    const { events, callback } = collect();
+    await subscribeToEvents("/tmp/proj", callback);
+    await flush(1);
+
+    const rotationLines = [
+      JSON.stringify({
+        event: "init",
+        conversation_id: "11111111-2222-3333-4444-555555555555",
+        init: { cwd: "/tmp/proj" },
+      }),
+      JSON.stringify({
+        event: "step_update",
+        step_update: {
+          step_index: 0,
+          state: "ACTIVE",
+          step_type: "agent_response",
+          text_delta: "Bloque uno.",
+        },
+      }),
+      JSON.stringify({
+        event: "step_update",
+        step_update: { step_index: 1, state: "DONE", step_type: "tool", tool_name: "run_command", tool_info: {} },
+      }),
+      JSON.stringify({
+        event: "step_update",
+        step_update: {
+          step_index: 2,
+          state: "ACTIVE",
+          step_type: "agent_response",
+          text_delta: "Bloque dos.",
+        },
+      }),
+      JSON.stringify({
+        event: "result",
+        result: { status: "SUCCESS", response: "Bloque uno.Bloque dos.", num_turns: 2 },
+      }),
+    ];
+
+    const stdout = (spawn.child as unknown as { stdout: EventEmitter }).stdout;
+    await flush(1);
+    for (const line of rotationLines) {
+      stdout.emit("data", `${line}\n`);
+    }
+    await flush(30);
+
+    const parts = events
+      .filter((event) => event.type === "message.part.updated")
+      .map((event) => event.properties.part as { type: string; messageID: string; text?: string });
+
+    const textParts = parts.filter((part) => part.type === "text");
+    expect(textParts).toHaveLength(3);
+    expect(textParts[0]?.messageID).toBe("agy-msg-0");
+    expect(textParts[1]?.messageID).toBe("agy-msg-1");
+    // The final snapshot carries ONLY the last block's text — the whole
+    // response would duplicate every earlier block on the last message.
+    expect(textParts[2]?.messageID).toBe("agy-msg-1");
+    expect(textParts[2]?.text).toBe("Bloque dos.");
+
+    // Tools stay with the block that just ended.
+    const toolParts = parts.filter((part) => part.type === "tool");
+    expect(toolParts[0]?.messageID).toBe("agy-msg-0");
+
+    const completed = events.filter((event) => event.type === "message.updated").pop();
+    expect((completed?.properties.info as { id: string }).id).toBe("agy-msg-1");
+  });
+
   it("ignores the user_input echo, non-JSON and broken lines", async () => {
     const spawn = makeFakeChild();
     spawnMock.mockImplementation(() => spawn.child);

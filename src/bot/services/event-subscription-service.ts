@@ -144,6 +144,9 @@ class EventSubscriptionService implements BotEventSubscriptionService {
   private readonly toolCallStreamer: ToolCallStreamer;
   private readonly typingHeartbeats = new Map<string, ReturnType<typeof setInterval>>();
   private readonly typingHeartbeatsStamp = new Map<string, number>();
+  // Feed mode (Capa 8): last narration block streamed per session — a new id
+  // seals (flushes + drops) the previous block's stream state.
+  private readonly lastStreamedBlockBySession = new Map<string, string>();
   /** Hard TTL for the stream-side typing heartbeat (retry-orphan defense). */
   private readonly typingStaleAfterMs = 10 * 60_000;
   /** Live per-session progress for the stream header + progress pings. */
@@ -589,6 +592,15 @@ class EventSubscriptionService implements BotEventSubscriptionService {
       if (!this.botInstance || !this.chatIdInstance) {
         return;
       }
+
+      // Feed mode (Capa 8): a new narration block id started → the previous
+      // block can no longer change: flush its pending partial and drop its
+      // stream state (the Telegram message itself stays in the chat).
+      const previousBlockId = this.lastStreamedBlockBySession.get(sessionId);
+      if (previousBlockId && previousBlockId !== messageId) {
+        this.sealAssistantResponseStream(sessionId, previousBlockId, "narration_block_sealed");
+      }
+      this.lastStreamedBlockBySession.set(sessionId, messageId);
 
       // Keep a SINGLE heartbeat per session: restarting the interval on every
       // throttled partial triggered Telegram 429 floods that starved getUpdates.
@@ -1615,7 +1627,27 @@ class EventSubscriptionService implements BotEventSubscriptionService {
     this.assistantDraftResponseStreamer.clearMessage(sessionId, messageId, reason);
   }
 
+  /** Feed mode (Capa 8): flush a sealed narration block's pending partial and
+   * drop its stream state; the message itself stays in the chat. */
+  private sealAssistantResponseStream(sessionId: string, messageId: string, reason: string): void {
+    this.assistantResponseStreamModes.delete(
+      this.getAssistantResponseStreamKey(sessionId, messageId),
+    );
+    for (const streamer of [
+      this.assistantEditResponseStreamer,
+      this.assistantDraftResponseStreamer,
+    ]) {
+      void streamer.seal(sessionId, messageId, reason).catch((error) => {
+        logger.warn(
+          `[Bot] Failed to seal narration block stream: session=${sessionId}, message=${messageId}`,
+          error,
+        );
+      });
+    }
+  }
+
   private clearAssistantResponseSession(sessionId: string, reason: string): void {
+    this.lastStreamedBlockBySession.delete(sessionId);
     for (const key of this.assistantResponseStreamModes.keys()) {
       if (key.startsWith(`${sessionId}:`)) {
         this.assistantResponseStreamModes.delete(key);
@@ -1627,6 +1659,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
   }
 
   private clearAllResponseStreams(reason: string): void {
+    this.lastStreamedBlockBySession.clear();
     this.assistantResponseStreamModes.clear();
     this.assistantEditResponseStreamer.clearAll(reason);
     this.assistantDraftResponseStreamer.clearAll(reason);

@@ -1177,6 +1177,15 @@ class SummaryAggregator {
   ): void {
     const { info } = event.properties;
 
+    // Stall notices (stallMinutes / stallCleared) are UI pings emitted by the
+    // driver watchdog, not message lifecycle events — treating them as
+    // completed assistant messages could fire a mid-turn completion for a
+    // message that already had text (Capa 8 hardening).
+    const stallProbe = info as unknown as Record<string, unknown>;
+    if ("stallMinutes" in stallProbe || "stallCleared" in stallProbe) {
+      return;
+    }
+
     if (info.sessionID === this.currentSessionId && info.role === "user") {
       this.acceptsSubagentEvents = true;
       this.subagentRunStartedAt =
@@ -1345,8 +1354,12 @@ class SummaryAggregator {
     }
 
     if (part.type === "text") {
+      const isNewTextBlock = !this.textMessageStates.has(messageID);
       this.registerKnownTextPart(messageID, part.id);
       this.registerTextPart(messageID, part.id);
+      if (isNewTextBlock) {
+        this.sealOlderTextBlocks(messageID);
+      }
     }
 
     if (part.type === "reasoning") {
@@ -1842,6 +1855,32 @@ class SummaryAggregator {
         logger.error("[Aggregator] Error in external user input callback:", err);
       });
     });
+  }
+
+  /**
+   * Feed mode (Capa 8): narration blocks arrive under distinct message ids.
+   * A brand-new block id means every other open text message of this session
+   * can never grow again — drop their state so the typing indicator and the
+   * "remaining messages" accounting stay truthful. The bot layer seals the
+   * matching Telegram streams separately (setOnPartial).
+   */
+  private sealOlderTextBlocks(newMessageId: string): void {
+    const stale: string[] = [];
+    for (const key of this.textMessageStates.keys()) {
+      if (key === newMessageId) {
+        continue;
+      }
+      // An in-flight user echo cleans itself up right after delivery.
+      if (this.messages.get(key)?.role === "user") {
+        continue;
+      }
+      stale.push(key);
+    }
+
+    for (const key of stale) {
+      this.cleanupCompletedMessage(key);
+      logger.debug(`[Aggregator] Sealed narration block (feed mode): messageId=${key}`);
+    }
   }
 
   private cleanupCompletedMessage(messageId: string): void {

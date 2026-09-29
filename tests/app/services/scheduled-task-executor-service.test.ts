@@ -1,6 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { execFile } from "node:child_process";
-import type { ScheduledOnceTask, ScheduledTaskExecutionResult } from "../../../src/app/types/scheduled-task.js";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ScheduledOnceTask } from "../../../src/app/types/scheduled-task.js";
 
 const mocked = vi.hoisted(() => ({
   execFileMock: vi.fn(),

@@ -879,4 +879,35 @@ describe("bot/streaming/response-streamer", () => {
     expect(editPart).toHaveBeenCalledTimes(1);
     expect(editPart).toHaveBeenCalledWith(1, plainPart("second"), undefined);
   });
+
+  it("seals a narration block: flushes the pending partial, then drops the state", async () => {
+    vi.useFakeTimers();
+
+    let nextMessageId = 301;
+    const sendPart = vi.fn(async (part) => ({
+      messageId: nextMessageId++,
+      deliveredSignature: signature(part),
+    }));
+    const editPart = vi.fn(async (_messageId, part) => ({ deliveredSignature: signature(part) }));
+    const deleteText = vi.fn().mockResolvedValue(undefined);
+    const streamer = new ResponseStreamer({
+      throttleMs: 500,
+      sendPart,
+      editPart,
+      deleteText,
+    });
+
+    streamer.enqueue("s1", "block-1", { parts: [plainPart("block one")] });
+    await streamer.seal("s1", "block-1", "test_seal");
+
+    expect(sendPart).toHaveBeenCalledTimes(1);
+    expect(sendPart).toHaveBeenCalledWith(plainPart("block one"), undefined);
+    expect(editPart).not.toHaveBeenCalled();
+    expect(streamer.hasActiveStream("s1")).toBe(false);
+
+    // Sealing again is a no-op, and the cancelled timer must not fire later.
+    await streamer.seal("s1", "block-1", "test_seal_again");
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(sendPart).toHaveBeenCalledTimes(1);
+  });
 });

@@ -3039,4 +3039,73 @@ describe("summary/aggregator", () => {
       );
     });
   });
+
+  describe("feed mode (Capa 8)", () => {
+    function textPart(sessionID: string, messageID: string, partID: string, text: string) {
+      return {
+        type: "message.part.updated",
+        properties: {
+          part: { id: partID, sessionID, messageID, type: "text", text },
+          delta: text,
+        },
+      } as unknown as Event;
+    }
+
+    function completedMessage(sessionID: string, messageID: string, extra: Record<string, unknown> = {}) {
+      return {
+        type: "message.updated",
+        properties: {
+          info: {
+            id: messageID,
+            sessionID,
+            role: "assistant",
+            time: { created: 1, completed: 2 },
+            ...extra,
+          },
+        },
+      } as unknown as Event;
+    }
+
+    it("seals older narration blocks when a new block id starts", () => {
+      const partials: Array<{ messageId: string; text: string }> = [];
+      const completions: Array<{ messageId: string; text: string }> = [];
+      summaryAggregator.setSession("session-1");
+      summaryAggregator.setOnPartial((_sessionId, messageId, messageText) => {
+        partials.push({ messageId, text: messageText });
+      });
+      summaryAggregator.setOnComplete((_sessionId, messageId, messageText) => {
+        completions.push({ messageId, text: messageText });
+      });
+
+      summaryAggregator.processEvent(textPart("session-1", "message-0", "part-a", "Bloque uno."));
+      // A brand-new block id starts → the previous block is sealed.
+      summaryAggregator.processEvent(textPart("session-1", "message-1", "part-b", "Bloque dos."));
+
+      // A late completion for the sealed block must NOT fire the reply callback
+      // (its state was dropped; a fresh empty one is not worth a completion).
+      summaryAggregator.processEvent(completedMessage("session-1", "message-0"));
+      expect(completions).toHaveLength(0);
+
+      // The live block still completes with its own text only.
+      summaryAggregator.processEvent(completedMessage("session-1", "message-1"));
+      expect(completions).toEqual([{ messageId: "message-1", text: "Bloque dos." }]);
+      expect(partials.map((entry) => entry.messageId)).toEqual(["message-0", "message-1"]);
+    });
+
+    it("ignores stall notices instead of completing a message that already has text", () => {
+      const completions: Array<{ messageId: string; text: string }> = [];
+      summaryAggregator.setSession("session-1");
+      summaryAggregator.setOnComplete((_sessionId, messageId, messageText) => {
+        completions.push({ messageId, text: messageText });
+      });
+
+      summaryAggregator.processEvent(textPart("session-1", "message-0", "part-a", "Texto parcial."));
+      summaryAggregator.processEvent(completedMessage("session-1", "message-0", { stallMinutes: 8 }));
+      expect(completions).toHaveLength(0);
+
+      // The real completion still works and carries the block's text.
+      summaryAggregator.processEvent(completedMessage("session-1", "message-0"));
+      expect(completions).toEqual([{ messageId: "message-0", text: "Texto parcial." }]);
+    });
+  });
 });

@@ -303,6 +303,33 @@ export class ResponseStreamer {
     );
   }
 
+  /**
+   * Feed mode (Capa 8): a narration block that can no longer grow is flushed
+   * (its pending partial must still reach Telegram) and then dropped. Unlike
+   * `complete`, nothing is persisted as a final part — the block already
+   * renders its full text.
+   */
+  async seal(sessionId: string, messageId: string, reason: string): Promise<void> {
+    const key = buildStateKey(sessionId, messageId);
+    const state = this.states.get(key);
+    if (!state) {
+      return;
+    }
+
+    this.clearTimer(state);
+    await state.task.catch(() => false);
+
+    if (!state.cancelled && !state.isBroken) {
+      await this.enqueueTask(state, () => this.flushState(state, reason));
+    }
+
+    this.cancelState(state);
+    this.states.delete(key);
+    logger.debug(
+      `[ResponseStreamer] Sealed stream: session=${sessionId}, message=${messageId}, reason=${reason}`,
+    );
+  }
+
   clearSession(sessionId: string, reason: string): void {
     for (const state of Array.from(this.states.values())) {
       if (state.sessionId !== sessionId) {
