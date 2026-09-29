@@ -333,6 +333,43 @@ describe("antigravity/events", () => {
     expect(events.some((event) => event.type === "session.error")).toBe(true);
   }, 15000);
 
+  it("retries an HTTP 502 server error via hot stdin", async () => {
+    const spawn = makeFakeChild();
+    spawnMock.mockImplementation(() => spawn.child);
+
+    const { events, callback } = collect();
+    await subscribeToEvents("/tmp/proj", callback);
+    await flush(1);
+
+    await sendPromptToActiveProcess("haz la tarea", "/tmp/proj");
+    const writesAfterPrompt = spawn.child.stdin.writes.length;
+    expect(writesAfterPrompt).toBeGreaterThan(0);
+
+    const html502 = JSON.stringify({
+      event: "result",
+      result: {
+        status: "ERROR",
+        response: "",
+        error:
+          "API error (attempt 1): request failed (code 502): <!DOCTYPE html>\n<html lang=en>\n" +
+          "<title>Error 502 (Server Error)!!1</title>\n" +
+          "<p>The server encountered a temporary error and could not complete your request." +
+          "<p>Please try again in 30 seconds.",
+        num_turns: 1,
+      },
+    });
+
+    const stdout = (spawn.child as unknown as { stdout: EventEmitter }).stdout;
+    stdout.emit("data", `${html502}\n`);
+    await flush(30);
+    expect(events.some((event) => event.type === "session.error")).toBe(false);
+
+    // Capacity retry initial backoff is 5 s → a silent hot-stdin resend follows.
+    await new Promise((resolve) => setTimeout(resolve, 5300));
+    expect(spawn.child.stdin.writes.length).toBeGreaterThan(writesAfterPrompt);
+    expect(events.some((event) => event.type === "session.error")).toBe(false);
+  }, 15000);
+
   it("ignores the user_input echo, non-JSON and broken lines", async () => {
     const spawn = makeFakeChild();
     spawnMock.mockImplementation(() => spawn.child);
