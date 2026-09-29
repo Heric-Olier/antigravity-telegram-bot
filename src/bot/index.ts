@@ -203,11 +203,13 @@ function createBotSync(localCommandRegistry = LocalCommandRegistry.empty()): Bot
   registerAccountMenuHandlers(bot);
   registerCallbackRouter(bot, {
     ensureEventSubscription: eventSubscriptionService.ensureEventSubscription,
-    setTelegramContext: eventSubscriptionService.setTelegramContext,
+    setTelegramContext: (contextBot, chatId) =>
+      eventSubscriptionService.setTelegramContext(contextBot, chatId),
   });
   registerMessageRouter(bot, {
     ensureEventSubscription: eventSubscriptionService.ensureEventSubscription,
-    setTelegramContext: eventSubscriptionService.setTelegramContext,
+    setTelegramContext: (contextBot, chatId) =>
+      eventSubscriptionService.setTelegramContext(contextBot, chatId),
   });
 
   safeBackgroundTask({
