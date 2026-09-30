@@ -17,10 +17,10 @@ import { logger } from "../utils/logger.js";
 import { isRecord } from "../utils/type-guards.js";
 
 /** Maximum transparent retries for transient provider-side failures. */
-const CAPACITY_RETRY_MAX = 10;
+const CAPACITY_RETRY_MAX = 12;
 /** Initial retry delay and cap (config may raise the cap for heavy 503 waves). */
 const RETRY_INITIAL_DELAY_MS = 5_000;
-const RETRY_MAX_DELAY_MS = 120_000;
+const RETRY_MAX_DELAY_MS = 180_000;
 // Malformed/empty function calls are a model-side glitch (Capa 9 research):
 // retry the SAME prompt once before surfacing the error. A damaged
 // conversation fails the retry again and the error surfaces — the bot then
@@ -422,6 +422,13 @@ function handleResult(event: AgyResultEvent, sourceProc?: AntigravityProcess): v
         logger.warn(
           `[AgyEvents] transient server error (attempt ${attempt}/${CAPACITY_RETRY_MAX}); resending prompt in ${delayMs}ms`,
         );
+        // Surface the retry to the chat: a silent "typing…" for minutes reads
+        // as a hung bot, so the service renders/updates one status message.
+        emitBotEvent("session.retrying", {
+          attempt,
+          max: CAPACITY_RETRY_MAX,
+          delayMs,
+        });
         // TOKEN-ECONOMY: 503 arrives while the agy process is usually still
         // ALIVE (the 503 comes from the server inside agy). Restarting the
         // process on every retry drops the prompt cache → the next run pays

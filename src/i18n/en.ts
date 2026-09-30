@@ -128,6 +128,11 @@ export const en = {
     "⚠️ Active session does not match the selected project, so it was reset. Use /sessions to pick one or /new to create a new session.",
   "bot.prompt_send_error": "Failed to send request to Antigravity.",
   "bot.session_error": "🔴 Antigravity returned an error: {message}",
+  "bot.retrying":
+    "⚠️ Antigravity service unavailable (503) — retrying automatically… attempt {attempt}/{max}, next try in ~{seconds}s.",
+  "bot.retry_recovered": "✅ Antigravity is back — continuing.",
+  "bot.retry_exhausted":
+    "❌ Antigravity stayed unavailable — retries exhausted. Resend your message when the service recovers.",
   "bot.session_retry":
     "🔁 {message}\n\nProvider keeps returning the same error on repeated retries. Use /abort to abort.",
   "bot.external_user_input": "External user input",

@@ -370,6 +370,35 @@ describe("antigravity/events", () => {
     expect(events.some((event) => event.type === "session.error")).toBe(false);
   }, 15000);
 
+  it("emits session.retrying while a 503 is being retried", async () => {
+    const spawn = makeFakeChild();
+    spawnMock.mockImplementation(() => spawn.child);
+
+    const { events, callback } = collect();
+    await subscribeToEvents("/tmp/proj", callback);
+    await flush(1);
+
+    await sendPromptToActiveProcess("haz la tarea", "/tmp/proj");
+
+    const err503 = JSON.stringify({
+      event: "result",
+      result: {
+        status: "ERROR",
+        response: "",
+        error: "API error (attempt 1): UNAVAILABLE (code 503): The service is currently unavailable.",
+        num_turns: 1,
+      },
+    });
+    const stdout = (spawn.child as unknown as { stdout: EventEmitter }).stdout;
+    stdout.emit("data", `${err503}\n`);
+    await flush(2);
+
+    const retrying = events.filter((event) => event.type === "session.retrying");
+    expect(retrying.length).toBe(1);
+    expect(retrying[0]?.properties).toMatchObject({ attempt: 1, max: 12, delayMs: 5000 });
+    expect(events.some((event) => event.type === "session.error")).toBe(false);
+  });
+
   it("ignores the user_input echo, non-JSON and broken lines", async () => {
     const spawn = makeFakeChild();
     spawnMock.mockImplementation(() => spawn.child);

@@ -131,6 +131,9 @@ export const pt: I18nDictionary = {
     "⚠️ A sessão ativa não corresponde ao projeto selecionado, então ela foi redefinida. Use /sessions para escolher uma ou /new para criar uma nova sessão.",
   "bot.prompt_send_error": "Não foi possível enviar a solicitação ao Antigravity.",
   "bot.session_error": "🔴 O Antigravity retornou um erro: {message}",
+  "bot.retrying": "⚠️ Serviço Antigravity indisponível (503) — tentando novamente automaticamente… tentativa {attempt}/{max}, próxima tentativa em ~{seconds}s.",
+  "bot.retry_recovered": "✅ O Antigravity voltou — continuando.",
+  "bot.retry_exhausted": "❌ O Antigravity continuou indisponível — tentativas esgotadas. Reenvie sua mensagem quando o serviço se recuperar.",
   "bot.session_retry":
     "🔁 {message}\n\nO provedor continua retornando o mesmo erro nas novas tentativas. Use /abort para abortar.",
   "bot.external_user_input": "Entrada externa do usuário",

@@ -137,6 +137,9 @@ export const ko: I18nDictionary = {
     "⚠️ 활성 세션이 선택한 프로젝트와 일치하지 않아 초기화되었습니다. /sessions에서 세션을 선택하거나 /new로 새 세션을 만들어 주세요.",
   "bot.prompt_send_error": "Antigravity에 요청을 보내지 못했습니다.",
   "bot.session_error": "🔴 Antigravity 오류가 발생했습니다: {message}",
+  "bot.retrying": "⚠️ Antigravity 서비스를 사용할 수 없습니다(503) — 자동으로 재시도 중… 시도 {attempt}/{max}, 다음 시도 약 {seconds}초 후.",
+  "bot.retry_recovered": "✅ Antigravity가 복구되었습니다 — 계속합니다.",
+  "bot.retry_exhausted": "❌ Antigravity가 계속 사용 불가 상태입니다 — 재시도 소진. 서비스가 복구되면 메시지를 다시 보내주세요.",
   "bot.session_retry":
     "🔁 {message}\n\n재시도할 때마다 동일한 오류가 반복됩니다. /abort로 중단하세요.",
   "bot.external_user_input": "외부 사용자 입력",

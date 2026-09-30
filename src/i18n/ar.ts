@@ -131,6 +131,9 @@ export const ar: I18nDictionary = {
     "⚠️ الجلسة النشطة مرتبطة بمشروع مختلف، لذلك تمت إعادة ضبطها. استخدم /sessions لاختيار جلسة أو /new لبدء جلسة جديدة.",
   "bot.prompt_send_error": "تعذر إرسال الطلب إلى Antigravity.",
   "bot.session_error": "🔴 أعاد Antigravity الخطأ التالي: {message}",
+  "bot.retrying": "⚠️ خدمة Antigravity غير متاحة (503) — إعادة المحاولة تلقائيًا… المحاولة {attempt}/{max}، المحاولة التالية خلال ~{seconds} ثانية.",
+  "bot.retry_recovered": "✅ عادت Antigravity — متابعة.",
+  "bot.retry_exhausted": "❌ بقي Antigravity غير متاح — نفدت المحاولات. أعد إرسال رسالتك عندما يعود الخدمة.",
   "bot.session_retry":
     "🔁 {message}\n\nاستمر مزوّد الخدمة في إرجاع الخطأ نفسه بعد عدة محاولات. استخدم /abort لإيقاف المهمة.",
   "bot.external_user_input": "رسالة واردة من واجهة أخرى",

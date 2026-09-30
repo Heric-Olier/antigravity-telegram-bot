@@ -185,6 +185,8 @@ class EventSubscriptionService implements BotEventSubscriptionService {
   /** Hard TTL for the stream-side typing heartbeat (retry-orphan defense). */
   private readonly typingStaleAfterMs = 10 * 60_000;
   /** Live per-session progress for the stream header + progress pings. */
+  private retryStatusMessageId: number | null = null;
+
   private readonly turnProgress = new Map<
     string,
     { firstStepAt: number; lastPingAt: number; thinkingTotal: number }
@@ -1420,6 +1422,8 @@ class EventSubscriptionService implements BotEventSubscriptionService {
           ? `${normalizedMessage.slice(0, 3497)}...`
           : normalizedMessage;
 
+      await this.closeRetryStatus("exhausted");
+
       await this.botInstance.api
         .sendMessage(this.chatIdInstance, t("bot.session_error", { message: truncatedMessage }))
         .catch((err) => {
@@ -1542,6 +1546,17 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         }
       }
 
+      // Transient 503 retry in progress: keep ONE chat message updated so the
+      // user sees why the turn looks stuck (instead of silent "typing…").
+      if ((event.type as string) === "session.retrying") {
+        const retryProps = event.properties as { attempt?: number; max?: number; delayMs?: number };
+        void this.renderRetryStatus(
+          retryProps.attempt ?? 1,
+          retryProps.max ?? 1,
+          retryProps.delayMs ?? 0,
+        );
+      }
+
       // Live step progress (agy emits one per silent step): feed the tool
       // stream header and send a quiet ping every ~10 min of active work.
       if ((event.type as string) === "step.progress") {
@@ -1561,6 +1576,8 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         if (typeof idleSession === "string") {
           this.turnProgress.delete(idleSession);
         }
+        // A retry cycle that ends in a completed turn: close the status note.
+        void this.closeRetryStatus("recovered");
       }
 
       if (event.type === "session.created" || event.type === "session.updated") {
@@ -1614,6 +1631,42 @@ class EventSubscriptionService implements BotEventSubscriptionService {
     }
     progress.lastPingAt = now;
     this.sendProgressPing(stepIndex, progress, now);
+  }
+
+  private async renderRetryStatus(attempt: number, max: number, delayMs: number): Promise<void> {
+    if (!this.botInstance || !this.chatIdInstance || this.chatIdInstance <= 0) {
+      return;
+    }
+    const seconds = Math.max(1, Math.round(delayMs / 1000));
+    const text = t("bot.retrying", {
+      attempt: String(attempt),
+      max: String(max),
+      seconds: String(seconds),
+    });
+    try {
+      if (this.retryStatusMessageId !== null) {
+        await this.botInstance.api.editMessageText(this.chatIdInstance, this.retryStatusMessageId, text);
+      } else {
+        const sent = await this.botInstance.api.sendMessage(this.chatIdInstance, text);
+        this.retryStatusMessageId = sent.message_id;
+      }
+    } catch (error) {
+      logger.warn("[Bot] Failed to render retry status:", error);
+    }
+  }
+
+  private async closeRetryStatus(reason: "recovered" | "exhausted"): Promise<void> {
+    const messageId = this.retryStatusMessageId;
+    if (messageId === null || !this.botInstance || !this.chatIdInstance || this.chatIdInstance <= 0) {
+      return;
+    }
+    this.retryStatusMessageId = null;
+    const text = reason === "recovered" ? t("bot.retry_recovered") : t("bot.retry_exhausted");
+    try {
+      await this.botInstance.api.editMessageText(this.chatIdInstance, messageId, text);
+    } catch (error) {
+      logger.warn("[Bot] Failed to close retry status:", error);
+    }
   }
 
   private sendProgressPing(

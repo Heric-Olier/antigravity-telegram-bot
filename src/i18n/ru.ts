@@ -127,6 +127,9 @@ export const ru: I18nDictionary = {
     "⚠️ Активная сессия не соответствует выбранному проекту, поэтому была сброшена. Используйте /sessions для выбора или /new для создания новой сессии.",
   "bot.prompt_send_error": "Не удалось отправить запрос в Antigravity.",
   "bot.session_error": "🔴 Antigravity вернул ошибку: {message}",
+  "bot.retrying": "⚠️ Сервис Antigravity недоступен (503) — автоматическая повторная попытка… попытка {attempt}/{max}, следующая через ~{seconds} с.",
+  "bot.retry_recovered": "✅ Antigravity снова доступен — продолжаю.",
+  "bot.retry_exhausted": "❌ Antigravity остался недоступен — попытки исчерпаны. Отправьте сообщение снова, когда сервис восстановится.",
   "bot.session_retry":
     "🔁 {message}\n\nПровайдер возвращает одну и ту же ошибку при повторных запросах. Используйте /abort для остановки.",
   "bot.external_user_input": "Внешний ввод пользователя",

@@ -483,6 +483,32 @@ describe("bot/services/event-subscription-service", () => {
     return { api, summaryAggregator };
   }
 
+  it("renders the 503 retry status message and closes it when the turn recovers", async () => {
+    const { api } = await setupService(false);
+
+    const driverCallback = mocked.subscribeToEvents.mock.calls[0]?.[1] as (event: unknown) => void;
+    expect(driverCallback).toBeTypeOf("function");
+
+    driverCallback({ type: "session.retrying", properties: { attempt: 1, max: 12, delayMs: 5000 } });
+    await vi.waitFor(() => {
+      expect(api.sendMessage).toHaveBeenCalledTimes(1);
+    });
+    expect(defined(api.sendMessage.mock.calls[0]?.[1])).toContain("1/12");
+    expect(defined(api.sendMessage.mock.calls[0]?.[1])).toContain("~5s");
+
+    driverCallback({ type: "session.retrying", properties: { attempt: 2, max: 12, delayMs: 10000 } });
+    await vi.waitFor(() => {
+      expect(api.editMessageText).toHaveBeenCalledTimes(1);
+    });
+    expect(defined(api.editMessageText.mock.calls[0]?.[2])).toContain("2/12");
+
+    driverCallback({ type: "session.idle", properties: { sessionID: "session-1" } });
+    await vi.waitFor(() => {
+      expect(api.editMessageText).toHaveBeenCalledTimes(2);
+    });
+    expect(defined(api.editMessageText.mock.calls[1]?.[2])).toContain("back");
+  });
+
   it("sends write tool output as a document attachment when diff files are enabled", async () => {
     const { api, summaryAggregator } = await setupService(true);
 

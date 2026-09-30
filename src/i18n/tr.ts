@@ -128,6 +128,9 @@ export const tr: I18nDictionary = {
     "⚠️ Etkin oturum seçili projeyle eşleşmediği için sıfırlandı. Birini seçmek için /sessions veya yeni oturum oluşturmak için /new kullanın.",
   "bot.prompt_send_error": "İstek Antigravity'a gönderilemedi.",
   "bot.session_error": "🔴 Antigravity bir hata döndürdü: {message}",
+  "bot.retrying": "⚠️ Antigravity hizmeti kullanılamıyor (503) — otomatik yeniden deneme… deneme {attempt}/{max}, sonraki deneme ~{seconds} sn sonra.",
+  "bot.retry_recovered": "✅ Antigravity geri döndü — devam ediliyor.",
+  "bot.retry_exhausted": "❌ Antigravity kullanılamaz durumda kaldı — denemeler tükendi. Hizmet geri geldiğinde mesajınızı yeniden gönderin.",
   "bot.session_retry":
     "🔁 {message}\n\nSağlayıcı tekrarlanan denemelerde aynı hatayı döndürmeye devam ediyor. Durdurmak için /abort kullanın.",
   "bot.external_user_input": "Harici kullanıcı girdisi",
