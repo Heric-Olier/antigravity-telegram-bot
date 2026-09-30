@@ -175,9 +175,50 @@ function getToolIcon(tool: string): string {
       return "📄";
     case "skill":
       return "🎓";
+    // agy (Antigravity CLI) tool names
+    case "run_command":
+      return "🖥️";
+    case "view_file":
+      return "📄";
+    case "write_to_file":
+      return "✍️";
+    case "replace_file_content":
+      return "✏️";
+    case "read_url":
+      return "🌐";
+    case "search_web":
+      return "🔎";
+    case "manage_task":
+      return "🤖";
+    case "schedule":
+      return "⏰";
+    case "generate_image":
+      return "🎨";
+    case "list_directory":
+      return "📁";
+    case "grep_search":
+      return "🔍";
     default:
       return "🛠️";
   }
+}
+
+/** Human-friendly labels for agy tool names (Hermes-style "shell/read/edit"). */
+function getToolDisplayName(tool: string): string {
+  const names: Record<string, string> = {
+    run_command: "shell",
+    view_file: "read",
+    write_to_file: "write",
+    replace_file_content: "edit",
+    read_url: "fetch",
+    search_web: "search",
+    manage_task: "subagent",
+    schedule: "schedule",
+    generate_image: "image",
+    list_directory: "list",
+    grep_search: "grep",
+  };
+  return names[tool] ?? tool;
 }
 
 function formatTodos(todos: Array<{ content: string; status: string }>): string {
@@ -329,7 +370,7 @@ export function formatToolInfo(toolInfo: ToolInfo): string | null {
     }
   }
 
-  return `${toolIcon} ${description}${tool}${detailsStr}${lineInfo}`;
+  return `${toolIcon} ${description}${getToolDisplayName(tool)}${detailsStr}${lineInfo}`;
 }
 
 export function formatCompactToolInfo(toolInfo: ToolInfo, maxLength = 64, fallback = "-"): string {

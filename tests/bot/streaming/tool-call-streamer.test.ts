@@ -6,13 +6,16 @@ import { defined } from "../../helpers/defined.js";
 function wrapped(text: string, count = 1): string {
   const esc = (s: string) =>
     s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  const lines = text.split("\n");
-  const last = lines[lines.length - 1] ?? "";
-  const lastShort = last.length > 60 ? `${last.slice(0, 57)}…` : last;
-  const header =
-    `💭 Working… · ${count} tool call${count === 1 ? "" : "s"}` +
-    (last ? `\n↳ ${esc(lastShort)}` : "");
-  return `${header}\n<blockquote expandable>${esc(text)}</blockquote>`;
+  const lines = text.split("\n").filter((line) => line.trim());
+  const visible = 6;
+  const recent = lines.slice(-visible);
+  const earlier = lines.slice(0, Math.max(0, lines.length - visible));
+  const header = `💭 Working… · ${count} tool call${count === 1 ? "" : "s"}`;
+  const parts = [header, ...recent.map(esc)];
+  if (earlier.length > 0) {
+    parts.push(`<blockquote expandable>… ${earlier.length} earlier:\n${esc(earlier.join("\n"))}</blockquote>`);
+  }
+  return parts.join("\n");
 }
 
 describe("bot/streaming/tool-call-streamer", () => {

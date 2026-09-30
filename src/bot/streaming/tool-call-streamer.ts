@@ -130,6 +130,9 @@ function escapeHtml(value: string): string {
  * expand the individual tool lines. Plaintext fallback clients just see the
  * summary + list.
  */
+/** How many of the most recent tool lines stay visible (rest collapse). */
+const VISIBLE_TOOL_LINES = 6;
+
 function buildParts(entries: StreamEntry[], progress: StreamProgress | null = null): string[] {
   const lines = entries
     .map((entry) => entry.text.trim())
@@ -139,10 +142,6 @@ function buildParts(entries: StreamEntry[], progress: StreamProgress | null = nu
     return [];
   }
 
-  const escaped = escapeHtml(lines.join("\n"));
-  const body = `<blockquote expandable>${escaped}</blockquote>`;
-  const last = lines[lines.length - 1] ?? "";
-  const lastShort = last.length > 60 ? `${last.slice(0, 57)}…` : last;
   const progressBits: string[] = [];
   if (progress?.stepIndex !== undefined) {
     progressBits.push(`step ${progress.stepIndex}`);
@@ -154,10 +153,21 @@ function buildParts(entries: StreamEntry[], progress: StreamProgress | null = nu
     progressBits.push(`${Math.round(progress.elapsedMs / 60_000)}m`);
   }
   const progressSuffix = progressBits.length > 0 ? ` · ${progressBits.join(" · ")}` : "";
-  const header = `💭 Working… · ${lines.length} tool call${lines.length === 1 ? "" : "s"}${progressSuffix}\n↳ ${escapeHtml(lastShort)}`;
-  const full = `${header}\n${body}`;
+  const header = `💭 Working… · ${lines.length} tool call${lines.length === 1 ? "" : "s"}${progressSuffix}`;
 
-  return splitLongText(full, TELEGRAM_MESSAGE_SAFE_LENGTH).filter(Boolean);
+  // Hermes-style visibility: the most recent tool lines stay readable at a
+  // glance; older ones collapse into an expandable quote instead of hiding
+  // every line behind a tap.
+  const recent = lines.slice(-VISIBLE_TOOL_LINES);
+  const earlier = lines.slice(0, Math.max(0, lines.length - VISIBLE_TOOL_LINES));
+  const parts: string[] = [header, ...recent.map((line) => escapeHtml(line))];
+  if (earlier.length > 0) {
+    parts.push(
+      `<blockquote expandable>… ${earlier.length} earlier:\n${escapeHtml(earlier.join("\n"))}</blockquote>`,
+    );
+  }
+
+  return splitLongText(parts.join("\n"), TELEGRAM_MESSAGE_SAFE_LENGTH).filter(Boolean);
 }
 
 export class ToolCallStreamer {
