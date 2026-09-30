@@ -70,6 +70,18 @@ function isTransientCapacityError(message: string): boolean {
   );
 }
 
+/** Minimum response length that counts as a produced answer worth keeping. */
+const SALVAGE_MIN_RESPONSE_CHARS = 300;
+
+/**
+ * A transient failure that still produced a substantial response: the work is
+ * done and only the final plumbing call failed. Retrying re-runs the whole
+ * turn for minutes while the answer sits unread — keep it instead.
+ */
+function isSalvageableResponse(text: string): boolean {
+  return text.trim().length >= SALVAGE_MIN_RESPONSE_CHARS;
+}
+
 /** Cancel any pending capacity retry (user acted during the backoff window). */
 function cancelPendingRetry(reason: string): void {
   if (retryTimer) {
@@ -399,7 +411,25 @@ function handleResult(event: AgyResultEvent, sourceProc?: AntigravityProcess): v
     rotatedThisTurn && currentBlockText.length > 0 ? currentBlockText : finalText;
   const now = Date.now();
 
-  if (event.status === "ERROR") {
+  // SALVAGE: the 503 waves usually hit only the FINAL call of a turn — by
+  // then the model has produced its complete response (work done + closing
+  // summary). Retrying used to re-run the turn 12x for ~20 min while the
+  // user watched a "retrying" note next to an already-delivered summary and
+  // the typing indicator never cleared. When the failed attempt carries a
+  // substantial response, finalize the turn with it (success path) instead.
+  const salvageableError =
+    event.status === "ERROR" &&
+    isTransientCapacityError(event.error || "") &&
+    isSalvageableResponse(finalText);
+  if (salvageableError) {
+    logger.warn(
+      `[AgyEvents] transient error but response already produced (${finalText.length} chars) — finalizing with it instead of retrying`,
+    );
+    retryAttempt = 0;
+    suppressRetryStreaming = false;
+  }
+
+  if (event.status === "ERROR" && !salvageableError) {
     // Prefer the real error text from the envelope's `error` field; the
     // `response` may still carry the nicety text agy emitted before failing.
     const errorMessage = event.error || finalText || "Unknown agy error";

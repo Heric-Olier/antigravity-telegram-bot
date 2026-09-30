@@ -503,6 +503,49 @@ describe("antigravity/events", () => {
     expect(idleEvent.length).toBe(1);
   });
 
+  it("salvages a substantial response on a transient error instead of retrying", async () => {
+    const spawn = makeFakeChild();
+    spawnMock.mockImplementation(() => spawn.child);
+
+    const { events, callback } = collect();
+    await subscribeToEvents("/tmp/proj", callback);
+    await flush(1);
+    await sendPromptToActiveProcess("haz la tarea", "/tmp/proj");
+    await flush(1);
+
+    const stdout = (spawn.child as unknown as { stdout: EventEmitter }).stdout;
+    const bigResponse = `✅ Tarea completada — resumen:\n${"punto revisado y validado. ".repeat(15)}`;
+    expect(bigResponse.trim().length).toBeGreaterThan(300);
+    stdout.emit(
+      "data",
+      `${JSON.stringify({
+        event: "result",
+        result: {
+          status: "ERROR",
+          response: bigResponse,
+          error:
+            "API error (attempt 1): UNAVAILABLE (code 503): The service is currently unavailable.",
+          num_turns: 39,
+        },
+      })}\n`,
+    );
+    await flush(5);
+
+    // No retry scheduled and no retrying event surfaced.
+    expect(events.some((event) => event.type === "session.retrying")).toBe(false);
+    // Finalized like a success: completed assistant message + idle, no error.
+    expect(events.some((event) => event.type === "session.error")).toBe(false);
+    expect(
+      events.some(
+        (event) =>
+          event.type === "message.updated" &&
+          typeof (event.properties as { info?: { time?: { completed?: number } } }).info?.time
+            ?.completed === "number",
+      ),
+    ).toBe(true);
+    expect(events.filter((event) => event.type === "session.idle").length).toBe(1);
+  });
+
   it("reuses a single process for a re-subscription to the same directory", async () => {
     const spawn = makeFakeChild();
     spawnMock.mockImplementation(() => spawn.child);
