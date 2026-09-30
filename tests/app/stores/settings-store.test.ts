@@ -7,6 +7,7 @@ import type { ScheduledTask } from "../../../src/app/types/scheduled-task.js";
 import {
   __resetSettingsForTests,
   flushSettings,
+  getAutoCompactThresholdTokens,
   getCompactOutputMode,
   getPromptQueueEnabled,
   getResponseStreamingMode,
@@ -78,6 +79,23 @@ describe("app/stores/settings-store", () => {
     await loadSettings();
 
     expect(getShowThinkingContent()).toBe(true);
+  });
+
+  it("defaults the auto-compact threshold to half the context window", async () => {
+    await loadSettings();
+
+    expect(getAutoCompactThresholdTokens()).toBe(500_000);
+  });
+
+  it("honors an explicit auto-compact threshold from settings.json", async () => {
+    await writeFile(
+      path.join(tempHome, "settings.json"),
+      JSON.stringify({ autoCompactThresholdTokens: 200_000 }),
+    );
+
+    await loadSettings();
+
+    expect(getAutoCompactThresholdTokens()).toBe(200_000);
   });
 
   it("shows assistant run footer by default", async () => {

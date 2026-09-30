@@ -89,11 +89,14 @@ export function shouldAutoCompactNow(sessionId: string, usedTokens: number): boo
 
 export function buildCompactionSummaryPrompt(): string {
   return (
-    "\ud83e\uddf9 Compactaci\u00f3n de contexto: escribe un resumen de traspaso CONCISO " +
-    "(m\u00e1ximo ~300 palabras) para continuar esta tarea en una conversaci\u00f3n nueva. " +
-    "Incluye: (1) objetivo/tarea actual, (2) estado y archivos tocados (rutas completas), " +
-    "(3) decisiones clave tomadas, (4) pendientes / pr\u00f3ximos pasos. " +
-    "Responde SOLO con el resumen, sin pre\u00e1mbulos."
+    "\ud83e\uddf9 Compactaci\u00f3n de contexto: escribe un resumen de traspaso COMPLETO " +
+    "(m\u00e1ximo ~600 palabras) para continuar esta tarea en una conversaci\u00f3n nueva sin " +
+    "perder nada importante. Estructura: (1) OBJETIVO/TAREA actual y su estado exacto; " +
+    "(2) ARCHIVOS tocados (rutas completas) y qu\u00e9 se cambi\u00f3 en cada uno; " +
+    "(3) DECISIONES clave tomadas y por qu\u00e9; (4) PENDIENTES / pr\u00f3ximos pasos concretos; " +
+    "(5) DATOS DE CONTEXTO \u00fatiles (URLs, comandos, convenciones acordadas con el usuario, " +
+    "cuentas/entornos \u2014 sin secretos). No omitas nada que un compa\u00f1ero necesitar\u00eda " +
+    "para continuar; responde SOLO con el resumen, sin pre\u00e1mbulos."
   );
 }
 

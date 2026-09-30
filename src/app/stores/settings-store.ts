@@ -11,6 +11,7 @@ import type {
 import { config } from "../../config.js";
 import { getRuntimePaths } from "../../runtime/paths.js";
 import { logger } from "../../utils/logger.js";
+import { getContextLimit } from "../services/context-usage-tracker.js";
 
 function cloneScheduledTasks(tasks: ScheduledTask[] | undefined): ScheduledTask[] | undefined {
   return tasks?.map((task) => cloneScheduledTask(task));
@@ -254,7 +255,14 @@ export function getAutoCompactEnabled(): boolean {
 
 export function getAutoCompactThresholdTokens(): number {
   const value = currentSettings.autoCompactThresholdTokens;
-  return typeof value === "number" && value > 0 ? value : 150_000;
+  if (typeof value === "number" && value > 0) {
+    return value;
+  }
+  // Adaptive default: compact only when the conversation actually nears the
+  // model's context window (half of it). The old flat 150k default fired at
+  // 15% of the 1M window, compacting conversations that had barely begun to
+  // accumulate context and losing detail the user still needed.
+  return Math.floor(getContextLimit() * 0.5);
 }
 
 export function getPromptQueueEnabled(): boolean {
