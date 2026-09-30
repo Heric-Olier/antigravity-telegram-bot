@@ -20,6 +20,7 @@ import {
 import { interactionManager } from "../../app/managers/interaction-manager.js";
 import { clearAllInteractionState } from "../../app/managers/interaction-manager.js";
 import { safeBackgroundTask } from "../../utils/safe-background-task.js";
+import { materializeFileParts } from "../utils/agy-media.js";
 import { formatErrorDetails } from "../../utils/error-format.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
@@ -292,17 +293,32 @@ export async function processUserPrompt(
 
     // Counted from `parts` rather than `fileParts`: a file attached through /ls is added
     // above and would otherwise be missing from the logs.
+    // agy's stream-json input takes ONLY text content blocks, so the file
+    // parts above can't travel inline (verified against the CLI: "stream
+    // input content block type \"image\" is not supported"). Materialize them
+    // on disk and hand the model the paths instead — agy opens images fine
+    // through its view_file tool.
+    const attachmentPaths = await materializeFileParts(parts);
+    const attachmentReference =
+      attachmentPaths.length > 0
+        ? `[Archivos adjuntos guardados en disco — ábrelos con view_file para verlos: ${attachmentPaths.join(", ")}]`
+        : "";
+
     const filePartCount = parts.filter((part) => part.type === "file").length;
 
     const promptText = preparedInput.text.trim();
-    void parts;
+    const promptForAgy = attachmentReference
+      ? promptText.length > 0
+        ? `${promptText}\n\n${attachmentReference}`
+        : attachmentReference
+      : promptText;
 
     const promptErrorLogContext = {
       sessionId: currentSession.id,
       directory: currentSession.directory,
       agent: currentAgent || "default",
       modelId: storedModel.modelID || "default",
-      promptLength: promptText.length,
+      promptLength: promptForAgy.length,
       fileCount: filePartCount,
     };
 
@@ -350,7 +366,7 @@ export async function processUserPrompt(
 
     safeBackgroundTask({
       taskName: "agy.sendPrompt",
-      task: () => sendPromptToActiveProcess(promptText, currentSession.directory),
+      task: () => sendPromptToActiveProcess(promptForAgy, currentSession.directory),
       onSuccess: () => {
         logger.info("[Bot] agy prompt written to pipe");
         promptDispatched = true;

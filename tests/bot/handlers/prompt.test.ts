@@ -427,7 +427,7 @@ describe("bot/handlers/prompt", () => {
     expect(consumePromptResponseMode("session-1")).toBe("text_only");
   });
 
-  it("uses plural placeholder text for multiple file-only prompts", async () => {
+  it("points file-only prompts at the materialized attachments (agy text-only input)", async () => {
     const handled = await processUserPrompt(createContext(), "", createDeps(), [
       {
         type: "file",
@@ -446,7 +446,13 @@ describe("bot/handlers/prompt", () => {
     const backgroundTask = getScheduledBackgroundTask();
     await backgroundTask.task();
 
-    expect(mocked.sendPromptMock).toHaveBeenCalledWith("", "D:\\Projects\\Repo");
+    // agy only accepts text input blocks, so a file-only prompt now carries a
+    // disk reference to the materialized attachments (view_file opens them).
+    const [promptArg, directoryArg] = mocked.sendPromptMock.mock.calls[0] as [string, string];
+    expect(directoryArg).toBe("D:\\Projects\\Repo");
+    expect(promptArg).toContain("Archivos adjuntos guardados en disco");
+    const listedPaths = (promptArg.split(": ")[1] ?? "").split(", ");
+    expect(listedPaths).toHaveLength(2);
   });
 
   it("does not call OpenCode for an empty prompt without attachments", async () => {
@@ -486,7 +492,10 @@ describe("bot/handlers/prompt", () => {
 
     const backgroundTask = getScheduledBackgroundTask();
     await backgroundTask.task();
-    expect(mocked.sendPromptMock).toHaveBeenCalledWith("", "D:\\Projects\\Repo");
+    const [promptArg, directoryArg] = mocked.sendPromptMock.mock.calls[0] as [string, string];
+    expect(directoryArg).toBe("D:\\Projects\\Repo");
+    expect(promptArg).toContain("Archivos adjuntos guardados en disco");
+    expect(promptArg).toContain("rich.jpg");
   });
 
   it("keeps the standalone-photo caption fallback for models without images", async () => {
