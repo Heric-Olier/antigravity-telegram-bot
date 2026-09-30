@@ -36,6 +36,9 @@ export function isMalformedFunctionCallError(message: string): boolean {
 }
 /** How many capacity-503 retries have been consumed for the current prompt. */
 let retryAttempt = 0;
+/** True while a speculative 503-retry attempt runs: its text must not stream
+ *  (failed attempts used to seal as their own Telegram "summary" blocks). */
+let suppressRetryStreaming = false;
 
 // Deferred model-change recycle: a model was selected while a turn was in
 // flight; recycle the live process when the turn ends so the next prompt
@@ -308,6 +311,11 @@ function handleStep(event: AgyStepEvent): void {
   noteStepUsage(event.usage as Parameters<typeof noteStepUsage>[0]);
 
   if (event.stepType === "agent_response" && typeof event.textDelta === "string") {
+    if (suppressRetryStreaming) {
+      // Speculative retry attempt: keep the text out of both the stream and the
+      // block snapshot — the final (successful) result renders on its own.
+      return;
+    }
     // Feed mode: the first text after a tool batch opens a NEW block id, so the
     // bot layer sends it as its own Telegram message instead of editing the
     // previous one.
@@ -375,6 +383,7 @@ function handleResult(event: AgyResultEvent, sourceProc?: AntigravityProcess): v
   // turn; refresh the stored session title so the pinned dashboard shows the
   // real name instead of the short-id fallback on the next render.
   if (currentSessionId && event.status === "SUCCESS") {
+    suppressRetryStreaming = false;
     const title = getConversationTitle(currentSessionId.slice("agy-session-".length));
     if (title && !title.startsWith("Conversation ")) {
       syncSessionToRuntimeId(currentSessionId, title);
@@ -429,6 +438,11 @@ function handleResult(event: AgyResultEvent, sourceProc?: AntigravityProcess): v
           max: CAPACITY_RETRY_MAX,
           delayMs,
         });
+        // Speculative retry: stream nothing until an attempt succeeds. Without
+        // this, every failed attempt sealed its own narration block and the
+        // user saw several duplicated "done" summaries per 503 wave.
+        suppressRetryStreaming = true;
+        resetFeedTurn();
         // TOKEN-ECONOMY: 503 arrives while the agy process is usually still
         // ALIVE (the 503 comes from the server inside agy). Restarting the
         // process on every retry drops the prompt cache → the next run pays
@@ -465,6 +479,7 @@ function handleResult(event: AgyResultEvent, sourceProc?: AntigravityProcess): v
           if (!eventCallback || !lastPromptText || !lastPromptDirectory) {
             logger.warn("[AgyEvents] retry aborted: subscription or prompt state went away");
             retryAttempt = 0;
+            suppressRetryStreaming = false;
             return;
           }
           // Resume the SAME conversation on retry: spawning without a
@@ -492,8 +507,10 @@ function handleResult(event: AgyResultEvent, sourceProc?: AntigravityProcess): v
         return;
       }
       retryAttempt = 0;
+      suppressRetryStreaming = false;
     } else {
       retryAttempt = 0;
+      suppressRetryStreaming = false;
     }
     // Malformed/empty function call: one silent resend before surfacing it.
     if (!suppressNextTurnError && isMalformedFunctionCallError(errorMessage) && lastPromptText) {
@@ -600,6 +617,7 @@ function handleResult(event: AgyResultEvent, sourceProc?: AntigravityProcess): v
   lastPromptText = null;
   lastPromptDirectory = null;
   retryAttempt = 0;
+  suppressRetryStreaming = false;
   malformedRetryAttempt = 0;
   cancelPendingRetry("turn finished");
 
@@ -734,6 +752,7 @@ export function stopEventListening(): void {
   lastPromptText = null;
   lastPromptDirectory = null;
   retryAttempt = 0;
+  suppressRetryStreaming = false;
   malformedRetryAttempt = 0;
   if (activeProcess) {
     void activeProcess.kill().catch(() => undefined);
@@ -764,6 +783,7 @@ export async function interruptActiveTurn(): Promise<void> {
   lastPromptText = null;
   lastPromptDirectory = null;
   retryAttempt = 0;
+  suppressRetryStreaming = false;
   malformedRetryAttempt = 0;
   resetStallWatchdog();
   resetFeedTurn();
@@ -842,6 +862,7 @@ export function hotTakeoverPrompt(text: string): boolean {
     // top of the new one (the "attempt 1/2/3 cascade" over one conversation).
     cancelPendingRetry("hot takeover by user message");
     retryAttempt = 0;
+    suppressRetryStreaming = false;
     suppressNextTurnError = false;
     void activeProcess.sendPrompt(text).catch((err) => {
       logger.error("[AgyEvents] hot takeover write failed:", err);
@@ -862,6 +883,7 @@ export async function sendPromptToActiveProcess(text: string, directory: string)
   // suppression from a previously interrupted turn.
   cancelPendingRetry("new prompt sent");
   retryAttempt = 0;
+  suppressRetryStreaming = false;
   malformedRetryAttempt = 0;
   suppressNextTurnError = false;
   if (activeProcess && activeProcess.isRunning()) {

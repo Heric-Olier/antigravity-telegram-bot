@@ -399,6 +399,75 @@ describe("antigravity/events", () => {
     expect(events.some((event) => event.type === "session.error")).toBe(false);
   });
 
+  it("suppresses retry-attempt text streaming (no duplicated summary blocks)", async () => {
+    const spawn = makeFakeChild();
+    spawnMock.mockImplementation(() => spawn.child);
+
+    const { events, callback } = collect();
+    await subscribeToEvents("/tmp/proj", callback);
+    await flush(1);
+    await sendPromptToActiveProcess("haz la tarea", "/tmp/proj");
+    const stdout = (spawn.child as unknown as { stdout: EventEmitter }).stdout;
+
+    // 503 -> retry scheduled, suppression armed
+    stdout.emit(
+      "data",
+      `${JSON.stringify({
+        event: "result",
+        result: {
+          status: "ERROR",
+          response: "",
+          error: "API error (attempt 1): UNAVAILABLE (code 503): The service is currently unavailable.",
+          num_turns: 1,
+        },
+      })}\n`,
+    );
+    await flush(2);
+    expect(events.some((event) => event.type === "session.retrying")).toBe(true);
+
+    // Speculative attempt streams text -> must NOT surface to Telegram
+    stdout.emit(
+      "data",
+      `${JSON.stringify({
+        event: "step_update",
+        step_update: { step_index: 10, state: "ACTIVE", step_type: "agent_response", text_delta: "resumen duplicado" },
+      })}\n`,
+    );
+    await flush(2);
+    const textParts = events.filter(
+      (event) => event.type === "message.part.updated" && (event.properties.part as { type?: string })?.type === "text",
+    );
+    expect(textParts.length).toBe(0);
+
+    // The retry succeeds: the turn completes and later text streams again
+    stdout.emit(
+      "data",
+      `${JSON.stringify({
+        event: "result",
+        result: { status: "SUCCESS", response: "Resumen final", num_turns: 2 },
+      })}\n`,
+    );
+    await flush(2);
+    expect(events.some((event) => event.type === "session.idle")).toBe(true);
+
+    stdout.emit(
+      "data",
+      `${JSON.stringify({
+        event: "step_update",
+        step_update: { step_index: 11, state: "ACTIVE", step_type: "agent_response", text_delta: "bloque nuevo" },
+      })}\n`,
+    );
+    await flush(2);
+    // The SUCCESS result renders its final message (one text part); the new
+    // delta after it must also stream (suppression was lifted).
+    const textPartsAfter = events.filter(
+      (event) => event.type === "message.part.updated" && (event.properties.part as { type?: string })?.type === "text",
+    );
+    expect(
+      textPartsAfter.some((event) => (event.properties as { delta?: string }).delta === "bloque nuevo"),
+    ).toBe(true);
+  });
+
   it("ignores the user_input echo, non-JSON and broken lines", async () => {
     const spawn = makeFakeChild();
     spawnMock.mockImplementation(() => spawn.child);
