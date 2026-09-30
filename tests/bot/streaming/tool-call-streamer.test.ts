@@ -11,11 +11,13 @@ function wrapped(text: string, count = 1): string {
   const recent = lines.slice(-visible);
   const earlier = lines.slice(0, Math.max(0, lines.length - visible));
   const header = `💭 Working… · ${count} tool call${count === 1 ? "" : "s"}`;
-  const parts = [header, ...recent.map(esc)];
+  const pieces = [header, ...recent.map(esc)];
   if (earlier.length > 0) {
-    parts.push(`<blockquote expandable>… ${earlier.length} earlier:\n${esc(earlier.join("\n"))}</blockquote>`);
+    pieces.push(
+      `<blockquote expandable>… ${earlier.length} earlier:\n${earlier.map(esc).join("\n")}</blockquote>`,
+    );
   }
-  return parts.join("\n");
+  return pieces.join("\n");
 }
 
 describe("bot/streaming/tool-call-streamer", () => {
@@ -232,15 +234,25 @@ describe("bot/streaming/tool-call-streamer", () => {
       expect(sendText).toHaveBeenCalledTimes(1);
     });
 
-    streamer.append("s1", "b".repeat(3000));
+    // Long lines are clipped per line (1000 chars), so overflowing the 4000
+    // limit needs several of them; the payload then continues in a second
+    // message.
+    for (const filler of ["b", "c", "d", "e"]) {
+      streamer.append("s1", filler.repeat(3000));
+    }
     await vi.waitFor(() => {
       expect(sendText).toHaveBeenCalledTimes(2);
     });
 
-    expect(editText).toHaveBeenCalledTimes(1);
+    expect(editText).toHaveBeenCalled();
     for (const call of sendText.mock.calls) {
       const [, text] = call as unknown as [string, string];
       expect(text.length).toBeLessThanOrEqual(4000);
+      // Regression guard: HTML tags must never be split across messages
+      // (Telegram 400 "Can't find end tag corresponding to start tag").
+      const opens = (text.match(/<blockquote/g) ?? []).length;
+      const closes = (text.match(/<\/blockquote>/g) ?? []).length;
+      expect(opens).toBe(closes);
     }
   });
 

@@ -85,31 +85,6 @@ function delay(ms: number): Promise<void> {
 
 class TelegramOperationCancelledError extends Error {}
 
-function splitLongText(text: string, limit: number): string[] {
-  if (text.length <= limit) {
-    return [text];
-  }
-
-  const chunks: string[] = [];
-  let remaining = text;
-
-  while (remaining.length > limit) {
-    let splitIndex = remaining.lastIndexOf("\n", limit);
-    if (splitIndex <= 0 || splitIndex < Math.floor(limit * 0.5)) {
-      splitIndex = limit;
-    }
-
-    chunks.push(remaining.slice(0, splitIndex));
-    remaining = remaining.slice(splitIndex).replace(/^\n+/, "");
-  }
-
-  if (remaining.length > 0) {
-    chunks.push(remaining);
-  }
-
-  return chunks;
-}
-
 export function formatCompactTokens(value: number): string {
   if (value >= 1000) {
     return `${(value / 1000).toFixed(1)}k`;
@@ -160,14 +135,54 @@ function buildParts(entries: StreamEntry[], progress: StreamProgress | null = nu
   // every line behind a tap.
   const recent = lines.slice(-VISIBLE_TOOL_LINES);
   const earlier = lines.slice(0, Math.max(0, lines.length - VISIBLE_TOOL_LINES));
-  const parts: string[] = [header, ...recent.map((line) => escapeHtml(line))];
+
+  // Chunking must never split an HTML tag across messages: Telegram rejects
+  // edits whose <blockquote> end tag fell into the next chunk (400 "Can't
+  // find end tag corresponding to start tag"). The payload is therefore
+  // assembled from atomic pieces — plain lines may split freely BETWEEN
+  // lines, every quote chunk stays whole — and packed into messages of at
+  // most TELEGRAM_MESSAGE_SAFE_LENGTH.
+  const budget = TELEGRAM_MESSAGE_SAFE_LENGTH - 80; // tags/label headroom
+  const clip = (raw: string): string => (raw.length > 1000 ? `${raw.slice(0, 999)}…` : raw);
+  const pieces: string[] = [header, ...recent.map((line) => escapeHtml(clip(line)))];
   if (earlier.length > 0) {
-    parts.push(
-      `<blockquote expandable>… ${earlier.length} earlier:\n${escapeHtml(earlier.join("\n"))}</blockquote>`,
-    );
+    let batch: string[] = [];
+    let batchLen = 0;
+    let first = true;
+    const flush = (): void => {
+      if (batch.length === 0) {
+        return;
+      }
+      const label = first ? `… ${earlier.length} earlier:` : "… continued:";
+      first = false;
+      pieces.push(`<blockquote expandable>${label}\n${batch.join("\n")}</blockquote>`);
+      batch = [];
+      batchLen = 0;
+    };
+    for (const raw of earlier) {
+      const line = escapeHtml(clip(raw));
+      if (batchLen > 0 && batchLen + line.length + 1 > budget) {
+        flush();
+      }
+      batch.push(line);
+      batchLen += line.length + 1;
+    }
+    flush();
   }
 
-  return splitLongText(parts.join("\n"), TELEGRAM_MESSAGE_SAFE_LENGTH).filter(Boolean);
+  const chunks: string[] = [];
+  let current = "";
+  for (const piece of pieces) {
+    if (current.length > 0 && current.length + piece.length + 1 > budget) {
+      chunks.push(current);
+      current = "";
+    }
+    current = current.length > 0 ? `${current}\n${piece}` : piece;
+  }
+  if (current.length > 0) {
+    chunks.push(current);
+  }
+  return chunks;
 }
 
 export class ToolCallStreamer {
