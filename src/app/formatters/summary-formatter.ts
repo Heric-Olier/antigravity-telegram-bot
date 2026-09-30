@@ -333,12 +333,83 @@ export function formatToolInfo(toolInfo: ToolInfo): string | null {
     }
   }
 
+  // agy (Antigravity CLI) tool inputs use PascalCase keys, and the step title
+  // equals the raw tool name — without this mapping every line rendered as
+  // just "🖥️ shell" with no command/file context.
+  const pickString = (...keys: string[]): string | undefined => {
+    for (const key of keys) {
+      const value = input?.[key];
+      if (typeof value === "string" && value.trim()) {
+        return value.trim();
+      }
+    }
+    return undefined;
+  };
+  switch (tool) {
+    case "run_command": {
+      const command = pickString("CommandLine", "command");
+      if (command) {
+        details = truncateWithEllipsis(command, config.bot.bashToolDisplayMaxLength);
+      }
+      break;
+    }
+    case "view_file":
+    case "write_to_file":
+    case "replace_file_content": {
+      const file = pickString("AbsolutePath", "TargetFile", "path");
+      if (file) {
+        details = normalizePathForDisplay(file);
+      }
+      break;
+    }
+    case "read_url": {
+      const url = pickString("Url", "url");
+      if (url) {
+        details = url;
+      }
+      break;
+    }
+    case "search_web": {
+      const query = pickString("query", "Query");
+      if (query) {
+        details = truncateWithEllipsis(query, 60);
+      }
+      break;
+    }
+    case "manage_task": {
+      const action = pickString("Action", "action");
+      if (action) {
+        details = action;
+      }
+      break;
+    }
+    case "generate_image": {
+      const name = pickString("ImageName", "imageName");
+      if (name) {
+        details = name;
+      }
+      break;
+    }
+    case "schedule": {
+      const secs = input?.["DurationSeconds"];
+      if (typeof secs === "number") {
+        details = `${secs}s`;
+      }
+      break;
+    }
+  }
+
   const normalizedDetails = details === tool ? "" : details;
   const detailsStr = normalizedDetails ? ` ${normalizedDetails}` : "";
   let lineInfo = "";
 
   if (tool === "write" && input && "content" in input && typeof input.content === "string") {
     const lines = countLines(input.content);
+    lineInfo = ` (+${lines})`;
+  }
+
+  if (tool === "write_to_file" && typeof input?.["CodeContent"] === "string") {
+    const lines = countLines(input["CodeContent"]);
     lineInfo = ` (+${lines})`;
   }
 

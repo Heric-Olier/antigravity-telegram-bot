@@ -403,4 +403,58 @@ describe("bot/messages/summary-message-formatter", () => {
     const writeFile = prepareCodeFile("content", "D:/repo/src/absolute-write.ts", "write");
     expect(writeFile?.buffer.toString("utf8")).toContain("Write File/Path: src/absolute-write.ts");
   });
+
+  it("renders agy tool inputs (PascalCase keys) as readable details", () => {
+    const base = {
+      sessionId: "s1",
+      messageId: "m1",
+      callId: "c1",
+      state: { status: "completed" } as never,
+    };
+
+    const shell = formatToolInfo({
+      ...base,
+      tool: "run_command",
+      title: "run_command",
+      input: { CommandLine: 'curl -s "https://sportingtienda.com/product/rueda-abdominal"' },
+    });
+    expect(shell).toContain("🖥️ shell curl -s");
+
+    const read = formatToolInfo({
+      ...base,
+      tool: "view_file",
+      title: "view_file",
+      input: { AbsolutePath: "D:/repo/templates/index.html" },
+    });
+    expect(read).toContain("📄 read");
+    expect(read).toContain("templates/index.html");
+
+    const search = formatToolInfo({
+      ...base,
+      tool: "search_web",
+      title: "search_web",
+      input: { query: "whatsapp preview metadata" },
+    });
+    expect(search).toContain("🔎 search");
+    expect(search).toContain("whatsapp preview metadata");
+
+    const write = formatToolInfo({
+      ...base,
+      tool: "write_to_file",
+      title: "write_to_file",
+      input: { TargetFile: "D:/repo/src/app.ts", CodeContent: "line1\nline2\nline3" },
+    });
+    expect(write).toContain("✍️ write");
+    expect(write).toContain("src/app.ts");
+    expect(write).toContain("(+3)");
+
+    const edit = formatToolInfo({
+      ...base,
+      tool: "replace_file_content",
+      title: "replace_file_content",
+      input: { TargetFile: "D:/repo/src/index.php" },
+    });
+    expect(edit).toContain("✏️ edit");
+    expect(edit).toContain("src/index.php");
+  });
 });
