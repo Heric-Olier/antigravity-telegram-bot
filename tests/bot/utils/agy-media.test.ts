@@ -45,6 +45,24 @@ describe("bot/utils/agy-media", () => {
     expect(await fs.readFile(file, "utf8")).toBe("hello-image-bytes");
   });
 
+  it("does not duplicate the extension when the filename already has it", async () => {
+    const payload = Buffer.from("bytes");
+    const parts = [
+      {
+        type: "file",
+        mime: "image/jpeg",
+        filename: "photo.jpg",
+        url: `data:image/jpeg;base64,${payload.toString("base64")}`,
+      },
+    ];
+
+    const files = await materializeFileParts(parts);
+
+    const file = files[0] ?? "";
+    expect(file.endsWith("photo.jpg")).toBe(true);
+    expect(file.endsWith(".jpg.jpg")).toBe(false);
+  });
+
   it("skips parts without a usable data URI", async () => {
     const files = await materializeFileParts([
       { type: "file", filename: "x", url: "https://example.com/x.jpg" },

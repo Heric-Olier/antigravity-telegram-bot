@@ -41,6 +41,15 @@ function normalizeIncomingCommand(text: string): string | null {
   if (!token) {
     return null;
   }
+
+  // A filesystem path is not a command: "/home/user/logo.png este es el
+  // logo" must reach the agent as TEXT. Users routinely paste paths, and a
+  // path misclassified as a command gets rejected while the agent is busy
+  // (command_not_allowed) instead of taking the in-flight lane.
+  if (token.slice(1).includes("/")) {
+    return null;
+  }
+
   const withoutMention = token.split("@")[0]?.toLowerCase();
 
   if (!withoutMention || withoutMention.length <= 1) {

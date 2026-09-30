@@ -71,6 +71,34 @@ describe("interaction guard", () => {
     expect(decision.inputType).toBe("text");
   });
 
+  it("classifies filesystem paths as text, not commands", () => {
+    const decision = resolveInteractionGuardDecision(
+      createContext({ text: "/home/bazzite/Imágenes/388e7d91-logo.png este es el logo" }),
+    );
+
+    expect(decision.inputType).toBe("text");
+    expect(decision.command).toBeUndefined();
+  });
+
+  it("keeps real commands classified as commands", () => {
+    const decision = resolveInteractionGuardDecision(createContext({ text: "/status" }));
+
+    expect(decision.inputType).toBe("command");
+    expect(decision.command).toBe("/status");
+  });
+
+  it("busy + path message: classified as text so the in-flight lane takes it", () => {
+    foregroundSessionState.markBusy("session-1", "D:\\Projects\\Repo");
+
+    const decision = resolveInteractionGuardDecision(
+      createContext({ text: "/home/bazzite/Imágenes/logo.png este es el logo" }),
+    );
+
+    expect(decision.inputType).toBe("text");
+    expect(decision.reason).toBe("expected_text");
+    expect(decision.busy).toBe(true);
+  });
+
   it("allows callback when callback input is expected", () => {
     interactionManager.start({
       kind: "inline",

@@ -48,7 +48,12 @@ export async function materializeFileParts(
 
     try {
       await fs.mkdir(dir, { recursive: true });
-      const target = path.join(dir, `${Date.now()}-${sanitizeFileName(rawName)}${ext}`);
+      const baseName = sanitizeFileName(rawName);
+      const finalName =
+        ext && baseName.toLowerCase().endsWith(ext.toLowerCase())
+          ? baseName
+          : `${baseName}${ext}`;
+      const target = path.join(dir, `${Date.now()}-${finalName}`);
       await fs.writeFile(target, Buffer.from(data, "base64"));
       files.push(target);
     } catch (error) {
