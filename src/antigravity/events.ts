@@ -60,12 +60,16 @@ let lastPromptDirectory: string | null = null;
 /** Transient provider errors worth a transparent resend (not user faults).
  * NOTE: "deadline exceeded" from the print-timeout config check is NOT here —
  * agy's print-timeout exits 0 with partial output (handled in agent-process),
- * so a bare deadline error text is a genuine upstream deadline. */
+ * so a bare deadline error text is a genuine upstream deadline.
+ * "The stream was interrupted" = agy's SSE stream to Google broke mid-turn
+ * (network blip / backend cut); agy keeps the conversation state, so it is
+ * retryable — and salvageable when the turn had already produced its closing
+ * summary (observed live: 3.6k-char summary lost behind a scary error). */
 function isTransientCapacityError(message: string): boolean {
   // HTTP 5xx edge errors arrive as full HTML pages from Google's frontend
   // ("Error 502 (Server Error)!!1" ... "Please try again in 30 seconds") and
   // are just as transient as the gRPC capacity codes — retry them too.
-  return /UNAVAILABLE|RESOURCE_EXHAUSTED|No capacity available|internal error|Internal|code 5\d\d|Server Error|Bad Gateway|Gateway Time-?out|temporarily unavailable|try again in \d+ seconds/i.test(
+  return /UNAVAILABLE|RESOURCE_EXHAUSTED|No capacity available|internal error|Internal|code 5\d\d|Server Error|Bad Gateway|Gateway Time-?out|temporarily unavailable|try again in \d+ seconds|stream was interrupted/i.test(
     message,
   );
 }

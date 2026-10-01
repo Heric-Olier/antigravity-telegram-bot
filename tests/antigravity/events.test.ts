@@ -546,6 +546,77 @@ describe("antigravity/events", () => {
     expect(events.filter((event) => event.type === "session.idle").length).toBe(1);
   });
 
+  it("salvages a substantial response when the stream was interrupted instead of surfacing the error", async () => {
+    const spawn = makeFakeChild();
+    spawnMock.mockImplementation(() => spawn.child);
+
+    const { events, callback } = collect();
+    await subscribeToEvents("/tmp/proj", callback);
+    await flush(1);
+    await sendPromptToActiveProcess("haz la tarea", "/tmp/proj");
+    await flush(1);
+
+    const stdout = (spawn.child as unknown as { stdout: EventEmitter }).stdout;
+    const bigResponse = `✅ Tarea completada — resumen:\n${"punto revisado y validado. ".repeat(15)}`;
+    expect(bigResponse.trim().length).toBeGreaterThan(300);
+    stdout.emit(
+      "data",
+      `${JSON.stringify({
+        event: "result",
+        result: {
+          status: "ERROR",
+          response: bigResponse,
+          error: "The stream was interrupted. Please continue the task you were working on.",
+          num_turns: 16,
+        },
+      })}\n`,
+    );
+    await flush(5);
+
+    // No retry scheduled and no error surfaced: the produced summary is kept.
+    expect(events.some((event) => event.type === "session.retrying")).toBe(false);
+    expect(events.some((event) => event.type === "session.error")).toBe(false);
+    expect(
+      events.some(
+        (event) =>
+          event.type === "message.updated" &&
+          typeof (event.properties as { info?: { time?: { completed?: number } } }).info?.time
+            ?.completed === "number",
+      ),
+    ).toBe(true);
+    expect(events.filter((event) => event.type === "session.idle").length).toBe(1);
+  });
+
+  it("retries a stream interruption that produced no substantial response", async () => {
+    const spawn = makeFakeChild();
+    spawnMock.mockImplementation(() => spawn.child);
+
+    const { events, callback } = collect();
+    await subscribeToEvents("/tmp/proj", callback);
+    await flush(1);
+    await sendPromptToActiveProcess("haz la tarea", "/tmp/proj");
+    await flush(1);
+
+    const stdout = (spawn.child as unknown as { stdout: EventEmitter }).stdout;
+    stdout.emit(
+      "data",
+      `${JSON.stringify({
+        event: "result",
+        result: {
+          status: "ERROR",
+          response: "",
+          error: "The stream was interrupted. Please continue the task you were working on.",
+          num_turns: 3,
+        },
+      })}\n`,
+    );
+    await flush(5);
+
+    // Transient class → retry scheduled and surfaced; no hard error yet.
+    expect(events.some((event) => event.type === "session.retrying")).toBe(true);
+    expect(events.some((event) => event.type === "session.error")).toBe(false);
+  });
+
   it("reuses a single process for a re-subscription to the same directory", async () => {
     const spawn = makeFakeChild();
     spawnMock.mockImplementation(() => spawn.child);
